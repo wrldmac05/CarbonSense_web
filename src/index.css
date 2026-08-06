@@ -1,0 +1,28 @@
+/* 1. CSS Reset to push everything flush to the edges */
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+*, *::before, *::after {
+  box-sizing: inherit;
+}
+
+/* 2. Force Recharts to drop the accessibility outline on click (Our previous fix) */
+.recharts-wrapper:focus,
+.recharts-surface:focus,
+.recharts-responsive-container:focus,
+.recharts-wrapper:focus-visible,
+.recharts-surface:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Fix for individual SVG elements inside the chart getting focused */
+.recharts-surface *,
+.recharts-wrapper * {
+  outline: none !important;
+}
