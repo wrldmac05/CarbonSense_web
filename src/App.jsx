@@ -30,9 +30,6 @@ export default function App() {
   // 🟢 Defines which routes are allowed to hide the standard Navbar and Footer
   const isMinimalRoute = location.pathname === '/admin' || location.pathname === '/update-password' || location.pathname === '/staff-setup'
 
-  // 🔑 Detect if user is arriving from email verification redirect
-  const isVerifyingEmail = location.search.includes('verified=true')
-
   const isBooting = useRef(true)
 
   useEffect(() => {
@@ -51,6 +48,17 @@ export default function App() {
 
     // 1. Boot Application Session
     const bootApp = async () => {
+      // 🟢 INTERCEPT EMAIL VERIFICATION: If arriving from confirmation link, force sign out immediately
+      if (window.location.search.includes('verified=true')) {
+        await supabase.auth.signOut()
+        if (isMounted) {
+          setIsLoggedIn(false)
+          setUserRole(null)
+          setIsAuthLoading(false)
+        }
+        return
+      }
+
       const {
         data: {session}
       } = await supabase.auth.getSession()
@@ -72,10 +80,22 @@ export default function App() {
 
     bootApp()
 
-    // 2. Auth Listener
+    // 2. Auth State Listener
     const {
       data: {subscription}
     } = supabase.auth.onAuthStateChange((event, session) => {
+      // 🟢 INTERCEPT EMAIL VERIFICATION EVENT: Prevent setting isLoggedIn = true when confirming account
+      if (window.location.search.includes('verified=true')) {
+        supabase.auth.signOut().then(() => {
+          if (isMounted) {
+            setIsLoggedIn(false)
+            setUserRole(null)
+            setIsAuthLoading(false)
+          }
+        })
+        return
+      }
+
       if (['SIGNED_IN', 'TOKEN_REFRESHED', 'INITIAL_SESSION'].includes(event)) {
         if (session?.user) {
           fetchRole(session.user.id).then(role => {
@@ -143,8 +163,8 @@ export default function App() {
           <Route path="/" element={isAdmin ? <Navigate to="/admin" replace /> : <Home />} />
           <Route path="/dashboard" element={isAdmin ? <Navigate to="/admin" replace /> : <Dashboard />} />
 
-          {/* 🟢 FIXED ROUTE GUARD: Allow Login component to render if verifying email */}
-          <Route path="/login" element={isLoggedIn && !isVerifyingEmail ? isAdmin ? <Navigate to="/admin" replace /> : <Navigate to="/tracker" replace /> : <Login />} />
+          {/* 🟢 Clean Login Route Guard */}
+          <Route path="/login" element={isLoggedIn ? isAdmin ? <Navigate to="/admin" replace /> : <Navigate to="/tracker" replace /> : <Login />} />
 
           <Route path="/tracker" element={isAdmin ? <Navigate to="/admin" replace /> : <PersonalTracker />} />
           <Route path="/get-app" element={isAdmin ? <Navigate to="/admin" replace /> : <GetApp />} />

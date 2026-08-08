@@ -39,23 +39,15 @@ export default function Login() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
 
-  // 🔒 Enforce Fresh Login on Email Confirmation
+  // 🔒 Display Success Banner on Email Confirmation
   useEffect(() => {
-    const checkEmailVerification = async () => {
-      // Check if arriving from confirmation redirect
-      if (searchParams.get('verified') === 'true') {
-        // Destroy the auto-authenticated session created by the email link
-        await supabase.auth.signOut()
+    if (searchParams.get('verified') === 'true') {
+      // Display user notification
+      setSuccessMsg('Account confirmed! Please log in with your credentials to continue.')
 
-        // Display user notification
-        setSuccessMsg('Account confirmed! Please log in with your credentials to continue.')
-
-        // Clean query param from address bar without reloading page
-        setSearchParams({}, {replace: true})
-      }
+      // Clean query param from address bar without reloading page
+      setSearchParams({}, {replace: true})
     }
-
-    checkEmailVerification()
   }, [searchParams, setSearchParams])
 
   // Validations
