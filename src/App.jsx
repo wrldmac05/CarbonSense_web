@@ -27,15 +27,11 @@ export default function App() {
 
   const location = useLocation()
 
-  // 🟢 Defines which routes are allowed to hide the standard Navbar and Footer
   const isMinimalRoute = location.pathname === '/admin' || location.pathname === '/update-password' || location.pathname === '/staff-setup'
-
-  const isBooting = useRef(true)
 
   useEffect(() => {
     let isMounted = true
 
-    // Helper to fetch role
     const fetchRole = async userId => {
       try {
         const {data, error} = await supabase.from('user_profiles').select('role').eq('user_id', userId).single()
@@ -48,16 +44,10 @@ export default function App() {
 
     // 1. Boot Application Session
     const bootApp = async () => {
-      // 🟢 INTERCEPT EMAIL VERIFICATION: If arriving from confirmation link, force sign out immediately
-      if (window.location.search.includes('verified=true')) {
-        await supabase.auth.signOut()
-        if (isMounted) {
-          setIsLoggedIn(false)
-          setUserRole(null)
-          setIsAuthLoading(false)
-        }
-        return
-      }
+      const isVerifying = window.location.search.includes('verified=true')
+
+      // If arriving from verification link, delay boot state until signOut completes in onAuthStateChange
+      if (isVerifying) return
 
       const {
         data: {session}
@@ -83,28 +73,31 @@ export default function App() {
     // 2. Auth State Listener
     const {
       data: {subscription}
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      // 🟢 INTERCEPT EMAIL VERIFICATION EVENT: Prevent setting isLoggedIn = true when confirming account
-      if (window.location.search.includes('verified=true')) {
-        supabase.auth.signOut().then(() => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      const isVerifying = window.location.search.includes('verified=true')
+
+      // 🟢 HANDLE EMAIL VERIFICATION: Wait for session creation, then terminate it safely
+      if (isVerifying) {
+        if (event === 'SIGNED_IN' || session) {
+          await supabase.auth.signOut()
+        } else if (event === 'SIGNED_OUT' || !session) {
           if (isMounted) {
             setIsLoggedIn(false)
             setUserRole(null)
             setIsAuthLoading(false)
           }
-        })
+        }
         return
       }
 
       if (['SIGNED_IN', 'TOKEN_REFRESHED', 'INITIAL_SESSION'].includes(event)) {
         if (session?.user) {
-          fetchRole(session.user.id).then(role => {
-            if (isMounted) {
-              setIsLoggedIn(true)
-              setUserRole(role)
-              setIsAuthLoading(false)
-            }
-          })
+          const role = await fetchRole(session.user.id)
+          if (isMounted) {
+            setIsLoggedIn(true)
+            setUserRole(role)
+            setIsAuthLoading(false)
+          }
         }
       } else if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
         if (isMounted) {
@@ -122,7 +115,7 @@ export default function App() {
         sleepTimer = Date.now()
       } else {
         if (sleepTimer && Date.now() - sleepTimer > 30000) {
-          console.log('Tab woke from deep sleep. Forcing clean state...')
+          console.log('Tab woke from deep sleep.')
         }
       }
     }
@@ -136,7 +129,6 @@ export default function App() {
     }
   }, [])
 
-  // 🛡️ GLOBAL SESSION LOADING SHIELD
   if (isAuthLoading) {
     return (
       <Center minH="100vh" bg="#F4FAF6">
@@ -150,7 +142,6 @@ export default function App() {
     )
   }
 
-  // 🛡️ GATEKEEPER LOGIC
   const isAdmin = isLoggedIn && userRole === 'admin'
   const showPublicLayout = !isMinimalRoute && !isAdmin
 
@@ -163,7 +154,6 @@ export default function App() {
           <Route path="/" element={isAdmin ? <Navigate to="/admin" replace /> : <Home />} />
           <Route path="/dashboard" element={isAdmin ? <Navigate to="/admin" replace /> : <Dashboard />} />
 
-          {/* 🟢 Clean Login Route Guard */}
           <Route path="/login" element={isLoggedIn ? isAdmin ? <Navigate to="/admin" replace /> : <Navigate to="/tracker" replace /> : <Login />} />
 
           <Route path="/tracker" element={isAdmin ? <Navigate to="/admin" replace /> : <PersonalTracker />} />
