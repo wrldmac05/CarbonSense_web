@@ -48,7 +48,6 @@ export default function Login() {
   const handleAuth = async e => {
     e.preventDefault()
 
-    // 🟢 Hard Guard: Prevent execution if already loading (stops spam clicks)
     if (loading) return
 
     setLoading(true)
@@ -65,7 +64,7 @@ export default function Login() {
         if (error) throw error
 
         setSuccessMsg('Check your email for the password reset link!')
-        setLoading(false) // Re-enable so they can click "Log In"
+        setLoading(false)
         return
       }
 
@@ -84,7 +83,7 @@ export default function Login() {
         if (error) throw error
 
         setIsRegistrationSuccess(true)
-        setLoading(false) // Safe to disable loading since the UI flips to the success screen
+        setLoading(false)
         return
       }
 
@@ -95,17 +94,21 @@ export default function Login() {
       })
       if (error) throw error
 
-      const {data: profile} = await supabase.from('user_profiles').select('role').eq('user_id', data.user.id).maybeSingle()
+      // 🟢 ARCHIVE GUARD: Query user role and archive status
+      const {data: profile} = await supabase.from('user_profiles').select('role, is_archived').eq('user_id', data.user.id).maybeSingle()
+
+      if (profile?.is_archived) {
+        await supabase.auth.signOut()
+        throw new Error('Your account has been archived. Please contact an administrator.')
+      }
 
       if (profile?.role === 'admin') {
         navigate('/admin')
       } else {
         navigate('/tracker')
       }
-      // 🟢 DELIBERATELY omit setLoading(false) here so the spinner stays active during routing transition
     } catch (error) {
       setErrorMsg(error.message)
-      // 🟢 Turn off the spinner ONLY if there was an error so the user can try again
       setLoading(false)
     }
   }
@@ -171,16 +174,14 @@ export default function Login() {
       justifyContent="center"
       position="relative"
       overflow="hidden"
-      bg="#F4F9F5" // Soft earthy sage base
+      bg="#F4F9F5"
       backgroundImage="url('https://www.transparenttextures.com/patterns/cubes.png')"
       backgroundBlendMode="multiply"
       py={{base: 12, md: 16}}
     >
-      {/* 🌿 Animated Ambient Aurora Glows */}
       <Box position="absolute" top="-10%" left="-10%" w="700px" h="700px" bgGradient="radial(#48BB78 0%, transparent 65%)" opacity="0.18" borderRadius="full" pointerEvents="none" />
       <Box position="absolute" bottom="-20%" right="-10%" w="700px" h="700px" bgGradient="radial(#319795 0%, transparent 65%)" opacity="0.15" borderRadius="full" pointerEvents="none" />
 
-      {/* Floating Header Back Navigation */}
       <Box position="absolute" top={8} left={{base: 6, md: 10}} zIndex={10}>
         <Flex align="center" gap={2} as={Link} to="/" transition="all 0.2s" _hover={{opacity: 0.7, transform: 'translateX(-4px)'}}>
           <Text fontSize="lg" color="#1C4532">
@@ -192,7 +193,6 @@ export default function Login() {
         </Flex>
       </Box>
 
-      {/* 🔐 AUTHENTICATION MAIN BOX (Frosted Glass Elevation) */}
       <Box
         w="90%"
         maxW="450px"
@@ -247,7 +247,6 @@ export default function Login() {
 
         <form onSubmit={handleAuth}>
           <VStack spacing={4} align="stretch">
-            {/* 🪄 Dynamic Form Field Injection Motion */}
             {isSignUp && !isResetting && (
               <Box animation={`${fieldFadeIn} 0.35s ease-out both`} overflow="hidden">
                 <Text fontSize="xs" fontWeight="bold" color="#1C4532" textTransform="uppercase" mb={2} ml={1}>
@@ -258,9 +257,8 @@ export default function Login() {
                   value={fullName}
                   onChange={e => {
                     let value = e.target.value
-
-                    value = value.replace(/^\s+/, '') // remove leading spaces
-                    value = value.replace(/\s{2,}/g, ' ') // prevent double spaces
+                    value = value.replace(/^\s+/, '')
+                    value = value.replace(/\s{2,}/g, ' ')
 
                     if (/^[A-Za-zÀ-ÿ\s'.-]*$/.test(value)) {
                       setFullName(value)
@@ -281,7 +279,7 @@ export default function Login() {
                   py={6}
                   borderRadius="xl"
                   transition="all 0.2s"
-                  isDisabled={loading} // 🟢 Native Chakra Disable
+                  isDisabled={loading}
                 />
               </Box>
             )}
@@ -303,7 +301,7 @@ export default function Login() {
                 py={6}
                 borderRadius="xl"
                 transition="all 0.2s"
-                isDisabled={loading} // 🟢 Native Chakra Disable
+                isDisabled={loading}
               />
             </Box>
 
@@ -317,13 +315,13 @@ export default function Login() {
                     <Text
                       as="span"
                       fontSize="xs"
-                      color={loading ? '#A0AEC0' : '#276749'} // Disable look when loading
+                      color={loading ? '#A0AEC0' : '#276749'}
                       fontWeight="bold"
                       cursor={loading ? 'not-allowed' : 'pointer'}
                       transition="color 0.15s"
                       _hover={{textDecoration: loading ? 'none' : 'underline', color: loading ? '#A0AEC0' : '#1C4532'}}
                       onClick={() => {
-                        if (loading) return // Prevent flipping state mid-load
+                        if (loading) return
                         setIsResetting(true)
                         setErrorMsg('')
                         setSuccessMsg('')
@@ -349,7 +347,7 @@ export default function Login() {
                     pr="4.5rem"
                     borderRadius="xl"
                     transition="all 0.2s"
-                    isDisabled={loading} // 🟢 Native Chakra Disable
+                    isDisabled={loading}
                   />
                   <Button
                     position="absolute"
@@ -371,7 +369,6 @@ export default function Login() {
                   </Button>
                 </Box>
 
-                {/* Requirements Checklist Slide Expansion */}
                 {isSignUp && (
                   <Box mt={3} px={2} animation={`${fieldFadeIn} 0.3s ease-out both`}>
                     <Text fontSize="xs" fontWeight="bold" color="#4A5568" mb={3}>
@@ -501,7 +498,7 @@ export default function Login() {
 
             <Button
               type="submit"
-              isDisabled={loading} // 🟢 Native Chakra disable lock
+              isDisabled={loading}
               bg="#22543D"
               color="white"
               borderRadius="xl"
@@ -512,13 +509,12 @@ export default function Login() {
               boxShadow={loading ? 'none' : '0 8px 20px rgba(34, 84, 61, 0.2)'}
               transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
               _hover={{
-                bg: loading ? '#22543D' : '#1C4532', // Don't show hover effect while loading
+                bg: loading ? '#22543D' : '#1C4532',
                 transform: loading ? 'none' : 'translateY(-3px)',
                 boxShadow: loading ? 'none' : '0 15px 30px rgba(34, 84, 61, 0.25)'
               }}
               _active={{transform: 'translateY(0)'}}
             >
-              {/* 🟢 Dynamic Manual Spinner Implementation */}
               {loading ? (
                 <Flex align="center" gap={3}>
                   <Spinner size="sm" color="white" />
@@ -546,7 +542,7 @@ export default function Login() {
             transition="color 0.15s"
             _hover={{textDecoration: loading ? 'none' : 'underline', color: loading ? '#A0AEC0' : '#1C4532'}}
             onClick={() => {
-              if (loading) return // Prevent clicking away while processing
+              if (loading) return
               if (isResetting) {
                 setIsResetting(false)
                 setIsSignUp(false)

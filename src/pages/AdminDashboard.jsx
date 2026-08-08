@@ -26,7 +26,6 @@ const dangerPop = keyframes`
   from { opacity: 0; transform: scale(0.9) translateY(20px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
 `
-// 🟢 Custom Notification Animation
 const slideInRight = keyframes`
   from { opacity: 0; transform: translateX(50px); }
   to { opacity: 1; transform: translateX(0); }
@@ -92,7 +91,7 @@ export default function AdminDashboard() {
   const [confirmDialog, setConfirmDialog] = useState(null)
   const [isProcessingAction, setIsProcessingAction] = useState(false)
 
-  // 🟢 Custom Internal Notification State (Replaces useToast)
+  // Custom Internal Notification State
   const [notification, setNotification] = useState(null)
   const notificationTimer = useRef(null)
 
@@ -129,7 +128,7 @@ export default function AdminDashboard() {
     co2_saved_estimate: ''
   })
 
-  // 🤖 AI Prescription States
+  // AI Prescription States
   const [prescriptions, setPrescriptions] = useState({
     daily: 'Syncing latest daily telemetry...',
     weekly: 'Syncing latest weekly telemetry...',
@@ -137,12 +136,12 @@ export default function AdminDashboard() {
   })
   const [activeInsightTab, setActiveInsightTab] = useState('daily')
 
-  // 📅 CALENDAR & TIMETRAVEL STATE
+  // CALENDAR & TIMETRAVEL STATE
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [calendarMonth, setCalendarMonth] = useState(new Date())
   const [rawGlobalData, setRawGlobalData] = useState(null)
 
-  // 📊 REBUILT OVERVIEW ANALYTICS STATE
+  // OVERVIEW ANALYTICS STATE
   const [overviewStats, setOverviewStats] = useState({
     totalUsers: 0,
     totalCo2: 0,
@@ -165,7 +164,11 @@ export default function AdminDashboard() {
         } = await supabase.auth.getUser()
         if (!user) return navigate('/login', {replace: true})
 
-        const {data} = await supabase.from('user_profiles').select('display_name, avatar_url').eq('user_id', user.id).single()
+        const {data} = await supabase.from('user_profiles').select('display_name, avatar_url, role').eq('user_id', user.id).single()
+
+        if (data?.role !== 'admin') {
+          return navigate('/dashboard', {replace: true})
+        }
         setAdminUser(data)
       } catch (error) {
         console.error('Core profile synchronization failed:', error.message)
@@ -191,10 +194,11 @@ export default function AdminDashboard() {
 
   const fetchAllRawData = async () => {
     try {
-      const {data: usersData} = await supabase.from('users').select('created_at')
-      const {data: profiles} = await supabase.from('user_profiles').select('user_id, location, monthly_co2_target, role')
+      const {data: profiles} = await supabase.rpc('get_admin_user_list')
       const {data: lifestyles} = await supabase.from('lifestyle_profiles').select('user_id, diet_type, commute_type')
       const {data: logs} = await supabase.from('activity_logs').select('total_co2e, logged_at, emission_factors ( category )')
+
+      const usersData = profiles?.map(p => ({created_at: p.created_at})) || []
 
       setRawGlobalData({users: usersData, profiles, lifestyles, logs})
     } catch (error) {
@@ -213,7 +217,7 @@ export default function AdminDashboard() {
     const validUsers = users?.filter(u => new Date(u.created_at) <= endOfDay) || []
     const validLogs = logs?.filter(l => new Date(l.logged_at) <= endOfDay) || []
 
-    const standardProfiles = profiles?.filter(p => p.role !== 'admin') || []
+    const standardProfiles = profiles?.filter(p => p.role !== 'admin' && !p.is_archived) || []
     const activeProfilesCount = standardProfiles.length > 0 ? Math.min(standardProfiles.length, validUsers.length) : validUsers.length
     const totalCo2Sum = validLogs.reduce((sum, log) => sum + (parseFloat(log.total_co2e) || 0), 0)
     const validTargets = standardProfiles.filter(p => p.monthly_co2_target > 0)
@@ -310,7 +314,7 @@ export default function AdminDashboard() {
           ...user,
           total_logs: userLogs.length,
           last_active: latestLog ? new Date(latestLog.logged_at).toLocaleDateString() : 'No Activity',
-          status: user.role === 'admin' ? 'System' : userLogs.length === 0 ? 'Inactive' : 'Active'
+          status: user.role === 'admin' ? 'System' : user.is_archived ? 'Archived' : userLogs.length === 0 ? 'Inactive' : 'Active'
         }
       })
       .sort((a, b) => (a.role === 'admin' ? -1 : 1))
@@ -329,7 +333,7 @@ export default function AdminDashboard() {
     rows.push(['--- EXECUTIVE SUMMARY ---'])
     rows.push(['Metric', 'Value'])
     rows.push(['Total Community Carbon Emitted (kg)', overviewStats.totalCo2])
-    rows.push(['Monitored User Profiles', overviewStats.totalUsers])
+    rows.push(['Monitored Active User Profiles', overviewStats.totalUsers])
     rows.push(['Average Community Target (kg)', overviewStats.avgTarget])
     rows.push([])
 
@@ -426,7 +430,7 @@ export default function AdminDashboard() {
           ...user,
           total_logs: userLogs.length,
           last_active: latestLog ? new Date(latestLog.logged_at).toLocaleDateString() : 'No Activity',
-          status: user.role === 'admin' ? 'System' : userLogs.length === 0 ? 'Inactive' : 'Active'
+          status: user.role === 'admin' ? 'System' : user.is_archived ? 'Archived' : userLogs.length === 0 ? 'Inactive' : 'Active'
         }
       })
       setUsers(enrichedUsers?.sort((a, b) => (a.role === 'admin' ? -1 : 1)) || [])
@@ -436,7 +440,6 @@ export default function AdminDashboard() {
     }
   }
 
-  // --- REPLACED ALERT(), WINDOW.CONFIRM(), AND USETOAST() WITH CUSTOM MODALS AND NOTIFICATIONS ---
   const handlePasswordReset = email => {
     if (!email) {
       return showNotification('Telemetry Failure', 'Target user lacks a verified communication channel (email).', 'warning')
@@ -464,23 +467,26 @@ export default function AdminDashboard() {
     })
   }
 
-  const handleResetProgress = (profileId, anonymizedName) => {
+  const handleToggleArchive = (profileId, isArchived, displayName) => {
+    const actionText = isArchived ? 'Restore' : 'Archive'
     setConfirmDialog({
-      title: 'Purge Baseline Telemetry?',
-      message: `Warning: You are about to purge the baseline telemetry for ${anonymizedName}. Re-initialization will be required. Proceed?`,
-      confirmText: 'Purge Telemetry',
-      isDanger: true,
+      title: `${actionText} User Account?`,
+      message: isArchived ? `Restoring ${displayName} will reactivate access to the platform.` : `Archiving ${displayName} will disable their access, but retain activity telemetry for research analytics.`,
+      confirmText: `${actionText} Account`,
+      isDanger: !isArchived,
       onConfirm: async () => {
         setIsProcessingAction(true)
         try {
-          const {error} = await supabase.rpc('admin_reset_user_onboarding', {
-            target_profile_id: profileId
+          const {error} = await supabase.rpc('admin_toggle_archive_user', {
+            target_profile_id: profileId,
+            archive_status: !isArchived
           })
           if (error) throw error
-          showNotification('Baseline Telemetry Purged', 'User has been routed back to initial synchronization.', 'success')
+          showNotification(`Account ${actionText}d`, `User state updated successfully.`, 'success')
           fetchUsers()
+          fetchAllRawData()
         } catch (error) {
-          showNotification('Purge Operation Aborted', error.message, 'error')
+          showNotification('Operation Aborted', error.message, 'error')
         } finally {
           setIsProcessingAction(false)
           setConfirmDialog(null)
@@ -610,13 +616,6 @@ export default function AdminDashboard() {
         const {error} = await supabase.from('tasks_dictionary').delete().eq('task_id', deleteTarget.id)
         if (error) throw error
         setTasks(tasks.filter(t => t.task_id !== deleteTarget.id))
-      } else if (deleteTarget.type === 'user') {
-        const {error} = await supabase.rpc('delete_user_account', {
-          target_user_id: deleteTarget.authId
-        })
-        if (error) throw error
-        setUsers(users.filter(u => u.profile_id !== deleteTarget.id))
-        fetchAllRawData()
       }
 
       showNotification('Asset Eradicated', 'The selected entity has been permanently purged from the system.', 'success')
@@ -633,7 +632,6 @@ export default function AdminDashboard() {
     navigate('/login')
   }
 
-  // 📅 CALENDAR GENERATOR
   const getCalendarDays = () => {
     const year = calendarMonth.getFullYear()
     const month = calendarMonth.getMonth()
@@ -647,7 +645,6 @@ export default function AdminDashboard() {
     return days
   }
 
-  // 🟢 FLOATING SIDEBAR BUTTON
   const SidebarButton = ({id, icon, tooltip}) => (
     <Flex
       w="46px"
@@ -700,9 +697,8 @@ export default function AdminDashboard() {
 
   return (
     <Flex minH="100vh" bg="#F3F5F8" position="relative" overflow="hidden">
-      {/* 🟢 FLOATING MINI-SIDEBAR */}
+      {/* FLOATING MINI-SIDEBAR */}
       <Flex direction="column" align="center" w="100px" py={8} h="100vh" display={{base: 'none', md: 'flex'}}>
-        {/* Custom Logo & Admin Tag */}
         <Flex direction="column" align="center" mb={10} cursor="pointer" transition="transform 0.2s" _hover={{transform: 'scale(1.05)'}}>
           <Image src="/Logo.png" alt="CarbonSense Logo" w="44px" h="44px" objectFit="contain" mb={2} dropShadow="0 4px 10px rgba(0,0,0,0.1)" />
           <Text color="#A0AEC0" fontWeight="black" fontSize="10px" letterSpacing="widest" textTransform="uppercase">
@@ -710,7 +706,6 @@ export default function AdminDashboard() {
           </Text>
         </Flex>
 
-        {/* Navigation Pill Container */}
         <VStack bg="white" borderRadius="full" py={6} px={3} spacing={5} boxShadow="0 10px 30px -10px rgba(0,0,0,0.05)">
           <SidebarButton
             id="overview"
@@ -752,14 +747,12 @@ export default function AdminDashboard() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
                 <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                <path d="M23 21v-2a4 4 0 0 1 0 7.75" />
               </svg>
             }
           />
         </VStack>
 
-        {/* 👤 UPGRADED PROFILE BLOCK */}
         <Box mt="auto" position="relative">
           <Flex
             w="52px"
@@ -849,7 +842,7 @@ export default function AdminDashboard() {
         </Box>
       </Flex>
 
-      {/* 🟢 MAIN CONTENT AREA */}
+      {/* MAIN CONTENT AREA */}
       <Flex flex="1" direction="column" maxH="100vh" overflowY="auto" px={{base: 6, lg: 10}} py={10}>
         <Flex justify="space-between" align="center" mb={10}>
           <Box>
@@ -1022,13 +1015,7 @@ export default function AdminDashboard() {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                     <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#718096', fontSize: 12}} dy={10} />
                     <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{fill: '#718096', fontSize: 12}} />
-                    <Tooltip
-                      contentStyle={{
-                        borderRadius: '8px',
-                        border: 'none',
-                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                      }}
-                    />
+                    <Tooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)'}} />
                     <Line isAnimationActive={true} type="monotone" dataKey="users" name="Active Users" stroke="#3182CE" strokeWidth={3} dot={{r: 4, fill: '#3182CE'}} animationDuration={1200} animationEasing="ease-out" />
                   </LineChart>
                 </ResponsiveContainer>
@@ -1049,13 +1036,7 @@ export default function AdminDashboard() {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                     <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#718096', fontSize: 12}} dy={10} />
                     <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{fill: '#718096', fontSize: 12}} />
-                    <Tooltip
-                      contentStyle={{
-                        borderRadius: '8px',
-                        border: 'none',
-                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                      }}
-                    />
+                    <Tooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)'}} />
                     <Area isAnimationActive={true} type="monotone" dataKey="co2" name="CO₂ Emitted" stroke="#E53E3E" strokeWidth={2} fillOpacity={1} fill="url(#colorAdminCO2)" animationDuration={1200} animationEasing="ease-out" />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -1075,13 +1056,7 @@ export default function AdminDashboard() {
                           <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip
-                        contentStyle={{
-                          borderRadius: '8px',
-                          border: 'none',
-                          boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                        }}
-                      />
+                      <Tooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)'}} />
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
@@ -1142,9 +1117,7 @@ export default function AdminDashboard() {
                         bg={activeInsightTab === period ? 'white' : 'transparent'}
                         color={activeInsightTab === period ? '#1A202C' : '#A0AEC0'}
                         boxShadow={activeInsightTab === period ? 'sm' : 'none'}
-                        _hover={{
-                          bg: activeInsightTab === period ? 'white' : '#EDF2F7'
-                        }}
+                        _hover={{bg: activeInsightTab === period ? 'white' : '#EDF2F7'}}
                         onClick={() => setActiveInsightTab(period)}
                         textTransform="capitalize"
                         fontWeight="bold"
@@ -1156,25 +1129,7 @@ export default function AdminDashboard() {
                   </Flex>
                 </Flex>
 
-                <Box
-                  flex="1"
-                  position="relative"
-                  zIndex={1}
-                  overflowY="auto"
-                  maxH="220px"
-                  pr={4}
-                  css={{
-                    '&::-webkit-scrollbar': {width: '4px'},
-                    '&::-webkit-scrollbar-track': {background: 'transparent'},
-                    '&::-webkit-scrollbar-thumb': {
-                      background: '#E2E8F0',
-                      borderRadius: '10px'
-                    },
-                    '&::-webkit-scrollbar-thumb:hover': {
-                      background: '#CBD5E0'
-                    }
-                  }}
-                >
+                <Box flex="1" position="relative" zIndex={1} overflowY="auto" maxH="220px" pr={4}>
                   <Text color="#2D3748" fontSize="sm" lineHeight="2" fontWeight="medium" whiteSpace="pre-wrap">
                     {prescriptions[activeInsightTab]}
                   </Text>
@@ -1245,7 +1200,7 @@ export default function AdminDashboard() {
                   Manage math multipliers for footprint calculations.
                 </Text>
               </Box>
-              <Button bg="#1C4532" color="white" borderRadius="full" transition="all 0.2s" _hover={{bg: '#2D3748', transform: 'translateY(-1px)'}} _active={{transform: 'translateY(1px)'}} onClick={() => setIsAddFactorOpen(true)}>
+              <Button bg="#1C4532" color="white" borderRadius="full" transition="all 0.2s" _hover={{bg: '#2D3748', transform: 'translateY(-1px)'}} onClick={() => setIsAddFactorOpen(true)}>
                 + Add Factor
               </Button>
             </Flex>
@@ -1276,22 +1231,7 @@ export default function AdminDashboard() {
                   </Grid>
 
                   {factors.map((factor, index) => (
-                    <Grid
-                      key={factor.factor_id}
-                      templateColumns="1.5fr 3fr 1.5fr 1fr 1fr"
-                      gap={4}
-                      p={5}
-                      borderBottom="1px solid #E2E8F0"
-                      alignItems="center"
-                      animation={`${slideUp} 0.5s ease-out both`}
-                      style={{animationDelay: `${index * 0.04}s`}}
-                      transition="all 0.2s ease"
-                      _hover={{
-                        bg: '#F8FAFC',
-                        transform: 'scale(1.005)',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.01)'
-                      }}
-                    >
+                    <Grid key={factor.factor_id} templateColumns="1.5fr 3fr 1.5fr 1fr 1fr" gap={4} p={5} borderBottom="1px solid #E2E8F0" alignItems="center">
                       <Box>
                         <Badge colorScheme={factor.category === 'Transport' ? 'blue' : factor.category === 'Diet' ? 'green' : 'purple'} px={3} py={1} borderRadius="full">
                           {factor.category}
@@ -1314,9 +1254,6 @@ export default function AdminDashboard() {
                           bg="white"
                           color="#4A5568"
                           border="1px solid #E2E8F0"
-                          transition="all 0.2s"
-                          _hover={{bg: '#EDF2F7', transform: 'scale(1.05)'}}
-                          _active={{transform: 'scale(0.95)'}}
                           onClick={() => {
                             setSelectedFactor(factor)
                             setNewCo2Value(factor.co2_per_unit)
@@ -1330,13 +1267,6 @@ export default function AdminDashboard() {
                           bg="white"
                           color="#C53030"
                           border="1px solid #FEB2B2"
-                          transition="all 0.2s"
-                          _hover={{
-                            bg: '#FFF5F5',
-                            borderColor: '#E53E3E',
-                            transform: 'scale(1.05)'
-                          }}
-                          _active={{transform: 'scale(0.95)'}}
                           onClick={() =>
                             setDeleteTarget({
                               type: 'factor',
@@ -1367,7 +1297,7 @@ export default function AdminDashboard() {
                   Manage the gamification challenges.
                 </Text>
               </Box>
-              <Button bg="#1C4532" color="white" borderRadius="full" transition="all 0.2s" _hover={{bg: '#2D3748', transform: 'translateY(-1px)'}} _active={{transform: 'translateY(1px)'}} onClick={() => setIsAddTaskOpen(true)}>
+              <Button bg="#1C4532" color="white" borderRadius="full" onClick={() => setIsAddTaskOpen(true)}>
                 + Add Task
               </Button>
             </Flex>
@@ -1398,22 +1328,7 @@ export default function AdminDashboard() {
                   </Grid>
 
                   {tasks.map((task, index) => (
-                    <Grid
-                      key={task.task_id}
-                      templateColumns="1fr 1fr 3fr 1fr 1fr"
-                      gap={4}
-                      p={5}
-                      borderBottom="1px solid #E2E8F0"
-                      alignItems="center"
-                      animation={`${slideUp} 0.5s ease-out both`}
-                      style={{animationDelay: `${index * 0.04}s`}}
-                      transition="all 0.2s ease"
-                      _hover={{
-                        bg: '#F8FAFC',
-                        transform: 'scale(1.005)',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.01)'
-                      }}
-                    >
+                    <Grid key={task.task_id} templateColumns="1fr 1fr 3fr 1fr 1fr" gap={4} p={5} borderBottom="1px solid #E2E8F0" alignItems="center">
                       <Box>
                         <Badge colorScheme={task.tier === 'Gold' ? 'yellow' : task.tier === 'Silver' ? 'gray' : 'orange'} px={3} py={1} borderRadius="full">
                           {task.tier}
@@ -1436,9 +1351,6 @@ export default function AdminDashboard() {
                           bg="white"
                           color="#4A5568"
                           border="1px solid #E2E8F0"
-                          transition="all 0.2s"
-                          _hover={{bg: '#EDF2F7', transform: 'scale(1.05)'}}
-                          _active={{transform: 'scale(0.95)'}}
                           onClick={() => {
                             setSelectedTask(task)
                             setNewTaskDesc(task.description)
@@ -1453,13 +1365,6 @@ export default function AdminDashboard() {
                           bg="white"
                           color="#C53030"
                           border="1px solid #FEB2B2"
-                          transition="all 0.2s"
-                          _hover={{
-                            bg: '#FFF5F5',
-                            borderColor: '#E53E3E',
-                            transform: 'scale(1.05)'
-                          }}
-                          _active={{transform: 'scale(0.95)'}}
                           onClick={() =>
                             setDeleteTarget({
                               type: 'task',
@@ -1493,7 +1398,7 @@ export default function AdminDashboard() {
             </Flex>
 
             <Box mb={6} bg="white" p={3} borderRadius="2xl" border="1px solid #E2E8F0" boxShadow="sm">
-              <Input placeholder="Secure Lookup: Enter Name, Email or ID..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} bg="#F8FAFC" border="none" focusBorderColor="transparent" py={6} fontSize="sm" />
+              <Input placeholder="Secure Lookup: Enter Name, Email or ID..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} bg="#F8FAFC" border="none" py={6} fontSize="sm" />
             </Box>
 
             <Box bg="white" borderRadius="3xl" border="1px solid #E2E8F0" overflow="hidden" boxShadow="0 4px 20px -5px rgba(0,0,0,0.03)">
@@ -1540,18 +1445,7 @@ export default function AdminDashboard() {
                       const displayName = isStaff ? user.display_name || 'Administrator' : `User #${user.profile_id.substring(0, 6).toUpperCase()}`
 
                       return (
-                        <Grid
-                          key={user.profile_id}
-                          templateColumns="2fr 0.8fr 1fr 1fr 1.5fr 1fr 1fr"
-                          gap={4}
-                          p={5}
-                          borderBottom="1px solid #E2E8F0"
-                          alignItems="center"
-                          animation={`${slideUp} 0.5s ease-out both`}
-                          style={{animationDelay: `${index * 0.03}s`}}
-                          transition="all 0.2s ease"
-                          _hover={{bg: '#F8FAFC', transform: 'scale(1.003)'}}
-                        >
+                        <Grid key={user.profile_id} templateColumns="2fr 0.8fr 1fr 1fr 1.5fr 1fr 1fr" gap={4} p={5} borderBottom="1px solid #E2E8F0" alignItems="center">
                           <Flex align="center" gap={3}>
                             <Flex
                               w="32px"
@@ -1565,7 +1459,7 @@ export default function AdminDashboard() {
                               fontSize={isStaff ? 'xs' : 'md'}
                               overflow="hidden"
                               flexShrink={0}
-                              backgroundImage={isStaff && user.avatar_url ? `url(${user.avatar_url})` : 'none'}
+                              backgroundImage={user.avatar_url ? `url(${user.avatar_url})` : 'none'}
                               backgroundSize="cover"
                               backgroundPosition="center"
                             >
@@ -1588,7 +1482,7 @@ export default function AdminDashboard() {
                             </Badge>
                           </Box>
                           <Box>
-                            <Badge variant="solid" colorScheme={user.status === 'System' ? 'purple' : user.status === 'Active' ? 'teal' : 'gray'} px={3} py={1} borderRadius="full">
+                            <Badge variant="solid" colorScheme={user.status === 'System' ? 'purple' : user.status === 'Archived' ? 'orange' : user.status === 'Active' ? 'teal' : 'gray'} px={3} py={1} borderRadius="full">
                               {user.status}
                             </Badge>
                           </Box>
@@ -1636,21 +1530,7 @@ export default function AdminDashboard() {
                             ) : (
                               <Menu.Root lazyMount>
                                 <Menu.Trigger asChild>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    borderRadius="full"
-                                    borderColor="#E2E8F0"
-                                    _hover={{
-                                      bg: '#F8FAFC',
-                                      borderColor: '#CBD5E0'
-                                    }}
-                                    _active={{transform: 'scale(0.95)'}}
-                                    transition="all 0.15s"
-                                    fontSize="xs"
-                                    fontWeight="bold"
-                                    color="#4A5568"
-                                  >
+                                  <Button size="sm" variant="outline" borderRadius="full" borderColor="#E2E8F0" fontSize="xs" fontWeight="bold" color="#4A5568">
                                     Actions ▼
                                   </Button>
                                 </Menu.Trigger>
@@ -1658,27 +1538,17 @@ export default function AdminDashboard() {
                                   <Menu.Item value="password-reset" fontSize="sm" color="#2B6CB0" cursor="pointer" p={2} borderRadius="md" _hover={{bg: '#EBF8FF'}} onClick={() => handlePasswordReset(user.email)}>
                                     🔑 Password Reset
                                   </Menu.Item>
-                                  <Menu.Item value="reset-quiz" fontSize="sm" color="#B7791F" cursor="pointer" p={2} borderRadius="md" _hover={{bg: '#FEFCBF'}} onClick={() => handleResetProgress(user.profile_id, displayName)}>
-                                    🔄 Reset Onboarding
-                                  </Menu.Item>
                                   <Menu.Item
-                                    value="delete-account"
+                                    value="toggle-archive"
                                     fontSize="sm"
-                                    color="#C53030"
+                                    color={user.is_archived ? '#38A169' : '#DD6B20'}
                                     cursor="pointer"
                                     p={2}
                                     borderRadius="md"
-                                    _hover={{bg: '#FFF5F5'}}
-                                    onClick={() =>
-                                      setDeleteTarget({
-                                        type: 'user',
-                                        id: user.profile_id,
-                                        name: displayName,
-                                        authId: user.user_id
-                                      })
-                                    }
+                                    _hover={{bg: user.is_archived ? '#F0FFF4' : '#FFFAF0'}}
+                                    onClick={() => handleToggleArchive(user.profile_id, user.is_archived, displayName)}
                                   >
-                                    🗑️ Delete Account
+                                    {user.is_archived ? '🔄 Restore Account' : '📦 Archive Account'}
                                   </Menu.Item>
                                 </Menu.Content>
                               </Menu.Root>
@@ -1694,12 +1564,10 @@ export default function AdminDashboard() {
         )}
       </Flex>
 
-      {/* 🔴 MODALS SECTION (SIDE DRAWERS) 🔴 */}
-
-      {/* 1. EDIT FACTOR DRAWER */}
+      {/* MODALS SECTION */}
       {selectedFactor && (
-        <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.4)" zIndex={9999} justify="flex-end" onClick={() => setSelectedFactor(null)} animation={`${backdropFade} 0.3s ease-out both`}>
-          <Flex direction="column" bg="white" w={{base: '100%', md: '450px'}} h="100vh" boxShadow="-10px 0 40px rgba(0,0,0,0.1)" onClick={e => e.stopPropagation()} animation={`${drawerSlideIn} 0.4s cubic-bezier(0.16, 1, 0.3, 1) both`}>
+        <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.4)" zIndex={9999} justify="flex-end" onClick={() => setSelectedFactor(null)}>
+          <Flex direction="column" bg="white" w={{base: '100%', md: '450px'}} h="100vh" boxShadow="-10px 0 40px rgba(0,0,0,0.1)" onClick={e => e.stopPropagation()}>
             <Flex justify="space-between" align="center" p={8} borderBottom="1px solid #E2E8F0">
               <Box>
                 <Text fontSize="xs" color="#38A169" fontWeight="bold" textTransform="uppercase" letterSpacing="wider" mb={1}>
@@ -1709,7 +1577,7 @@ export default function AdminDashboard() {
                   Edit Emission Factor
                 </Heading>
               </Box>
-              <Button size="sm" variant="ghost" borderRadius="full" color="#A0AEC0" _hover={{bg: '#F8FAFC', color: '#1A202C'}} onClick={() => setSelectedFactor(null)}>
+              <Button size="sm" variant="ghost" borderRadius="full" color="#A0AEC0" onClick={() => setSelectedFactor(null)}>
                 ✕
               </Button>
             </Flex>
@@ -1746,7 +1614,7 @@ export default function AdminDashboard() {
               <Button flex="1" onClick={() => setSelectedFactor(null)} variant="outline" borderRadius="xl" color="#718096" borderColor="#E2E8F0">
                 Cancel
               </Button>
-              <Button flex="2" bg="#1C4532" color="white" borderRadius="xl" _hover={{bg: '#2D3748', transform: 'translateY(-1px)'}} transition="all 0.2s" onClick={handleUpdateFactor} isLoading={isSavingFactor}>
+              <Button flex="2" bg="#1C4532" color="white" borderRadius="xl" onClick={handleUpdateFactor} isLoading={isSavingFactor}>
                 Save Changes
               </Button>
             </Flex>
@@ -1754,10 +1622,9 @@ export default function AdminDashboard() {
         </Flex>
       )}
 
-      {/* 2. EDIT TASK DRAWER */}
       {selectedTask && (
-        <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.4)" zIndex={9999} justify="flex-end" onClick={() => setSelectedTask(null)} animation={`${backdropFade} 0.3s ease-out both`}>
-          <Flex direction="column" bg="white" w={{base: '100%', md: '450px'}} h="100vh" boxShadow="-10px 0 40px rgba(0,0,0,0.1)" onClick={e => e.stopPropagation()} animation={`${drawerSlideIn} 0.4s cubic-bezier(0.16, 1, 0.3, 1) both`}>
+        <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.4)" zIndex={9999} justify="flex-end" onClick={() => setSelectedTask(null)}>
+          <Flex direction="column" bg="white" w={{base: '100%', md: '450px'}} h="100vh" boxShadow="-10px 0 40px rgba(0,0,0,0.1)" onClick={e => e.stopPropagation()}>
             <Flex justify="space-between" align="center" p={8} borderBottom="1px solid #E2E8F0">
               <Box>
                 <Text fontSize="xs" color="#3182CE" fontWeight="bold" textTransform="uppercase" letterSpacing="wider" mb={1}>
@@ -1767,7 +1634,7 @@ export default function AdminDashboard() {
                   Modify Task
                 </Heading>
               </Box>
-              <Button size="sm" variant="ghost" borderRadius="full" color="#A0AEC0" _hover={{bg: '#F8FAFC', color: '#1A202C'}} onClick={() => setSelectedTask(null)}>
+              <Button size="sm" variant="ghost" borderRadius="full" color="#A0AEC0" onClick={() => setSelectedTask(null)}>
                 ✕
               </Button>
             </Flex>
@@ -1793,7 +1660,7 @@ export default function AdminDashboard() {
               <Button flex="1" onClick={() => setSelectedTask(null)} variant="outline" borderRadius="xl" color="#718096" borderColor="#E2E8F0">
                 Cancel
               </Button>
-              <Button flex="2" bg="#1C4532" color="white" borderRadius="xl" _hover={{bg: '#2D3748', transform: 'translateY(-1px)'}} transition="all 0.2s" onClick={handleUpdateTask} isLoading={isSavingTask}>
+              <Button flex="2" bg="#1C4532" color="white" borderRadius="xl" onClick={handleUpdateTask} isLoading={isSavingTask}>
                 Save Changes
               </Button>
             </Flex>
@@ -1801,10 +1668,9 @@ export default function AdminDashboard() {
         </Flex>
       )}
 
-      {/* 3. ADD FACTOR DRAWER */}
       {isAddFactorOpen && (
-        <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.4)" zIndex={9999} justify="flex-end" onClick={() => setIsAddFactorOpen(false)} animation={`${backdropFade} 0.3s ease-out both`}>
-          <Flex direction="column" bg="white" w={{base: '100%', md: '450px'}} h="100vh" boxShadow="-10px 0 40px rgba(0,0,0,0.1)" onClick={e => e.stopPropagation()} animation={`${drawerSlideIn} 0.4s cubic-bezier(0.16, 1, 0.3, 1) both`}>
+        <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.4)" zIndex={9999} justify="flex-end" onClick={() => setIsAddFactorOpen(false)}>
+          <Flex direction="column" bg="white" w={{base: '100%', md: '450px'}} h="100vh" boxShadow="-10px 0 40px rgba(0,0,0,0.1)" onClick={e => e.stopPropagation()}>
             <Flex justify="space-between" align="center" p={8} borderBottom="1px solid #E2E8F0">
               <Box>
                 <Text fontSize="xs" color="#319795" fontWeight="bold" textTransform="uppercase" letterSpacing="wider" mb={1}>
@@ -1814,7 +1680,7 @@ export default function AdminDashboard() {
                   Add New Factor
                 </Heading>
               </Box>
-              <Button size="sm" variant="ghost" borderRadius="full" color="#A0AEC0" _hover={{bg: '#F8FAFC', color: '#1A202C'}} onClick={() => setIsAddFactorOpen(false)}>
+              <Button size="sm" variant="ghost" borderRadius="full" color="#A0AEC0" onClick={() => setIsAddFactorOpen(false)}>
                 ✕
               </Button>
             </Flex>
@@ -1833,18 +1699,7 @@ export default function AdminDashboard() {
                         category: e.target.value
                       })
                     }
-                    style={{
-                      width: '100%',
-                      padding: '12px 0',
-                      border: 'none',
-                      borderBottom: '1px solid #E2E8F0',
-                      outline: 'none',
-                      color: '#1A202C',
-                      fontSize: '18px',
-                      fontWeight: 'bold',
-                      cursor: 'pointer',
-                      background: 'transparent'
-                    }}
+                    style={{width: '100%', padding: '12px 0', border: 'none', borderBottom: '1px solid #E2E8F0', outline: 'none', color: '#1A202C', fontSize: '18px', fontWeight: 'bold', background: 'transparent'}}
                   >
                     <option value="Transport">Transport</option>
                     <option value="Diet">Diet</option>
@@ -1860,12 +1715,7 @@ export default function AdminDashboard() {
                     variant="flushed"
                     placeholder="e.g. Electric Tricycle"
                     value={addFactorData.activity_name}
-                    onChange={e =>
-                      setAddFactorData({
-                        ...addFactorData,
-                        activity_name: e.target.value
-                      })
-                    }
+                    onChange={e => setAddFactorData({...addFactorData, activity_name: e.target.value})}
                     fontSize="lg"
                     fontWeight="medium"
                     color="#1A202C"
@@ -1880,12 +1730,7 @@ export default function AdminDashboard() {
                     variant="flushed"
                     placeholder="e.g. km, meal, kWh"
                     value={addFactorData.unit}
-                    onChange={e =>
-                      setAddFactorData({
-                        ...addFactorData,
-                        unit: e.target.value
-                      })
-                    }
+                    onChange={e => setAddFactorData({...addFactorData, unit: e.target.value})}
                     fontSize="lg"
                     fontWeight="medium"
                     color="#1A202C"
@@ -1902,12 +1747,7 @@ export default function AdminDashboard() {
                     step="0.01"
                     placeholder="0.00"
                     value={addFactorData.co2_per_unit}
-                    onChange={e =>
-                      setAddFactorData({
-                        ...addFactorData,
-                        co2_per_unit: e.target.value
-                      })
-                    }
+                    onChange={e => setAddFactorData({...addFactorData, co2_per_unit: e.target.value})}
                     fontSize="2xl"
                     fontWeight="black"
                     color="#1A202C"
@@ -1921,7 +1761,7 @@ export default function AdminDashboard() {
               <Button flex="1" onClick={() => setIsAddFactorOpen(false)} variant="outline" borderRadius="xl" color="#718096" borderColor="#E2E8F0">
                 Cancel
               </Button>
-              <Button flex="2" bg="#1C4532" color="white" borderRadius="xl" _hover={{bg: '#2D3748', transform: 'translateY(-1px)'}} transition="all 0.2s" onClick={handleAddFactor} isLoading={isSavingFactor}>
+              <Button flex="2" bg="#1C4532" color="white" borderRadius="xl" onClick={handleAddFactor} isLoading={isSavingFactor}>
                 Create Factor
               </Button>
             </Flex>
@@ -1929,10 +1769,9 @@ export default function AdminDashboard() {
         </Flex>
       )}
 
-      {/* 4. ADD TASK DRAWER */}
       {isAddTaskOpen && (
-        <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.4)" zIndex={9999} justify="flex-end" onClick={() => setIsAddTaskOpen(false)} animation={`${backdropFade} 0.3s ease-out both`}>
-          <Flex direction="column" bg="white" w={{base: '100%', md: '450px'}} h="100vh" boxShadow="-10px 0 40px rgba(0,0,0,0.1)" onClick={e => e.stopPropagation()} animation={`${drawerSlideIn} 0.4s cubic-bezier(0.16, 1, 0.3, 1) both`}>
+        <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.4)" zIndex={9999} justify="flex-end" onClick={() => setIsAddTaskOpen(false)}>
+          <Flex direction="column" bg="white" w={{base: '100%', md: '450px'}} h="100vh" boxShadow="-10px 0 40px rgba(0,0,0,0.1)" onClick={e => e.stopPropagation()}>
             <Flex justify="space-between" align="center" p={8} borderBottom="1px solid #E2E8F0">
               <Box>
                 <Text fontSize="xs" color="#D69E2E" fontWeight="bold" textTransform="uppercase" letterSpacing="wider" mb={1}>
@@ -1942,7 +1781,7 @@ export default function AdminDashboard() {
                   Create Global Task
                 </Heading>
               </Box>
-              <Button size="sm" variant="ghost" borderRadius="full" color="#A0AEC0" _hover={{bg: '#F8FAFC', color: '#1A202C'}} onClick={() => setIsAddTaskOpen(false)}>
+              <Button size="sm" variant="ghost" borderRadius="full" color="#A0AEC0" onClick={() => setIsAddTaskOpen(false)}>
                 ✕
               </Button>
             </Flex>
@@ -1957,17 +1796,7 @@ export default function AdminDashboard() {
                     <select
                       value={addTaskData.tier}
                       onChange={e => setAddTaskData({...addTaskData, tier: e.target.value})}
-                      style={{
-                        width: '100%',
-                        padding: '12px 0',
-                        border: 'none',
-                        borderBottom: '1px solid #E2E8F0',
-                        outline: 'none',
-                        color: '#1A202C',
-                        fontSize: '16px',
-                        fontWeight: 'bold',
-                        background: 'transparent'
-                      }}
+                      style={{width: '100%', padding: '12px 0', border: 'none', borderBottom: '1px solid #E2E8F0', outline: 'none', color: '#1A202C', fontSize: '16px', fontWeight: 'bold', background: 'transparent'}}
                     >
                       <option value="Bronze">Bronze</option>
                       <option value="Silver">Silver</option>
@@ -1980,23 +1809,8 @@ export default function AdminDashboard() {
                     </Text>
                     <select
                       value={addTaskData.target_lifestyle_tag}
-                      onChange={e =>
-                        setAddTaskData({
-                          ...addTaskData,
-                          target_lifestyle_tag: e.target.value
-                        })
-                      }
-                      style={{
-                        width: '100%',
-                        padding: '12px 0',
-                        border: 'none',
-                        borderBottom: '1px solid #E2E8F0',
-                        outline: 'none',
-                        color: '#1A202C',
-                        fontSize: '16px',
-                        fontWeight: 'bold',
-                        background: 'transparent'
-                      }}
+                      onChange={e => setAddTaskData({...addTaskData, target_lifestyle_tag: e.target.value})}
+                      style={{width: '100%', padding: '12px 0', border: 'none', borderBottom: '1px solid #E2E8F0', outline: 'none', color: '#1A202C', fontSize: '16px', fontWeight: 'bold', background: 'transparent'}}
                     >
                       <option value="General">General</option>
                       <option value="Commute">Commute</option>
@@ -2013,12 +1827,7 @@ export default function AdminDashboard() {
                     variant="flushed"
                     placeholder="Describe the eco-challenge..."
                     value={addTaskData.description}
-                    onChange={e =>
-                      setAddTaskData({
-                        ...addTaskData,
-                        description: e.target.value
-                      })
-                    }
+                    onChange={e => setAddTaskData({...addTaskData, description: e.target.value})}
                     color="#1A202C"
                     rows={3}
                     resize="none"
@@ -2037,12 +1846,7 @@ export default function AdminDashboard() {
                     step="0.1"
                     placeholder="e.g. 2.5 kg"
                     value={addTaskData.co2_saved_estimate}
-                    onChange={e =>
-                      setAddTaskData({
-                        ...addTaskData,
-                        co2_saved_estimate: e.target.value
-                      })
-                    }
+                    onChange={e => setAddTaskData({...addTaskData, co2_saved_estimate: e.target.value})}
                     fontSize="2xl"
                     fontWeight="black"
                     color="#1A202C"
@@ -2056,7 +1860,7 @@ export default function AdminDashboard() {
               <Button flex="1" onClick={() => setIsAddTaskOpen(false)} variant="outline" borderRadius="xl" color="#718096" borderColor="#E2E8F0">
                 Cancel
               </Button>
-              <Button flex="2" bg="#1C4532" color="white" borderRadius="xl" _hover={{bg: '#2D3748', transform: 'translateY(-1px)'}} transition="all 0.2s" onClick={handleAddTask} isLoading={isSavingTask}>
+              <Button flex="2" bg="#1C4532" color="white" borderRadius="xl" onClick={handleAddFactor} isLoading={isSavingTask}>
                 Create Task
               </Button>
             </Flex>
@@ -2064,35 +1868,9 @@ export default function AdminDashboard() {
         </Flex>
       )}
 
-      {/* 5. SEVERE DANGER/DELETE MICRO-MODAL */}
       {deleteTarget && (
-        <Flex
-          position="fixed"
-          top={0}
-          left={0}
-          w="100vw"
-          h="100vh"
-          bg="rgba(15, 23, 42, 0.6)"
-          backdropFilter="blur(6px)"
-          zIndex={9999}
-          align="center"
-          justify="center"
-          px={4}
-          onClick={() => setDeleteTarget(null)}
-          animation={`${backdropFade} 0.2s ease-out both`}
-        >
-          <Box
-            bg="white"
-            p={10}
-            borderRadius="3xl"
-            maxW="420px"
-            w="100%"
-            boxShadow="0 25px 50px -12px rgba(229, 62, 62, 0.25)"
-            onClick={e => e.stopPropagation()}
-            position="relative"
-            textAlign="center"
-            animation={`${dangerPop} 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both`}
-          >
+        <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.6)" backdropFilter="blur(6px)" zIndex={9999} align="center" justify="center" px={4} onClick={() => setDeleteTarget(null)}>
+          <Box bg="white" p={10} borderRadius="3xl" maxW="420px" w="100%" boxShadow="0 25px 50px -12px rgba(229, 62, 62, 0.25)" onClick={e => e.stopPropagation()} position="relative" textAlign="center">
             <Flex w="16" h="16" bg="#FFF5F5" border="4px solid white" outline="1px solid #FED7D7" borderRadius="full" align="center" justify="center" mx="auto" mb={6} boxShadow="lg">
               <Text fontSize="2xl">⚠️</Text>
             </Flex>
@@ -2109,10 +1887,10 @@ export default function AdminDashboard() {
             </Text>
 
             <Flex direction="column" gap={3} w="100%">
-              <Button size="lg" bg="#E53E3E" color="white" borderRadius="xl" _hover={{bg: '#C53030', transform: 'translateY(-1px)'}} transition="all 0.2s" onClick={executeDelete} isLoading={isDeleting}>
+              <Button size="lg" bg="#E53E3E" color="white" borderRadius="xl" onClick={executeDelete} isLoading={isDeleting}>
                 Yes, Delete Permanently
               </Button>
-              <Button size="lg" onClick={() => setDeleteTarget(null)} variant="ghost" color="#718096" borderRadius="xl" _hover={{bg: '#F8FAFC'}}>
+              <Button size="lg" onClick={() => setDeleteTarget(null)} variant="ghost" color="#718096" borderRadius="xl">
                 Cancel
               </Button>
             </Flex>
@@ -2120,23 +1898,8 @@ export default function AdminDashboard() {
         </Flex>
       )}
 
-      {/* 6. GENERIC CONFIRMATION MODAL */}
       {confirmDialog && (
-        <Flex
-          position="fixed"
-          top={0}
-          left={0}
-          w="100vw"
-          h="100vh"
-          bg="rgba(15, 23, 42, 0.6)"
-          backdropFilter="blur(6px)"
-          zIndex={9999}
-          align="center"
-          justify="center"
-          px={4}
-          onClick={() => setConfirmDialog(null)}
-          animation={`${backdropFade} 0.2s ease-out both`}
-        >
+        <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.6)" backdropFilter="blur(6px)" zIndex={9999} align="center" justify="center" px={4} onClick={() => setConfirmDialog(null)}>
           <Box
             bg="white"
             p={10}
@@ -2147,7 +1910,6 @@ export default function AdminDashboard() {
             onClick={e => e.stopPropagation()}
             position="relative"
             textAlign="center"
-            animation={`${dangerPop} 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both`}
           >
             <Flex
               w="16"
@@ -2162,7 +1924,7 @@ export default function AdminDashboard() {
               mb={6}
               boxShadow="lg"
             >
-              <Text fontSize="2xl">{confirmDialog.isDanger ? '⚠️' : '🔐'}</Text>
+              <Text fontSize="2xl">{confirmDialog.isDanger ? '📦' : '🔐'}</Text>
             </Flex>
 
             <Heading size="md" color="#1A202C" mb={3} letterSpacing="tight">
@@ -2173,19 +1935,10 @@ export default function AdminDashboard() {
             </Text>
 
             <Flex direction="column" gap={3} w="100%">
-              <Button
-                size="lg"
-                bg={confirmDialog.isDanger ? '#E53E3E' : '#1C4532'}
-                color="white"
-                borderRadius="xl"
-                _hover={{bg: confirmDialog.isDanger ? '#C53030' : '#2D3748', transform: 'translateY(-1px)'}}
-                transition="all 0.2s"
-                onClick={confirmDialog.onConfirm}
-                isLoading={isProcessingAction}
-              >
+              <Button size="lg" bg={confirmDialog.isDanger ? '#E53E3E' : '#1C4532'} color="white" borderRadius="xl" onClick={confirmDialog.onConfirm} isLoading={isProcessingAction}>
                 {confirmDialog.confirmText}
               </Button>
-              <Button size="lg" onClick={() => setConfirmDialog(null)} variant="ghost" color="#718096" borderRadius="xl" _hover={{bg: '#F8FAFC'}}>
+              <Button size="lg" onClick={() => setConfirmDialog(null)} variant="ghost" color="#718096" borderRadius="xl">
                 Cancel
               </Button>
             </Flex>
@@ -2193,7 +1946,6 @@ export default function AdminDashboard() {
         </Flex>
       )}
 
-      {/* 7. CUSTOM TELEMETRY NOTIFICATION (Replaces useToast completely) */}
       {notification && (
         <Flex
           position="fixed"
@@ -2206,7 +1958,6 @@ export default function AdminDashboard() {
           borderLeft="4px solid"
           borderLeftColor={notification.status === 'success' ? '#38A169' : notification.status === 'error' ? '#E53E3E' : '#D69E2E'}
           zIndex={10000}
-          animation={`${slideInRight} 0.4s cubic-bezier(0.16, 1, 0.3, 1) both`}
           maxW="350px"
           align="flex-start"
           gap={3}
@@ -2224,7 +1975,7 @@ export default function AdminDashboard() {
               {notification.description}
             </Text>
           </Box>
-          <Button size="xs" variant="ghost" color="#A0AEC0" _hover={{bg: '#F8FAFC', color: '#1A202C'}} onClick={() => setNotification(null)}>
+          <Button size="xs" variant="ghost" color="#A0AEC0" onClick={() => setNotification(null)}>
             ✕
           </Button>
         </Flex>
