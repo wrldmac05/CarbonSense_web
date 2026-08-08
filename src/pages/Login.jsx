@@ -1,8 +1,8 @@
 // pages/Login.jsx
-import {useEffect, useState} from 'react'
+import {useState} from 'react'
 import {Heading, Text, Input, Button, VStack, Badge, Spinner} from '@chakra-ui/react'
 import {Flex, Box, Image as ChakraImage} from '@chakra-ui/react'
-import {Link, useNavigate, useSearchParams} from 'react-router-dom'
+import {Link, useNavigate} from 'react-router-dom'
 import {supabase} from '../supabase'
 import {keyframes} from '@emotion/react'
 
@@ -37,18 +37,6 @@ export default function Login() {
   const [successMsg, setSuccessMsg] = useState('')
 
   const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
-
-  // 🔒 Display Success Banner on Email Confirmation
-  useEffect(() => {
-    if (searchParams.get('verified') === 'true') {
-      // Display user notification
-      setSuccessMsg('Account confirmed! Please log in with your credentials to continue.')
-
-      // Clean query param from address bar without reloading page
-      setSearchParams({}, {replace: true})
-    }
-  }, [searchParams, setSearchParams])
 
   // Validations
   const hasMinLen = password.length >= 6
@@ -91,11 +79,7 @@ export default function Login() {
         const {error} = await supabase.auth.signUp({
           email,
           password,
-          options: {
-            data: {full_name: fullName},
-            // 🟢 Redirect user back to login page after confirmation click
-            emailRedirectTo: `${window.location.origin}/login?verified=true`
-          }
+          options: {data: {full_name: fullName}}
         })
         if (error) throw error
 
@@ -187,14 +171,16 @@ export default function Login() {
       justifyContent="center"
       position="relative"
       overflow="hidden"
-      bg="#F4F9F5"
+      bg="#F4F9F5" // Soft earthy sage base
       backgroundImage="url('https://www.transparenttextures.com/patterns/cubes.png')"
       backgroundBlendMode="multiply"
       py={{base: 12, md: 16}}
     >
+      {/* 🌿 Animated Ambient Aurora Glows */}
       <Box position="absolute" top="-10%" left="-10%" w="700px" h="700px" bgGradient="radial(#48BB78 0%, transparent 65%)" opacity="0.18" borderRadius="full" pointerEvents="none" />
       <Box position="absolute" bottom="-20%" right="-10%" w="700px" h="700px" bgGradient="radial(#319795 0%, transparent 65%)" opacity="0.15" borderRadius="full" pointerEvents="none" />
 
+      {/* Floating Header Back Navigation */}
       <Box position="absolute" top={8} left={{base: 6, md: 10}} zIndex={10}>
         <Flex align="center" gap={2} as={Link} to="/" transition="all 0.2s" _hover={{opacity: 0.7, transform: 'translateX(-4px)'}}>
           <Text fontSize="lg" color="#1C4532">
@@ -206,6 +192,7 @@ export default function Login() {
         </Flex>
       </Box>
 
+      {/* 🔐 AUTHENTICATION MAIN BOX (Frosted Glass Elevation) */}
       <Box
         w="90%"
         maxW="450px"
@@ -260,6 +247,7 @@ export default function Login() {
 
         <form onSubmit={handleAuth}>
           <VStack spacing={4} align="stretch">
+            {/* 🪄 Dynamic Form Field Injection Motion */}
             {isSignUp && !isResetting && (
               <Box animation={`${fieldFadeIn} 0.35s ease-out both`} overflow="hidden">
                 <Text fontSize="xs" fontWeight="bold" color="#1C4532" textTransform="uppercase" mb={2} ml={1}>
@@ -270,8 +258,10 @@ export default function Login() {
                   value={fullName}
                   onChange={e => {
                     let value = e.target.value
-                    value = value.replace(/^\s+/, '')
-                    value = value.replace(/\s{2,}/g, ' ')
+
+                    value = value.replace(/^\s+/, '') // remove leading spaces
+                    value = value.replace(/\s{2,}/g, ' ') // prevent double spaces
+
                     if (/^[A-Za-zÀ-ÿ\s'.-]*$/.test(value)) {
                       setFullName(value)
                     }
@@ -291,7 +281,7 @@ export default function Login() {
                   py={6}
                   borderRadius="xl"
                   transition="all 0.2s"
-                  isDisabled={loading}
+                  isDisabled={loading} // 🟢 Native Chakra Disable
                 />
               </Box>
             )}
@@ -313,7 +303,7 @@ export default function Login() {
                 py={6}
                 borderRadius="xl"
                 transition="all 0.2s"
-                isDisabled={loading}
+                isDisabled={loading} // 🟢 Native Chakra Disable
               />
             </Box>
 
@@ -327,13 +317,13 @@ export default function Login() {
                     <Text
                       as="span"
                       fontSize="xs"
-                      color={loading ? '#A0AEC0' : '#276749'}
+                      color={loading ? '#A0AEC0' : '#276749'} // Disable look when loading
                       fontWeight="bold"
                       cursor={loading ? 'not-allowed' : 'pointer'}
                       transition="color 0.15s"
                       _hover={{textDecoration: loading ? 'none' : 'underline', color: loading ? '#A0AEC0' : '#1C4532'}}
                       onClick={() => {
-                        if (loading) return
+                        if (loading) return // Prevent flipping state mid-load
                         setIsResetting(true)
                         setErrorMsg('')
                         setSuccessMsg('')
@@ -359,7 +349,7 @@ export default function Login() {
                     pr="4.5rem"
                     borderRadius="xl"
                     transition="all 0.2s"
-                    isDisabled={loading}
+                    isDisabled={loading} // 🟢 Native Chakra Disable
                   />
                   <Button
                     position="absolute"
@@ -381,6 +371,7 @@ export default function Login() {
                   </Button>
                 </Box>
 
+                {/* Requirements Checklist Slide Expansion */}
                 {isSignUp && (
                   <Box mt={3} px={2} animation={`${fieldFadeIn} 0.3s ease-out both`}>
                     <Text fontSize="xs" fontWeight="bold" color="#4A5568" mb={3}>
@@ -410,6 +401,7 @@ export default function Login() {
                             </Text>
                           ) : null}
                         </Flex>
+
                         <Text fontSize="xs" lineHeight="1.2" color={hasMinLen ? '#1C4532' : '#718096'} fontWeight={hasMinLen ? '600' : '400'} transition="color 0.2s">
                           {hasMinLen ? 'Success:' : 'Required:'} At least 6 characters
                         </Text>
@@ -438,6 +430,7 @@ export default function Login() {
                             </Text>
                           ) : null}
                         </Flex>
+
                         <Text fontSize="xs" lineHeight="1.2" color={hasUpper ? '#1C4532' : '#718096'} fontWeight={hasUpper ? '600' : '400'} transition="color 0.2s">
                           {hasUpper ? 'Success:' : 'Required:'} One uppercase letter
                         </Text>
@@ -466,6 +459,7 @@ export default function Login() {
                             </Text>
                           ) : null}
                         </Flex>
+
                         <Text fontSize="xs" lineHeight="1.2" color={hasLower ? '#1C4532' : '#718096'} fontWeight={hasLower ? '600' : '400'} transition="color 0.2s">
                           {hasLower ? 'Success:' : 'Required:'} One lowercase letter
                         </Text>
@@ -494,6 +488,7 @@ export default function Login() {
                             </Text>
                           ) : null}
                         </Flex>
+
                         <Text fontSize="xs" lineHeight="1.2" color={noSpecialChars ? '#1C4532' : '#718096'} fontWeight={noSpecialChars ? '600' : '400'} transition="color 0.2s">
                           {noSpecialChars ? 'Success:' : 'Required:'} No special characters (!@#$)
                         </Text>
@@ -506,7 +501,7 @@ export default function Login() {
 
             <Button
               type="submit"
-              isDisabled={loading}
+              isDisabled={loading} // 🟢 Native Chakra disable lock
               bg="#22543D"
               color="white"
               borderRadius="xl"
@@ -517,12 +512,13 @@ export default function Login() {
               boxShadow={loading ? 'none' : '0 8px 20px rgba(34, 84, 61, 0.2)'}
               transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
               _hover={{
-                bg: loading ? '#22543D' : '#1C4532',
+                bg: loading ? '#22543D' : '#1C4532', // Don't show hover effect while loading
                 transform: loading ? 'none' : 'translateY(-3px)',
                 boxShadow: loading ? 'none' : '0 15px 30px rgba(34, 84, 61, 0.25)'
               }}
               _active={{transform: 'translateY(0)'}}
             >
+              {/* 🟢 Dynamic Manual Spinner Implementation */}
               {loading ? (
                 <Flex align="center" gap={3}>
                   <Spinner size="sm" color="white" />
@@ -550,7 +546,7 @@ export default function Login() {
             transition="color 0.15s"
             _hover={{textDecoration: loading ? 'none' : 'underline', color: loading ? '#A0AEC0' : '#1C4532'}}
             onClick={() => {
-              if (loading) return
+              if (loading) return // Prevent clicking away while processing
               if (isResetting) {
                 setIsResetting(false)
                 setIsSignUp(false)
