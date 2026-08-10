@@ -1,7 +1,7 @@
 // App.jsx
-import {Box, Flex, Center, Spinner, Text} from '@chakra-ui/react'
-import {Routes, Route, Navigate, useLocation} from 'react-router-dom'
-import {useState, useEffect, useRef} from 'react'
+import {Box, Flex, Center, Spinner, Text, Heading, Button} from '@chakra-ui/react'
+import {Routes, Route, Navigate, useLocation, useNavigate} from 'react-router-dom'
+import {useState, useEffect} from 'react'
 
 import Navbar from './components/Navbar'
 import Dashboard from './components/Dashboard'
@@ -25,7 +25,11 @@ export default function App() {
   const [userRole, setUserRole] = useState(null)
   const [isAuthLoading, setIsAuthLoading] = useState(true)
 
+  // Custom Ban/Restriction Modal State
+  const [banNotice, setBanNotice] = useState(null) // { title, message }
+
   const location = useLocation()
+  const navigate = useNavigate()
 
   const MINIMAL_ROUTES = ['/admin', '/update-password', '/2YBnrUJH4WFa']
   const isMinimalRoute = MINIMAL_ROUTES.includes(location.pathname)
@@ -34,27 +38,37 @@ export default function App() {
     let isMounted = true
     let profileSubscription = null
 
+    // Helper to purge session and redirect safely
+    const handleRestrictionKick = async (title, message) => {
+      await supabase.auth.signOut()
+      if (isMounted) {
+        setIsLoggedIn(false)
+        setUserRole(null)
+        setBanNotice({title, message})
+        navigate('/login', {replace: true})
+      }
+    }
+
     // 🟢 ENHANCED ACCESS CHECK: Checks if account is archived OR banned
     const checkAccountStatus = async userId => {
       try {
-        const {data, error} = await supabase.from('user_profiles').select('role, is_archived, is_banned').eq('user_id', userId).single()
+        const {data, error} = await supabase.from('user_profiles').select('role, is_archived, is_banned').eq('user_id', userId).maybeSingle()
 
-        if (error) throw error
+        if (error || !data) return {isRestricted: false, role: 'user'}
 
-        // ⛔ BANNED ACCOUNT BOOT: Force sign out banned users immediately
-        if (data?.is_banned) {
-          await supabase.auth.signOut()
-          alert('Account Suspended: Your account has been suspended due to violations of platform terms.')
+        // ⛔ BANNED ACCOUNT BOOT
+        if (data.is_banned) {
+          await handleRestrictionKick('Account Suspended', 'Your account has been suspended due to violations of platform terms and conditions. If you believe this is an error, please contact support.')
           return {isRestricted: true, role: null}
         }
 
-        // ⛔ ARCHIVED ACCOUNT BOOT: Force sign out archived users immediately
-        if (data?.is_archived) {
-          await supabase.auth.signOut()
+        // ⛔ ARCHIVED ACCOUNT BOOT
+        if (data.is_archived) {
+          await handleRestrictionKick('Account Archived', 'Your account has been archived by an administrator. Please reach out to system support for assistance.')
           return {isRestricted: true, role: null}
         }
 
-        return {isRestricted: false, role: data?.role || 'user'}
+        return {isRestricted: false, role: data.role || 'user'}
       } catch (err) {
         return {isRestricted: false, role: 'user'}
       }
@@ -76,7 +90,7 @@ export default function App() {
             setIsLoggedIn(true)
             setUserRole(status.role)
 
-            // ⚡ REALTIME CHANNEL: Instantly ejects active user if banned or archived live
+            // ⚡ REALTIME LISTENER: Listens for live ban/archive actions
             if (!profileSubscription) {
               profileSubscription = supabase
                 .channel(`security_user_${session.user.id}`)
@@ -89,13 +103,10 @@ export default function App() {
                     filter: `user_id=eq.${session.user.id}`
                   },
                   async payload => {
-                    if (payload.new?.is_banned || payload.new?.is_archived) {
-                      await supabase.auth.signOut()
-                      setIsLoggedIn(false)
-                      setUserRole(null)
-                      if (payload.new?.is_banned) {
-                        alert('Account Suspended: Your account has been suspended by an administrator.')
-                      }
+                    if (payload.new?.is_banned) {
+                      await handleRestrictionKick('Account Suspended', 'Your account has been suspended by an administrator. You have been automatically signed out.')
+                    } else if (payload.new?.is_archived) {
+                      await handleRestrictionKick('Account Archived', 'Your account has been archived by an administrator. You have been automatically signed out.')
                     }
                   }
                 )
@@ -162,7 +173,7 @@ export default function App() {
       if (profileSubscription) supabase.removeChannel(profileSubscription)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [location.pathname])
+  }, [location.pathname, navigate])
 
   // 🛡️ GLOBAL SESSION LOADING SHIELD
   if (isAuthLoading) {
@@ -183,7 +194,7 @@ export default function App() {
   const showPublicLayout = !isMinimalRoute && !isAdmin
 
   return (
-    <Flex direction="column" minH="100vh" bg="#FFFFFF" color="gray.800">
+    <Flex direction="column" minH="100vh" bg="#FFFFFF" color="gray.800" position="relative">
       {/* Navbar hides for Admin or Minimal Routes */}
       {showPublicLayout && <Navbar isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />}
 
@@ -221,6 +232,29 @@ export default function App() {
 
       {/* Public Footer hides for Admin or Minimal Routes */}
       {showPublicLayout && <Footer />}
+
+      {/* 🚫 CUSTOM BAN & RESTRICTION NOTIFICATION MODAL */}
+      {banNotice && (
+        <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.7)" backdropFilter="blur(8px)" zIndex={99999} align="center" justify="center" px={4} onClick={() => setBanNotice(null)}>
+          <Box bg="white" p={8} borderRadius="3xl" maxW="420px" w="100%" boxShadow="0 25px 50px -12px rgba(229, 62, 62, 0.3)" onClick={e => e.stopPropagation()} textAlign="center">
+            <Flex w="16" h="16" bg="#FFF5F5" border="4px solid white" outline="1px solid #FED7D7" borderRadius="full" align="center" justify="center" mx="auto" mb={5} boxShadow="lg">
+              <Text fontSize="2xl">🚫</Text>
+            </Flex>
+
+            <Heading size="md" color="#1A202C" mb={3} letterSpacing="tight">
+              {banNotice.title}
+            </Heading>
+
+            <Text color="#718096" fontSize="sm" mb={6} lineHeight="tall">
+              {banNotice.message}
+            </Text>
+
+            <Button w="100%" size="lg" bg="#E53E3E" color="white" borderRadius="xl" _hover={{bg: '#C53030'}} onClick={() => setBanNotice(null)}>
+              Acknowledge & Continue
+            </Button>
+          </Box>
+        </Flex>
+      )}
     </Flex>
   )
 }
