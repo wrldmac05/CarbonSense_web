@@ -30,12 +30,11 @@ export default function App() {
   const MINIMAL_ROUTES = ['/admin', '/update-password', '/2YBnrUJH4WFa']
   const isMinimalRoute = MINIMAL_ROUTES.includes(location.pathname)
 
-  const isBooting = useRef(true)
-
   useEffect(() => {
     let isMounted = true
+    let profileSubscription = null
 
-    // 🟢 ENHANCED ACCESS CHECK: Fetches role AND checks if the account is archived OR banned
+    // 🟢 ENHANCED ACCESS CHECK: Checks if account is archived OR banned
     const checkAccountStatus = async userId => {
       try {
         const {data, error} = await supabase.from('user_profiles').select('role, is_archived, is_banned').eq('user_id', userId).single()
@@ -61,7 +60,7 @@ export default function App() {
       }
     }
 
-    // 1. The Reliable Boot Routine
+    // 1. Reliable Boot Routine
     const bootApp = async () => {
       const {
         data: {session}
@@ -76,6 +75,32 @@ export default function App() {
           } else {
             setIsLoggedIn(true)
             setUserRole(status.role)
+
+            // ⚡ REALTIME CHANNEL: Instantly ejects active user if banned or archived live
+            if (!profileSubscription) {
+              profileSubscription = supabase
+                .channel(`security_user_${session.user.id}`)
+                .on(
+                  'postgres_changes',
+                  {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'user_profiles',
+                    filter: `user_id=eq.${session.user.id}`
+                  },
+                  async payload => {
+                    if (payload.new?.is_banned || payload.new?.is_archived) {
+                      await supabase.auth.signOut()
+                      setIsLoggedIn(false)
+                      setUserRole(null)
+                      if (payload.new?.is_banned) {
+                        alert('Account Suspended: Your account has been suspended by an administrator.')
+                      }
+                    }
+                  }
+                )
+                .subscribe()
+            }
           }
         }
       } else {
@@ -124,7 +149,6 @@ export default function App() {
         sleepTimer = Date.now()
       } else {
         if (sleepTimer && Date.now() - sleepTimer > 30000) {
-          console.log('Tab woke from deep sleep. Refreshing security state...')
           bootApp()
         }
       }
@@ -135,6 +159,7 @@ export default function App() {
     return () => {
       isMounted = false
       subscription.unsubscribe()
+      if (profileSubscription) supabase.removeChannel(profileSubscription)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [location.pathname])
