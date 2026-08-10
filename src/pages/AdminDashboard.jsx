@@ -10,26 +10,6 @@ const slideUp = keyframes`
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 `
-const backdropFade = keyframes`
-  from { opacity: 0; backdrop-filter: blur(0px); }
-  to { opacity: 1; backdrop-filter: blur(4px); }
-`
-const modalScalePop = keyframes`
-  from { opacity: 0; transform: scale(0.95) translateY(10px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
-`
-const drawerSlideIn = keyframes`
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
-`
-const dangerPop = keyframes`
-  from { opacity: 0; transform: scale(0.9) translateY(20px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
-`
-const slideInRight = keyframes`
-  from { opacity: 0; transform: translateX(50px); }
-  to { opacity: 1; transform: translateX(0); }
-`
 
 const AnimatedNumber = ({value, decimals = 0}) => {
   const [displayValue, setDisplayValue] = useState(parseFloat(value) || 0)
@@ -94,6 +74,9 @@ export default function AdminDashboard() {
   // Custom Internal Notification State
   const [notification, setNotification] = useState(null)
   const notificationTimer = useRef(null)
+
+  // Filter tab state for User Management
+  const [userFilter, setUserFilter] = useState('all') // 'all' | 'active' | 'banned' | 'archived'
 
   const showNotification = (title, description, status = 'success') => {
     setNotification({title, description, status})
@@ -194,13 +177,27 @@ export default function AdminDashboard() {
 
   const fetchAllRawData = async () => {
     try {
-      const {data: profiles} = await supabase.rpc('get_admin_user_list')
-      const {data: lifestyles} = await supabase.from('lifestyle_profiles').select('user_id, diet_type, commute_type')
-      const {data: logs} = await supabase.from('activity_logs').select('total_co2e, logged_at, emission_factors ( category )')
+      const {data: profiles, error: profileErr} = await supabase.rpc('get_admin_user_list')
+      if (profileErr) console.error('RPC Error:', profileErr)
 
-      const usersData = profiles?.map(p => ({created_at: p.created_at})) || []
+      // 🟢 REMOVED 'location' from lifestyle_profiles (it is already in 'profiles')
+      const {data: lifestyles, error: lifestyleErr} = await supabase.from('lifestyle_profiles').select('user_id, diet_type, commute_type')
 
-      setRawGlobalData({users: usersData, profiles, lifestyles, logs})
+      if (lifestyleErr) console.error('Lifestyle Error:', lifestyleErr)
+
+      const {data: logs, error: logErr} = await supabase.from('activity_logs').select('total_co2e, logged_at, emission_factors ( category )')
+
+      if (logErr) console.error('Logs Error:', logErr)
+
+      const safeProfiles = profiles || []
+      const usersData = safeProfiles.map(p => ({created_at: p.created_at})) || []
+
+      setRawGlobalData({
+        users: usersData,
+        profiles: safeProfiles,
+        lifestyles: lifestyles || [],
+        logs: logs || []
+      })
     } catch (error) {
       console.error('Error fetching raw intel:', error)
     }
@@ -263,9 +260,13 @@ export default function AdminDashboard() {
       value: Math.round(value)
     }))
 
+    // In AdminDashboard.jsx inside recalculateStatsForDate:
+
     const countFreq = (arr, key) =>
       arr?.reduce((acc, item) => {
-        if (item[key]) acc[item[key]] = (acc[item[key]] || 0) + 1
+        if (item && item[key]) {
+          acc[item[key]] = (acc[item[key]] || 0) + 1
+        }
         return acc
       }, {}) || {}
 
@@ -278,7 +279,7 @@ export default function AdminDashboard() {
       categoryData,
       diets: countFreq(lifestyles, 'diet_type'),
       commutes: countFreq(lifestyles, 'commute_type'),
-      locations: countFreq(profiles, 'location')
+      locations: countFreq(profiles, 'location') // 🟢 Reads location directly from user_profiles RPC output
     })
   }
 
@@ -314,7 +315,7 @@ export default function AdminDashboard() {
           ...user,
           total_logs: userLogs.length,
           last_active: latestLog ? new Date(latestLog.logged_at).toLocaleDateString() : 'No Activity',
-          status: user.role === 'admin' ? 'System' : user.is_archived ? 'Archived' : userLogs.length === 0 ? 'Inactive' : 'Active'
+          status: user.role === 'admin' ? 'System' : user.is_banned ? 'Banned' : user.is_archived ? 'Archived' : userLogs.length === 0 ? 'Inactive' : 'Active'
         }
       })
       .sort((a, b) => (a.role === 'admin' ? -1 : 1))
@@ -412,12 +413,14 @@ export default function AdminDashboard() {
     setFactors(data || [])
     setIsLoading(false)
   }
+
   const fetchTasks = async () => {
     setIsLoading(true)
     const {data} = await supabase.from('tasks_dictionary').select('*').order('tier', {ascending: true})
     setTasks(data || [])
     setIsLoading(false)
   }
+
   const fetchUsers = async () => {
     setIsLoading(true)
     try {
@@ -430,11 +433,12 @@ export default function AdminDashboard() {
           ...user,
           total_logs: userLogs.length,
           last_active: latestLog ? new Date(latestLog.logged_at).toLocaleDateString() : 'No Activity',
-          status: user.role === 'admin' ? 'System' : user.is_archived ? 'Archived' : userLogs.length === 0 ? 'Inactive' : 'Active'
+          status: user.role === 'admin' ? 'System' : user.is_banned ? 'Banned' : user.is_archived ? 'Archived' : userLogs.length === 0 ? 'Inactive' : 'Active'
         }
       })
       setUsers(enrichedUsers?.sort((a, b) => (a.role === 'admin' ? -1 : 1)) || [])
     } catch (error) {
+      console.error('User synchronization error:', error)
     } finally {
       setIsLoading(false)
     }
@@ -459,6 +463,34 @@ export default function AdminDashboard() {
           showNotification('Override Uplink Dispatched', 'The user will receive secure recovery instructions shortly.', 'success')
         } catch (error) {
           showNotification('Transmission Failed', error.message, 'error')
+        } finally {
+          setIsProcessingAction(false)
+          setConfirmDialog(null)
+        }
+      }
+    })
+  }
+
+  const handleToggleBan = (profileId, isBanned, displayName) => {
+    const actionText = isBanned ? 'Unban' : 'Ban'
+    setConfirmDialog({
+      title: `${actionText} User Account?`,
+      message: isBanned ? `Unbanning ${displayName} will restore their platform privileges.` : `Banning ${displayName} will immediately block them from creating activity logs and using the system due to policy violations.`,
+      confirmText: `${actionText} Account`,
+      isDanger: !isBanned,
+      onConfirm: async () => {
+        setIsProcessingAction(true)
+        try {
+          const {error} = await supabase.rpc('admin_toggle_ban_user', {
+            target_profile_id: profileId,
+            ban_status: !isBanned
+          })
+          if (error) throw error
+          showNotification(`Account ${actionText}ned`, `User status updated successfully.`, 'success')
+          fetchUsers()
+          fetchAllRawData()
+        } catch (error) {
+          showNotification('Operation Aborted', error.message, 'error')
         } finally {
           setIsProcessingAction(false)
           setConfirmDialog(null)
@@ -1397,10 +1429,41 @@ export default function AdminDashboard() {
               </Box>
             </Flex>
 
-            <Box mb={6} bg="white" p={3} borderRadius="2xl" border="1px solid #E2E8F0" boxShadow="sm">
-              <Input placeholder="Secure Lookup: Enter Name, Email or ID..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} bg="#F8FAFC" border="none" py={6} fontSize="sm" />
-            </Box>
+            {/* SEARCH BAR & CATEGORY SUB-TABS */}
+            <Flex direction={{base: 'column', md: 'row'}} gap={4} mb={6} justify="space-between" align={{base: 'stretch', md: 'center'}}>
+              <Box flex="1" bg="white" p={1.5} borderRadius="2xl" border="1px solid #E2E8F0" boxShadow="sm">
+                <Input placeholder="Secure Lookup: Enter Name, Email or ID..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} bg="#F8FAFC" border="none" py={5} fontSize="sm" />
+              </Box>
 
+              {/* FILTER BUTTONS FOR BANNED / ARCHIVED SEPARATION */}
+              <Flex gap={1} bg="white" p={1.5} borderRadius="2xl" border="1px solid #E2E8F0" boxShadow="sm">
+                {[
+                  {id: 'all', label: 'All Users', count: users.length},
+                  {id: 'active', label: 'Active', count: users.filter(u => u.status === 'Active' || u.status === 'Inactive').length},
+                  {id: 'banned', label: '🚫 Banned', count: users.filter(u => u.is_banned).length},
+                  {id: 'archived', label: '📦 Archived', count: users.filter(u => u.is_archived).length}
+                ].map(filter => (
+                  <Button
+                    key={filter.id}
+                    size="sm"
+                    borderRadius="xl"
+                    px={4}
+                    py={4}
+                    fontSize="xs"
+                    fontWeight="bold"
+                    bg={userFilter === filter.id ? '#1C4532' : 'transparent'}
+                    color={userFilter === filter.id ? 'white' : '#718096'}
+                    _hover={{bg: userFilter === filter.id ? '#1C4532' : '#F7FAFC'}}
+                    onClick={() => setUserFilter(filter.id)}
+                    transition="all 0.2s"
+                  >
+                    {filter.label} ({filter.count})
+                  </Button>
+                ))}
+              </Flex>
+            </Flex>
+
+            {/* USERS TABLE */}
             <Box bg="white" borderRadius="3xl" border="1px solid #E2E8F0" overflow="hidden" boxShadow="0 4px 20px -5px rgba(0,0,0,0.03)">
               {isLoading ? (
                 <Center p={10}>
@@ -1434,13 +1497,22 @@ export default function AdminDashboard() {
 
                   {users
                     .filter(user => {
+                      // 1. Search filter
                       const anonymizedId = `User #${user.profile_id.substring(0, 6).toUpperCase()}`
                       const realName = user.display_name || ''
                       const accountEmail = user.email || ''
                       const cleanQuery = searchQuery.toLowerCase()
-                      return anonymizedId.toLowerCase().includes(cleanQuery) || realName.toLowerCase().includes(cleanQuery) || accountEmail.toLowerCase().includes(cleanQuery)
+                      const matchesSearch = anonymizedId.toLowerCase().includes(cleanQuery) || realName.toLowerCase().includes(cleanQuery) || accountEmail.toLowerCase().includes(cleanQuery)
+
+                      // 2. Tab filter for Banned / Archived / Active separation
+                      let matchesTab = true
+                      if (userFilter === 'banned') matchesTab = user.is_banned
+                      else if (userFilter === 'archived') matchesTab = user.is_archived
+                      else if (userFilter === 'active') matchesTab = !user.is_banned && !user.is_archived
+
+                      return matchesSearch && matchesTab
                     })
-                    .map((user, index) => {
+                    .map(user => {
                       const isStaff = user.role === 'admin'
                       const displayName = isStaff ? user.display_name || 'Administrator' : `User #${user.profile_id.substring(0, 6).toUpperCase()}`
 
@@ -1476,16 +1548,25 @@ export default function AdminDashboard() {
                               )}
                             </Box>
                           </Flex>
+
                           <Box>
                             <Badge colorScheme={isStaff ? 'red' : 'green'} px={3} py={1} borderRadius="full">
                               {user.role}
                             </Badge>
                           </Box>
+
                           <Box>
-                            <Badge variant="solid" colorScheme={user.status === 'System' ? 'purple' : user.status === 'Archived' ? 'orange' : user.status === 'Active' ? 'teal' : 'gray'} px={3} py={1} borderRadius="full">
+                            <Badge
+                              variant="solid"
+                              colorScheme={user.status === 'System' ? 'purple' : user.status === 'Banned' ? 'red' : user.status === 'Archived' ? 'orange' : user.status === 'Active' ? 'teal' : 'gray'}
+                              px={3}
+                              py={1}
+                              borderRadius="full"
+                            >
                               {user.status}
                             </Badge>
                           </Box>
+
                           <Box pl={2}>
                             {isStaff ? (
                               <Text color="#A0AEC0" fontSize="sm" fontStyle="italic">
@@ -1497,6 +1578,7 @@ export default function AdminDashboard() {
                               </Text>
                             )}
                           </Box>
+
                           <Box>
                             {isStaff ? (
                               <Text color="#A0AEC0" fontSize="sm" fontStyle="italic">
@@ -1511,6 +1593,7 @@ export default function AdminDashboard() {
                               </Flex>
                             )}
                           </Box>
+
                           <Box textAlign="right">
                             {isStaff ? (
                               <Text color="#A0AEC0" fontSize="sm" fontStyle="italic">
@@ -1522,6 +1605,7 @@ export default function AdminDashboard() {
                               </Text>
                             )}
                           </Box>
+
                           <Flex justify="flex-end">
                             {isStaff ? (
                               <Text color="#A0AEC0" fontSize="xs" fontStyle="italic" pr={4}>
@@ -1538,6 +1622,7 @@ export default function AdminDashboard() {
                                   <Menu.Item value="password-reset" fontSize="sm" color="#2B6CB0" cursor="pointer" p={2} borderRadius="md" _hover={{bg: '#EBF8FF'}} onClick={() => handlePasswordReset(user.email)}>
                                     🔑 Password Reset
                                   </Menu.Item>
+
                                   <Menu.Item
                                     value="toggle-archive"
                                     fontSize="sm"
@@ -1549,6 +1634,19 @@ export default function AdminDashboard() {
                                     onClick={() => handleToggleArchive(user.profile_id, user.is_archived, displayName)}
                                   >
                                     {user.is_archived ? '🔄 Restore Account' : '📦 Archive Account'}
+                                  </Menu.Item>
+
+                                  <Menu.Item
+                                    value="toggle-ban"
+                                    fontSize="sm"
+                                    color={user.is_banned ? '#38A169' : '#E53E3E'}
+                                    cursor="pointer"
+                                    p={2}
+                                    borderRadius="md"
+                                    _hover={{bg: user.is_banned ? '#F0FFF4' : '#FFF5F5'}}
+                                    onClick={() => handleToggleBan(user.profile_id, user.is_banned, displayName)}
+                                  >
+                                    {user.is_banned ? '🔓 Unban User' : '🚫 Ban User'}
                                   </Menu.Item>
                                 </Menu.Content>
                               </Menu.Root>

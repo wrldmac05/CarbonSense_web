@@ -35,22 +35,29 @@ export default function App() {
   useEffect(() => {
     let isMounted = true
 
-    // 🟢 ENHANCED ACCESS CHECK: Fetches role AND checks if the account is archived
+    // 🟢 ENHANCED ACCESS CHECK: Fetches role AND checks if the account is archived OR banned
     const checkAccountStatus = async userId => {
       try {
-        const {data, error} = await supabase.from('user_profiles').select('role, is_archived').eq('user_id', userId).single()
+        const {data, error} = await supabase.from('user_profiles').select('role, is_archived, is_banned').eq('user_id', userId).single()
 
         if (error) throw error
+
+        // ⛔ BANNED ACCOUNT BOOT: Force sign out banned users immediately
+        if (data?.is_banned) {
+          await supabase.auth.signOut()
+          alert('Account Suspended: Your account has been suspended due to violations of platform terms.')
+          return {isRestricted: true, role: null}
+        }
 
         // ⛔ ARCHIVED ACCOUNT BOOT: Force sign out archived users immediately
         if (data?.is_archived) {
           await supabase.auth.signOut()
-          return {isArchived: true, role: null}
+          return {isRestricted: true, role: null}
         }
 
-        return {isArchived: false, role: data?.role || 'user'}
+        return {isRestricted: false, role: data?.role || 'user'}
       } catch (err) {
-        return {isArchived: false, role: 'user'}
+        return {isRestricted: false, role: 'user'}
       }
     }
 
@@ -63,7 +70,7 @@ export default function App() {
       if (session?.user) {
         const status = await checkAccountStatus(session.user.id)
         if (isMounted) {
-          if (status.isArchived) {
+          if (status.isRestricted) {
             setIsLoggedIn(false)
             setUserRole(null)
           } else {
@@ -90,7 +97,7 @@ export default function App() {
         if (session?.user) {
           checkAccountStatus(session.user.id).then(status => {
             if (isMounted) {
-              if (status.isArchived) {
+              if (status.isRestricted) {
                 setIsLoggedIn(false)
                 setUserRole(null)
               } else {
