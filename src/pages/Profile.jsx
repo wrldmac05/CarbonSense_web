@@ -1,3 +1,4 @@
+// pages/Profile.jsx
 import {useState, useEffect, useRef} from 'react'
 import {Box, Heading, Text, Flex, Input, Button, Center, Spinner, Icon, IconButton, Badge, DialogRoot, DialogContent, DialogHeader, DialogBody, DialogFooter, DialogCloseTrigger, DialogBackdrop} from '@chakra-ui/react'
 import {useNavigate} from 'react-router-dom'
@@ -163,7 +164,6 @@ export default function Profile() {
       async position => {
         try {
           const {latitude, longitude} = position.coords
-          // Using OpenStreetMap's free nominatim reverse geocoding API
           const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10`)
           const data = await response.json()
 
@@ -351,21 +351,34 @@ export default function Profile() {
   const displayImage = isEditing ? avatarPreview || profileData.avatarUrl : profileData.avatarUrl
 
   return (
-    <Box minH="100vh" bg="#F4F9F5" backgroundImage="url('https://www.transparenttextures.com/patterns/cubes.png')" backgroundBlendMode="multiply" pb={20} position="relative" overflow="hidden">
-      <Box position="absolute" top="-10%" left="-5%" w="700px" h="700px" bgGradient="radial(#48BB78 0%, transparent 65%)" opacity="0.15" borderRadius="full" pointerEvents="none" zIndex={0} />
-      <Box position="absolute" bottom="-10%" right="-5%" w="700px" h="700px" bgGradient="radial(#319795 0%, transparent 65%)" opacity="0.12" borderRadius="full" pointerEvents="none" zIndex={0} />
+    <Box minH="100vh" bg="#F4F9F5" backgroundImage="url('https://www.transparenttextures.com/patterns/cubes.png')" backgroundBlendMode="multiply" pb={{base: 12, md: 20}} position="relative" overflow="hidden">
+      {/* Background Aurora Glows */}
+      <Box position="absolute" top="-10%" left="-5%" w={{base: '350px', md: '700px'}} h={{base: '350px', md: '700px'}} bgGradient="radial(#48BB78 0%, transparent 65%)" opacity="0.15" borderRadius="full" pointerEvents="none" zIndex={0} />
+      <Box
+        position="absolute"
+        bottom="-10%"
+        right="-5%"
+        w={{base: '350px', md: '700px'}}
+        h={{base: '350px', md: '700px'}}
+        bgGradient="radial(#319795 0%, transparent 65%)"
+        opacity="0.12"
+        borderRadius="full"
+        pointerEvents="none"
+        zIndex={0}
+      />
 
+      {/* Top Header Bar */}
       <Box borderBottom="1px solid" borderColor="rgba(72, 187, 120, 0.2)" bg="rgba(244, 249, 245, 0.6)" backdropFilter="blur(12px)" position="sticky" top="0" zIndex="10">
-        <Flex maxW="1200px" mx="auto" px={{base: 4, md: 8}} py={4} align="center" justify="space-between">
-          <Flex align="center" gap={4}>
-            <IconButton aria-label="Back" variant="ghost" borderRadius="full" color="#1C4532" _hover={{bg: 'rgba(72, 187, 120, 0.1)'}} onClick={() => (isEditing ? handleCancelEdit() : navigate(-1))}>
+        <Flex maxW="1200px" mx="auto" px={{base: 4, sm: 6, md: 8}} py={4} align="center" justify="space-between" gap={2}>
+          <Flex align="center" gap={{base: 2, sm: 4}} overflow="hidden">
+            <IconButton aria-label="Back" variant="ghost" borderRadius="full" color="#1C4532" size="sm" _hover={{bg: 'rgba(72, 187, 120, 0.1)'}} onClick={() => (isEditing ? handleCancelEdit() : navigate(-1))}>
               <MdArrowBack size="20px" />
             </IconButton>
-            <Box>
-              <Heading size="md" color="#1C4532" fontWeight="800">
+            <Box overflow="hidden">
+              <Heading size={{base: 'sm', md: 'md'}} color="#1C4532" fontWeight="800" noOfLines={1}>
                 {isEditing ? 'Edit Profile' : 'Profile & Sustainability Hub'}
               </Heading>
-              <Text fontSize="xs" color="#4A5568">
+              <Text fontSize="xs" color="#4A5568" display={{base: 'none', sm: 'block'}}>
                 CarbonSense Account Management
               </Text>
             </Box>
@@ -375,28 +388,31 @@ export default function Profile() {
             <Button
               bg="#22543D"
               color="white"
+              size={{base: 'sm', md: 'md'}}
               _hover={{bg: '#1C4532', transform: 'translateY(-2px)', boxShadow: '0 8px 20px rgba(34, 84, 61, 0.2)'}}
               transition="all 0.2s"
               boxShadow="0 4px 12px rgba(34, 84, 61, 0.15)"
               borderRadius="xl"
-              px={6}
+              px={{base: 3, sm: 6}}
               onClick={handleEditClick}
+              flexShrink={0}
             >
               <Flex align="center" gap={2}>
                 <MdEdit />
-                <Text>Edit Profile</Text>
+                <Text fontSize={{base: 'xs', sm: 'sm'}}>Edit Profile</Text>
               </Flex>
             </Button>
           ) : (
-            <Button variant="ghost" color="#4A5568" _hover={{bg: 'rgba(226, 232, 240, 0.8)', color: '#1C4532'}} borderRadius="xl" onClick={handleCancelEdit}>
-              Cancel Editing
+            <Button variant="ghost" size={{base: 'sm', md: 'md'}} color="#4A5568" _hover={{bg: 'rgba(226, 232, 240, 0.8)', color: '#1C4532'}} borderRadius="xl" onClick={handleCancelEdit} flexShrink={0}>
+              Cancel
             </Button>
           )}
         </Flex>
       </Box>
 
+      {/* Alert Banner */}
       {profileAlert.show && (
-        <Box maxW="1200px" mx="auto" px={{base: 4, md: 8}} pt={6}>
+        <Box maxW="1200px" mx="auto" px={{base: 4, sm: 6, md: 8}} pt={6}>
           <Flex
             align="center"
             gap={3}
@@ -407,7 +423,6 @@ export default function Profile() {
             border="1px solid"
             borderColor={profileAlert.status === 'success' ? '#9AE6B4' : '#FEB2B2'}
             boxShadow="0 4px 12px rgba(28, 69, 50, 0.05)"
-            animation="fadeIn 0.3s ease-out"
           >
             <Text fontSize="lg">{profileAlert.status === 'success' ? '✅' : '⚠️'}</Text>
             <Text fontSize="sm" fontWeight="bold">
@@ -417,12 +432,23 @@ export default function Profile() {
         </Box>
       )}
 
-      <Box maxW="1200px" mx="auto" px={{base: 4, md: 8}} pt={8} position="relative" zIndex={1}>
-        <Box bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" borderRadius="2xl" p={{base: 6, md: 8}} boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)" border="1px solid" borderColor="rgba(72, 187, 120, 0.2)" mb={8}>
-          <Flex direction={{base: 'column', sm: 'row'}} align="center" gap={6}>
+      {/* Main Body */}
+      <Box maxW="1200px" mx="auto" px={{base: 4, sm: 6, md: 8}} pt={{base: 6, md: 8}} position="relative" zIndex={1}>
+        {/* User Card */}
+        <Box
+          bg="rgba(255, 255, 255, 0.9)"
+          backdropFilter="blur(10px)"
+          borderRadius="2xl"
+          p={{base: 5, md: 8}}
+          boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)"
+          border="1px solid"
+          borderColor="rgba(72, 187, 120, 0.2)"
+          mb={{base: 6, md: 8}}
+        >
+          <Flex direction={{base: 'column', sm: 'row'}} align="center" gap={{base: 4, sm: 6}}>
             <Box position="relative">
-              <Center w="110px" h="110px" borderRadius="full" bg="#F0FFF4" border="3px solid #38A169" overflow="hidden">
-                {displayImage ? <img src={`${displayImage}?t=${Date.now()}`} alt="Avatar" style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : <Icon as={MdPerson} boxSize="50px" color="#38A169" />}
+              <Center w={{base: '90px', md: '110px'}} h={{base: '90px', md: '110px'}} borderRadius="full" bg="#F0FFF4" border="3px solid #38A169" overflow="hidden">
+                {displayImage ? <img src={`${displayImage}?t=${Date.now()}`} alt="Avatar" style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : <Icon as={MdPerson} boxSize={{base: '40px', md: '50px'}} color="#38A169" />}
               </Center>
 
               {isEditing && (
@@ -445,18 +471,18 @@ export default function Profile() {
               <input type="file" accept="image/*" ref={fileInputRef} style={{display: 'none'}} onChange={handleFileChange} />
             </Box>
 
-            <Flex direction="column" align={{base: 'center', sm: 'flex-start'}} gap={1} flex="1">
-              <Flex align="center" gap={3}>
-                <Heading size="lg" color="#1C4532">
+            <Flex direction="column" align={{base: 'center', sm: 'flex-start'}} textAlign={{base: 'center', sm: 'left'}} gap={1} flex="1">
+              <Flex align="center" gap={2} wrap="wrap" justify={{base: 'center', sm: 'flex-start'}}>
+                <Heading size={{base: 'md', md: 'lg'}} color="#1C4532">
                   {profileData.displayName}
                 </Heading>
-                <Badge bg="#E6FFFA" color="#234E52" border="1px solid #9AE6B4" borderRadius="md" px={2} py={0.5}>
+                <Badge bg="#E6FFFA" color="#234E52" border="1px solid #9AE6B4" borderRadius="md" px={2} py={0.5} fontSize="2xs">
                   Verified Member
                 </Badge>
               </Flex>
               <Flex align="center" gap={1} color="#4A5568" fontSize="sm" mt={1}>
                 <Icon as={MdLocationOn} color="#38A169" />
-                <Text>{profileData.location}</Text>
+                <Text fontSize="xs">{profileData.location}</Text>
               </Flex>
             </Flex>
           </Flex>
@@ -464,8 +490,9 @@ export default function Profile() {
 
         {!isEditing ? (
           /* ================= VIEW MODE ================= */
-          <Flex direction="column" gap={8}>
-            <Box p={{base: 6, md: 8}} bg="#1C4532" borderRadius="2xl" border="1px solid rgba(154, 230, 180, 0.3)" boxShadow="0 15px 35px -10px rgba(28, 69, 50, 0.3)" position="relative" overflow="hidden">
+          <Flex direction="column" gap={{base: 6, md: 8}}>
+            {/* System Telemetry */}
+            <Box p={{base: 5, md: 8}} bg="#1C4532" borderRadius="2xl" border="1px solid rgba(154, 230, 180, 0.3)" boxShadow="0 15px 35px -10px rgba(28, 69, 50, 0.3)" position="relative" overflow="hidden">
               <Box position="absolute" top="-50%" right="-10%" w="300px" h="300px" bgGradient="radial(#48BB78 0%, transparent 70%)" opacity="0.3" filter="blur(35px)" borderRadius="full" pointerEvents="none" />
 
               <Flex justify="space-between" align="flex-start" wrap="wrap" gap={4} position="relative" zIndex={1}>
@@ -476,10 +503,10 @@ export default function Profile() {
                       System Telemetry
                     </Text>
                   </Flex>
-                  <Heading size="2xl" mb={3} color="white" fontWeight="black">
+                  <Heading size={{base: 'xl', sm: '2xl'}} mb={3} color="white" fontWeight="black">
                     {profileData.monthlyTarget ? `${profileData.monthlyTarget} kg CO₂e` : 'Not Set'}
                   </Heading>
-                  <Text color="#C6F6D5" maxW="600px" fontSize="sm" lineHeight="tall">
+                  <Text color="#C6F6D5" maxW="600px" fontSize="xs" lineHeight="tall">
                     Your target dynamically auto-adjusts monthly based on your self-reported logs and emission factor analyses.
                   </Text>
                 </Box>
@@ -489,33 +516,34 @@ export default function Profile() {
               </Flex>
             </Box>
 
+            {/* Active Lifestyle Metrics */}
             <Box>
-              <Heading size="sm" color="#1C4532" mb={4} textTransform="uppercase" letterSpacing="0.5px">
+              <Heading size="xs" color="#1C4532" mb={4} textTransform="uppercase" letterSpacing="0.5px">
                 Active Lifestyle Metrics
               </Heading>
-              <Flex direction={{base: 'column', md: 'row'}} gap={6}>
+              <Flex direction={{base: 'column', md: 'row'}} gap={{base: 4, md: 6}}>
                 <Flex
                   flex="1"
-                  p={6}
+                  p={{base: 5, md: 6}}
                   bg="rgba(255, 255, 255, 0.9)"
                   backdropFilter="blur(10px)"
                   borderRadius="2xl"
                   border="1px solid"
                   borderColor="rgba(72, 187, 120, 0.2)"
                   align="center"
-                  gap={5}
+                  gap={4}
                   boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)"
                   transition="transform 0.2s"
                   _hover={{transform: 'translateY(-2px)'}}
                 >
-                  <Center w={14} h={14} bg="#F0FFF4" border="1px solid #C6F6D5" color="#38A169" borderRadius="xl">
-                    <Icon as={profileData.dietType.includes('Analyzing') ? MdSync : MdRestaurant} boxSize={7} />
+                  <Center w={12} h={12} bg="#F0FFF4" border="1px solid #C6F6D5" color="#38A169" borderRadius="xl" flexShrink={0}>
+                    <Icon as={profileData.dietType.includes('Analyzing') ? MdSync : MdRestaurant} boxSize={6} />
                   </Center>
                   <Box>
-                    <Text fontSize="xs" color="#4A5568" fontWeight="bold" textTransform="uppercase">
+                    <Text fontSize="10px" color="#4A5568" fontWeight="bold" textTransform="uppercase">
                       Dietary Profile
                     </Text>
-                    <Text fontSize="lg" fontWeight="900" color="#1C4532">
+                    <Text fontSize={{base: 'md', md: 'lg'}} fontWeight="900" color="#1C4532">
                       {profileData.dietType}
                     </Text>
                   </Box>
@@ -523,26 +551,26 @@ export default function Profile() {
 
                 <Flex
                   flex="1"
-                  p={6}
+                  p={{base: 5, md: 6}}
                   bg="rgba(255, 255, 255, 0.9)"
                   backdropFilter="blur(10px)"
                   borderRadius="2xl"
                   border="1px solid"
                   borderColor="rgba(72, 187, 120, 0.2)"
                   align="center"
-                  gap={5}
+                  gap={4}
                   boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)"
                   transition="transform 0.2s"
                   _hover={{transform: 'translateY(-2px)'}}
                 >
-                  <Center w={14} h={14} bg="#E6FFFA" border="1px solid #B2F5EA" color="#319795" borderRadius="xl">
-                    <Icon as={getIconForCommute(profileData.commuteType)} boxSize={7} />
+                  <Center w={12} h={12} bg="#E6FFFA" border="1px solid #B2F5EA" color="#319795" borderRadius="xl" flexShrink={0}>
+                    <Icon as={getIconForCommute(profileData.commuteType)} boxSize={6} />
                   </Center>
                   <Box>
-                    <Text fontSize="xs" color="#4A5568" fontWeight="bold" textTransform="uppercase">
+                    <Text fontSize="10px" color="#4A5568" fontWeight="bold" textTransform="uppercase">
                       Commute Profile
                     </Text>
-                    <Text fontSize="lg" fontWeight="900" color="#1C4532">
+                    <Text fontSize={{base: 'md', md: 'lg'}} fontWeight="900" color="#1C4532">
                       {profileData.commuteType}
                     </Text>
                   </Box>
@@ -550,7 +578,8 @@ export default function Profile() {
               </Flex>
             </Box>
 
-            <Box bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" borderRadius="2xl" p={6} border="1px solid" borderColor="rgba(72, 187, 120, 0.2)" boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)">
+            {/* Account Security & Data */}
+            <Box bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" borderRadius="2xl" p={{base: 5, md: 6}} border="1px solid" borderColor="rgba(72, 187, 120, 0.2)" boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)">
               <Flex align="center" gap={2} mb={4}>
                 <Icon as={MdOutlineSecurity} color="#38A169" boxSize={5} />
                 <Heading size="sm" color="#1C4532">
@@ -571,13 +600,13 @@ export default function Profile() {
                 >
                   <Flex align="center" gap={2}>
                     <MdLockOutline />
-                    <Text>Change Password</Text>
+                    <Text fontSize="sm">Change Password</Text>
                   </Flex>
                 </Button>
                 <Button flex="1" variant="outline" colorScheme="red" justifyContent="flex-start" h="50px" borderRadius="xl" _hover={{bg: '#FFF5F5'}} onClick={() => setIsDelOpen(true)}>
                   <Flex align="center" gap={2}>
                     <MdDeleteForever />
-                    <Text>Delete Account</Text>
+                    <Text fontSize="sm">Delete Account</Text>
                   </Flex>
                 </Button>
               </Flex>
@@ -586,12 +615,13 @@ export default function Profile() {
         ) : (
           /* ================= EDIT MODE ================= */
           <Flex direction="column" gap={6} maxW="800px" mx="auto">
-            <Box bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" p={{base: 6, md: 8}} borderRadius="2xl" border="1px solid" borderColor="rgba(72, 187, 120, 0.2)" boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)">
+            {/* Personal Details Form Box */}
+            <Box bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" p={{base: 5, md: 8}} borderRadius="2xl" border="1px solid" borderColor="rgba(72, 187, 120, 0.2)" boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)">
               <Heading size="sm" color="#1C4532" mb={6}>
                 Personal Details
               </Heading>
               <Flex direction="column" gap={6}>
-                {/* Display Name Container */}
+                {/* Display Name */}
                 <Box w="100%">
                   <Text fontSize="xs" fontWeight="bold" color="#1C4532" textTransform="uppercase" mb={2}>
                     Display Name
@@ -617,9 +647,9 @@ export default function Profile() {
                   />
                 </Box>
 
-                {/* GPS Location Box */}
+                {/* GPS Location */}
                 <Box w="100%">
-                  <Flex align="center" justify="space-between" mb={2}>
+                  <Flex direction={{base: 'column', sm: 'row'}} align={{base: 'flex-start', sm: 'center'}} justify="space-between" gap={2} mb={2}>
                     <Flex align="center" gap={2}>
                       <Icon as={MdLocationOn} color="#38A169" />
                       <Text fontSize="xs" fontWeight="bold" color="#1C4532" textTransform="uppercase">
@@ -627,7 +657,7 @@ export default function Profile() {
                       </Text>
                     </Flex>
                     <Button
-                      size="sm"
+                      size="xs"
                       variant="outline"
                       colorScheme="green"
                       borderColor="#38A169"
@@ -641,17 +671,7 @@ export default function Profile() {
                       Detect via GPS
                     </Button>
                   </Flex>
-                  <Input
-                    value={formData.location}
-                    readOnly // 👈 Prevents manual typing/custom entries like Gotham City
-                    placeholder="Click 'Detect via GPS' above..."
-                    h="50px"
-                    bg="#E6FFFA" // Distinct light teal background to indicate it's auto-filled
-                    border="1px solid rgba(56, 161, 105, 0.3)"
-                    color="#1C4532"
-                    fontWeight="bold"
-                    borderRadius="xl"
-                  />
+                  <Input value={formData.location} readOnly placeholder="Click 'Detect via GPS' above..." h="50px" bg="#E6FFFA" border="1px solid rgba(56, 161, 105, 0.3)" color="#1C4532" fontWeight="bold" borderRadius="xl" fontSize="sm" />
                   <Text fontSize="xs" color="#4A5568" mt={1}>
                     Location is automatically verified and locked via browser GPS for accurate carbon tracking.
                   </Text>
@@ -659,7 +679,8 @@ export default function Profile() {
               </Flex>
             </Box>
 
-            <Box bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" p={{base: 6, md: 8}} borderRadius="2xl" border="1px solid" borderColor="rgba(72, 187, 120, 0.2)" boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)">
+            {/* Target Box */}
+            <Box bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" p={{base: 5, md: 8}} borderRadius="2xl" border="1px solid" borderColor="rgba(72, 187, 120, 0.2)" boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)">
               <Heading size="sm" color="#1C4532" mb={2}>
                 Adaptive Carbon Target
               </Heading>
@@ -687,7 +708,7 @@ export default function Profile() {
                   transition="all 0.2s"
                 />
                 {isTargetLocked && (
-                  <IconButton aria-label="Unlock Target" colorScheme="orange" h="50px" w="50px" borderRadius="xl" onClick={() => setIsOverrideOpen(true)}>
+                  <IconButton aria-label="Unlock Target" colorScheme="orange" h="50px" w="50px" flexShrink={0} borderRadius="xl" onClick={() => setIsOverrideOpen(true)}>
                     <MdLockOutline size="20px" />
                   </IconButton>
                 )}
@@ -695,7 +716,7 @@ export default function Profile() {
 
               {isTargetLocked && (
                 <Flex p={4} bg="orange.50" color="orange.800" border="1px solid" borderColor="orange.200" borderRadius="xl" mt={4} gap={3} align="flex-start">
-                  <Icon as={MdTimer} boxSize={5} color="orange.500" mt={0.5} />
+                  <Icon as={MdTimer} boxSize={5} color="orange.500" mt={0.5} flexShrink={0} />
                   <Text fontSize="xs" fontWeight="500">
                     Goal locked for {daysRemaining} more days to preserve tracking consistency. Tap lock icon to force edit.
                   </Text>
@@ -703,7 +724,7 @@ export default function Profile() {
               )}
 
               <Flex p={4} bg="rgba(56, 161, 105, 0.05)" border="1px solid" borderColor="rgba(56, 161, 105, 0.2)" borderRadius="xl" mt={4} gap={3} align="flex-start">
-                <Icon as={MdInfoOutline} boxSize={5} color="#38A169" mt={0.5} />
+                <Icon as={MdInfoOutline} boxSize={5} color="#38A169" mt={0.5} flexShrink={0} />
                 <Text fontSize="xs" lineHeight="tall" fontWeight="medium" color="#2D3748">
                   Set a monthly carbon emission goal that you would like to achieve. CarbonSense tracks your total emissions throughout the month and compares them with this goal, helping you monitor your progress and build more sustainable
                   habits over time. You can update this goal whenever your lifestyle or sustainability goals change.
@@ -711,12 +732,14 @@ export default function Profile() {
               </Flex>
             </Box>
 
-            <Flex gap={4} justify="flex-end" mt={6}>
-              <Button h="50px" px={8} borderRadius="xl" variant="ghost" color="#4A5568" _hover={{bg: 'rgba(226, 232, 240, 0.8)', color: '#1C4532'}} onClick={handleCancelEdit}>
+            {/* Save / Cancel Buttons */}
+            <Flex direction={{base: 'column-reverse', sm: 'row'}} gap={4} justify="flex-end" mt={2}>
+              <Button h="50px" w={{base: '100%', sm: 'auto'}} px={8} borderRadius="xl" variant="ghost" color="#4A5568" _hover={{bg: 'rgba(226, 232, 240, 0.8)', color: '#1C4532'}} onClick={handleCancelEdit}>
                 Cancel
               </Button>
               <Button
                 h="50px"
+                w={{base: '100%', sm: 'auto'}}
                 px={8}
                 borderRadius="xl"
                 bg="#22543D"
@@ -737,7 +760,7 @@ export default function Profile() {
       {/* Password Dialog */}
       <DialogRoot open={isPwdOpen} onOpenChange={e => setIsPwdOpen(e.open)} placement="center">
         <DialogBackdrop bg="rgba(28, 69, 50, 0.4)" backdropFilter="blur(6px)" />
-        <DialogContent position="fixed" top="50%" left="50%" transform="translate(-50%, -50%)" w="90%" maxW="450px" bg="white" borderRadius="3xl" p={4} boxShadow="0 25px 50px -12px rgba(28, 69, 50, 0.25)" zIndex={9999}>
+        <DialogContent position="fixed" top="50%" left="50%" transform="translate(-50%, -50%)" w="92%" maxW="450px" bg="white" borderRadius="3xl" p={{base: 4, sm: 6}} boxShadow="0 25px 50px -12px rgba(28, 69, 50, 0.25)" zIndex={9999}>
           <DialogHeader>
             <Flex align="center" gap={2}>
               <Icon as={MdLockReset} color="#38A169" />
@@ -820,7 +843,7 @@ export default function Profile() {
       {/* Delete Account Dialog */}
       <DialogRoot open={isDelOpen} onOpenChange={e => setIsDelOpen(e.open)} placement="center">
         <DialogBackdrop bg="rgba(28, 69, 50, 0.4)" backdropFilter="blur(6px)" />
-        <DialogContent position="fixed" top="50%" left="50%" transform="translate(-50%, -50%)" w="90%" maxW="450px" bg="white" borderRadius="3xl" p={4} boxShadow="0 25px 50px -12px rgba(28, 69, 50, 0.25)" zIndex={9999}>
+        <DialogContent position="fixed" top="50%" left="50%" transform="translate(-50%, -50%)" w="92%" maxW="450px" bg="white" borderRadius="3xl" p={{base: 4, sm: 6}} boxShadow="0 25px 50px -12px rgba(28, 69, 50, 0.25)" zIndex={9999}>
           <DialogHeader color="red.600">
             <Flex align="center" gap={2}>
               <Icon as={MdWarningAmber} boxSize={6} />
@@ -869,7 +892,7 @@ export default function Profile() {
       {/* Override Target Dialog */}
       <DialogRoot open={isOverrideOpen} onOpenChange={e => setIsOverrideOpen(e.open)} placement="center">
         <DialogBackdrop bg="rgba(28, 69, 50, 0.4)" backdropFilter="blur(6px)" />
-        <DialogContent position="fixed" top="50%" left="50%" transform="translate(-50%, -50%)" w="90%" maxW="450px" bg="white" borderRadius="3xl" p={4} boxShadow="0 25px 50px -12px rgba(28, 69, 50, 0.25)" zIndex={9999}>
+        <DialogContent position="fixed" top="50%" left="50%" transform="translate(-50%, -50%)" w="92%" maxW="450px" bg="white" borderRadius="3xl" p={{base: 4, sm: 6}} boxShadow="0 25px 50px -12px rgba(28, 69, 50, 0.25)" zIndex={9999}>
           <DialogHeader>
             <Text color="#1C4532" fontWeight="bold">
               Unlock Goal Editing

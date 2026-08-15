@@ -6,7 +6,7 @@ import {Link, useNavigate} from 'react-router-dom'
 import {supabase} from '../supabase'
 import {keyframes} from '@emotion/react'
 
-// 🟢 Custom Fine-Tuned Authentication Keyframes
+// Custom Authentication Keyframes
 const cardPop = keyframes`
   from { opacity: 0; transform: scale(0.96) translateY(15px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
@@ -94,7 +94,7 @@ export default function Login() {
       })
       if (error) throw error
 
-      // 🟢 ARCHIVE GUARD: Query user role and archive status
+      // ARCHIVE GUARD: Query user role and archive status
       const {data: profile} = await supabase.from('user_profiles').select('role, is_archived').eq('user_id', data.user.id).maybeSingle()
 
       if (profile?.is_archived) {
@@ -115,15 +115,15 @@ export default function Login() {
 
   if (isRegistrationSuccess) {
     return (
-      <Box minH="100vh" w="100%" display="flex" alignItems="center" justifyContent="center" position="relative" overflow="hidden" bgGradient="linear(to-br, #E6FFFA, #C6F6D5, #81E6D9)">
+      <Box minH="100vh" w="100%" display="flex" alignItems="center" justifyContent="center" position="relative" overflow="hidden" bgGradient="linear(to-br, #E6FFFA, #C6F6D5, #81E6D9)" p={4}>
         <Box position="absolute" top="-10%" left="-10%" w="500px" h="500px" bg="#38A169" opacity="0.15" filter="blur(80px)" borderRadius="full" />
         <Box position="absolute" bottom="-20%" right="-10%" w="600px" h="600px" bg="#319795" opacity="0.15" filter="blur(100px)" borderRadius="full" />
 
         <Box
-          w="90%"
+          w="100%"
           maxW="450px"
           bg="white"
-          p={{base: 8, md: 10}}
+          p={{base: 6, sm: 8, md: 10}}
           borderRadius="3xl"
           boxShadow="0 25px 50px -12px rgba(49, 151, 149, 0.25)"
           position="relative"
@@ -137,7 +137,7 @@ export default function Login() {
           <Heading size="lg" color="#1A202C" letterSpacing="tight" mb={3}>
             Check your inbox
           </Heading>
-          <Text color="#718096" fontSize="md" mb={8} lineHeight="tall">
+          <Text color="#718096" fontSize={{base: 'sm', md: 'md'}} mb={8} lineHeight="tall">
             We just sent a verification link to <b>{email}</b>. Please click the link in that email to activate your account.
           </Text>
           <Button
@@ -145,7 +145,7 @@ export default function Login() {
             bg="#1A202C"
             color="white"
             borderRadius="xl"
-            py={7}
+            py={6}
             fontWeight="bold"
             transition="all 0.2s"
             _hover={{bg: '#2D3748', transform: 'translateY(-2px)'}}
@@ -177,28 +177,32 @@ export default function Login() {
       bg="#F4F9F5"
       backgroundImage="url('https://www.transparenttextures.com/patterns/cubes.png')"
       backgroundBlendMode="multiply"
-      py={{base: 12, md: 16}}
+      py={{base: 10, md: 16}}
+      px={4}
     >
-      <Box position="absolute" top="-10%" left="-10%" w="700px" h="700px" bgGradient="radial(#48BB78 0%, transparent 65%)" opacity="0.18" borderRadius="full" pointerEvents="none" />
-      <Box position="absolute" bottom="-20%" right="-10%" w="700px" h="700px" bgGradient="radial(#319795 0%, transparent 65%)" opacity="0.15" borderRadius="full" pointerEvents="none" />
+      <Box position="absolute" top="-10%" left="-10%" w={{base: '350px', md: '700px'}} h={{base: '350px', md: '700px'}} bgGradient="radial(#48BB78 0%, transparent 65%)" opacity="0.18" borderRadius="full" pointerEvents="none" />
+      <Box position="absolute" bottom="-20%" right="-10%" w={{base: '350px', md: '700px'}} h={{base: '350px', md: '700px'}} bgGradient="radial(#319795 0%, transparent 65%)" opacity="0.15" borderRadius="full" pointerEvents="none" />
 
-      <Box position="absolute" top={8} left={{base: 6, md: 10}} zIndex={10}>
+      {/* Back Link */}
+      <Box position="absolute" top={{base: 4, md: 8}} left={{base: 4, md: 10}} zIndex={10}>
         <Flex align="center" gap={2} as={Link} to="/" transition="all 0.2s" _hover={{opacity: 0.7, transform: 'translateX(-4px)'}}>
           <Text fontSize="lg" color="#1C4532">
             ←
           </Text>
-          <Text fontWeight="bold" color="#1C4532" fontSize="sm">
+          <Text fontWeight="bold" color="#1C4532" fontSize="xs">
             Back to Home
           </Text>
         </Flex>
       </Box>
 
+      {/* Login Card */}
       <Box
-        w="90%"
+        w="100%"
         maxW="450px"
         bg="rgba(255, 255, 255, 0.9)"
         backdropFilter="blur(16px)"
-        p={{base: 8, md: 10}}
+        p={{base: 6, sm: 8, md: 10}}
+        mt={{base: 8, md: 0}}
         borderRadius="3xl"
         border="1px solid rgba(72, 187, 120, 0.25)"
         boxShadow="0 25px 50px -12px rgba(28, 69, 50, 0.15)"
@@ -206,40 +210,40 @@ export default function Login() {
         zIndex={1}
         animation={`${cardPop} 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both`}
       >
-        <VStack spacing={2} mb={8} align="center" textAlign="center">
-          <Flex w="50px" h="50px" bg="#F0FFF4" border="1px solid #C6F6D5" borderRadius="xl" align="center" justify="center" mb={2} transition="all 0.3s" _hover={{transform: 'rotate(10deg)'}}>
+        <VStack spacing={2} mb={{base: 6, md: 8}} align="center" textAlign="center">
+          <Flex w="48px" h="48px" bg="#F0FFF4" border="1px solid #C6F6D5" borderRadius="xl" align="center" justify="center" mb={1} transition="all 0.3s" _hover={{transform: 'rotate(10deg)'}}>
             <img
               src="/Logo.png"
-              alt="Carbonsense Logo"
+              alt="CarbonSense Logo"
               style={{
-                width: '30px',
-                height: '30px',
+                width: '28px',
+                height: '28px',
                 objectFit: 'contain',
                 borderRadius: '6px'
               }}
             />
           </Flex>
-          <Heading size="xl" color="#1C4532" letterSpacing="tight" fontWeight="black">
-            {isResetting ? 'Reset Password' : isSignUp ? 'Join Carbonsense' : 'Welcome Back'}
+          <Heading size={{base: 'lg', sm: 'xl'}} color="#1C4532" letterSpacing="tight" fontWeight="black">
+            {isResetting ? 'Reset Password' : isSignUp ? 'Join CarbonSense' : 'Welcome Back'}
           </Heading>
-          <Text color="#4A5568" fontSize="sm" px={4}>
+          <Text color="#4A5568" fontSize="xs" px={2}>
             {isResetting ? "Enter your email and we'll send you a recovery link." : isSignUp ? 'Start tracking your footprint and changing the world today.' : 'Log in to your dashboard to log your daily activities.'}
           </Text>
         </VStack>
 
         {errorMsg && (
-          <Flex align="center" gap={3} borderRadius="xl" mb={6} bg="#FFF5F5" color="#C53030" border="1px solid #FEB2B2" p={4} animation={`${alertSlide} 0.3s ease-out both`}>
-            <Text fontSize="lg">⚠️</Text>
-            <Text fontSize="sm" fontWeight="bold">
+          <Flex align="center" gap={3} borderRadius="xl" mb={6} bg="#FFF5F5" color="#C53030" border="1px solid #FEB2B2" p={3.5} animation={`${alertSlide} 0.3s ease-out both`}>
+            <Text fontSize="md">⚠️</Text>
+            <Text fontSize="xs" fontWeight="bold">
               {errorMsg}
             </Text>
           </Flex>
         )}
 
         {successMsg && (
-          <Flex align="center" gap={3} borderRadius="xl" mb={6} bg="#F0FFF4" color="#276749" border="1px solid #9AE6B4" p={4} animation={`${alertSlide} 0.3s ease-out both`}>
-            <Text fontSize="lg">✅</Text>
-            <Text fontSize="sm" fontWeight="bold">
+          <Flex align="center" gap={3} borderRadius="xl" mb={6} bg="#F0FFF4" color="#276749" border="1px solid #9AE6B4" p={3.5} animation={`${alertSlide} 0.3s ease-out both`}>
+            <Text fontSize="md">✅</Text>
+            <Text fontSize="xs" fontWeight="bold">
               {successMsg}
             </Text>
           </Flex>
@@ -276,8 +280,9 @@ export default function Login() {
                     boxShadow: '0 0 0 1px #38A169'
                   }}
                   _hover={{bg: '#E6FFFA'}}
-                  py={6}
+                  py={5}
                   borderRadius="xl"
+                  fontSize="sm"
                   transition="all 0.2s"
                   isDisabled={loading}
                 />
@@ -298,8 +303,9 @@ export default function Login() {
                 border="1px solid rgba(72, 187, 120, 0.2)"
                 _focus={{bg: 'white', borderColor: '#38A169', boxShadow: '0 0 0 1px #38A169'}}
                 _hover={{bg: '#E6FFFA'}}
-                py={6}
+                py={5}
                 borderRadius="xl"
+                fontSize="sm"
                 transition="all 0.2s"
                 isDisabled={loading}
               />
@@ -343,9 +349,10 @@ export default function Login() {
                     border="1px solid rgba(72, 187, 120, 0.2)"
                     _focus={{bg: 'white', borderColor: '#38A169', boxShadow: '0 0 0 1px #38A169'}}
                     _hover={{bg: '#E6FFFA'}}
-                    py={6}
+                    py={5}
                     pr="4.5rem"
                     borderRadius="xl"
+                    fontSize="sm"
                     transition="all 0.2s"
                     isDisabled={loading}
                   />
@@ -355,7 +362,7 @@ export default function Login() {
                     top="50%"
                     transform="translateY(-50%)"
                     h="1.75rem"
-                    size="sm"
+                    size="xs"
                     onClick={() => setShowPassword(!showPassword)}
                     bg="transparent"
                     color="#4A5568"
@@ -370,123 +377,95 @@ export default function Login() {
                 </Box>
 
                 {isSignUp && (
-                  <Box mt={3} px={2} animation={`${fieldFadeIn} 0.3s ease-out both`}>
-                    <Text fontSize="xs" fontWeight="bold" color="#4A5568" mb={3}>
+                  <Box mt={3} px={1} animation={`${fieldFadeIn} 0.3s ease-out both`}>
+                    <Text fontSize="xs" fontWeight="bold" color="#4A5568" mb={2}>
                       Password Requirements:
                     </Text>
-                    <VStack align="start" spacing={2}>
+                    <VStack align="start" spacing={1.5}>
                       <Flex align="center" gap={2}>
                         <Flex
-                          minW="16px"
-                          w="16px"
-                          h="16px"
+                          minW="14px"
+                          w="14px"
+                          h="14px"
                           borderRadius="full"
                           align="center"
                           justify="center"
                           bg={hasMinLen ? '#F0FFF4' : 'transparent'}
                           border={hasMinLen ? '1px solid #9AE6B4' : '1.5px solid #CBD5E0'}
                           color="#38A169"
-                          fontSize="10px"
+                          fontSize="9px"
                           fontWeight="700"
-                          lineHeight="1"
                           flexShrink={0}
-                          transition="all 0.2s"
                         >
-                          {hasMinLen ? (
-                            <Text m={0} p={0} lineHeight="1" fontSize="10px" fontWeight="700">
-                              ✓
-                            </Text>
-                          ) : null}
+                          {hasMinLen ? '✓' : null}
                         </Flex>
-
-                        <Text fontSize="xs" lineHeight="1.2" color={hasMinLen ? '#1C4532' : '#718096'} fontWeight={hasMinLen ? '600' : '400'} transition="color 0.2s">
+                        <Text fontSize="2xs" color={hasMinLen ? '#1C4532' : '#718096'} fontWeight={hasMinLen ? '600' : '400'}>
                           {hasMinLen ? 'Success:' : 'Required:'} At least 6 characters
                         </Text>
                       </Flex>
 
                       <Flex align="center" gap={2}>
                         <Flex
-                          minW="16px"
-                          w="16px"
-                          h="16px"
+                          minW="14px"
+                          w="14px"
+                          h="14px"
                           borderRadius="full"
                           align="center"
                           justify="center"
                           bg={hasUpper ? '#F0FFF4' : 'transparent'}
                           border={hasUpper ? '1px solid #9AE6B4' : '1.5px solid #CBD5E0'}
                           color="#38A169"
-                          fontSize="10px"
+                          fontSize="9px"
                           fontWeight="700"
-                          lineHeight="1"
                           flexShrink={0}
-                          transition="all 0.2s"
                         >
-                          {hasUpper ? (
-                            <Text m={0} p={0} lineHeight="1" fontSize="10px" fontWeight="700">
-                              ✓
-                            </Text>
-                          ) : null}
+                          {hasUpper ? '✓' : null}
                         </Flex>
-
-                        <Text fontSize="xs" lineHeight="1.2" color={hasUpper ? '#1C4532' : '#718096'} fontWeight={hasUpper ? '600' : '400'} transition="color 0.2s">
+                        <Text fontSize="2xs" color={hasUpper ? '#1C4532' : '#718096'} fontWeight={hasUpper ? '600' : '400'}>
                           {hasUpper ? 'Success:' : 'Required:'} One uppercase letter
                         </Text>
                       </Flex>
 
                       <Flex align="center" gap={2}>
                         <Flex
-                          minW="16px"
-                          w="16px"
-                          h="16px"
+                          minW="14px"
+                          w="14px"
+                          h="14px"
                           borderRadius="full"
                           align="center"
                           justify="center"
                           bg={hasLower ? '#F0FFF4' : 'transparent'}
                           border={hasLower ? '1px solid #9AE6B4' : '1.5px solid #CBD5E0'}
                           color="#38A169"
-                          fontSize="10px"
+                          fontSize="9px"
                           fontWeight="700"
-                          lineHeight="1"
                           flexShrink={0}
-                          transition="all 0.2s"
                         >
-                          {hasLower ? (
-                            <Text m={0} p={0} lineHeight="1" fontSize="10px" fontWeight="700">
-                              ✓
-                            </Text>
-                          ) : null}
+                          {hasLower ? '✓' : null}
                         </Flex>
-
-                        <Text fontSize="xs" lineHeight="1.2" color={hasLower ? '#1C4532' : '#718096'} fontWeight={hasLower ? '600' : '400'} transition="color 0.2s">
+                        <Text fontSize="2xs" color={hasLower ? '#1C4532' : '#718096'} fontWeight={hasLower ? '600' : '400'}>
                           {hasLower ? 'Success:' : 'Required:'} One lowercase letter
                         </Text>
                       </Flex>
 
                       <Flex align="center" gap={2}>
                         <Flex
-                          minW="16px"
-                          w="16px"
-                          h="16px"
+                          minW="14px"
+                          w="14px"
+                          h="14px"
                           borderRadius="full"
                           align="center"
                           justify="center"
                           bg={noSpecialChars ? '#F0FFF4' : 'transparent'}
                           border={noSpecialChars ? '1px solid #9AE6B4' : '1.5px solid #CBD5E0'}
                           color="#38A169"
-                          fontSize="10px"
+                          fontSize="9px"
                           fontWeight="700"
-                          lineHeight="1"
                           flexShrink={0}
-                          transition="all 0.2s"
                         >
-                          {noSpecialChars ? (
-                            <Text m={0} p={0} lineHeight="1" fontSize="10px" fontWeight="700">
-                              ✓
-                            </Text>
-                          ) : null}
+                          {noSpecialChars ? '✓' : null}
                         </Flex>
-
-                        <Text fontSize="xs" lineHeight="1.2" color={noSpecialChars ? '#1C4532' : '#718096'} fontWeight={noSpecialChars ? '600' : '400'} transition="color 0.2s">
+                        <Text fontSize="2xs" color={noSpecialChars ? '#1C4532' : '#718096'} fontWeight={noSpecialChars ? '600' : '400'}>
                           {noSpecialChars ? 'Success:' : 'Required:'} No special characters (!@#$)
                         </Text>
                       </Flex>
@@ -502,23 +481,22 @@ export default function Login() {
               bg="#22543D"
               color="white"
               borderRadius="xl"
-              py={7}
-              mt={4}
-              fontSize="md"
+              py={6}
+              mt={2}
+              fontSize="sm"
               fontWeight="black"
               boxShadow={loading ? 'none' : '0 8px 20px rgba(34, 84, 61, 0.2)'}
               transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
               _hover={{
                 bg: loading ? '#22543D' : '#1C4532',
-                transform: loading ? 'none' : 'translateY(-3px)',
-                boxShadow: loading ? 'none' : '0 15px 30px rgba(34, 84, 61, 0.25)'
+                transform: loading ? 'none' : 'translateY(-2px)'
               }}
               _active={{transform: 'translateY(0)'}}
             >
               {loading ? (
                 <Flex align="center" gap={3}>
                   <Spinner size="sm" color="white" />
-                  <Text>{isResetting ? 'Sending...' : isSignUp ? 'Creating Account...' : 'Signing In...'}</Text>
+                  <Text fontSize="xs">{isResetting ? 'Sending...' : isSignUp ? 'Creating Account...' : 'Signing In...'}</Text>
                 </Flex>
               ) : isResetting ? (
                 'Send Reset Link'
@@ -531,7 +509,7 @@ export default function Login() {
           </VStack>
         </form>
 
-        <Text textAlign="center" mt={8} fontSize="sm" color="#4A5568">
+        <Text textAlign="center" mt={6} fontSize="xs" color="#4A5568">
           {isResetting ? 'Remembered your password? ' : isSignUp ? 'Already have an account? ' : "Don't have an account? "}
 
           <Text

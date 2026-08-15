@@ -1,26 +1,16 @@
 // pages/TermsOfService.jsx
-import {Box, Heading, Text, VStack, Flex, Link as ChakraLink, Separator, List} from '@chakra-ui/react' // 🟢 FIXED: Changed UnorderedList/ListItem to List
+import {Box, Heading, Text, VStack, Flex, Link as ChakraLink, Separator} from '@chakra-ui/react'
 import {Link as RouterLink} from 'react-router-dom'
 
 export default function TermsOfService() {
-  const lastUpdated = 'May 18, 2026'
+  const lastUpdated = 'August 10, 2026'
 
   return (
-    <Box minH="100vh" bg="#FCFDFD" pb={20}>
+    <Box minH="100vh" bg="#FCFDFD" pb={{base: 12, md: 20}}>
       {/* Header */}
-      <Box w="100%" pt={16} pb={8} px={10} borderBottom="1px solid rgba(226, 232, 240, 0.6)" bg="white">
+      <Box w="100%" pt={{base: 12, md: 16}} pb={{base: 6, md: 8}} px={{base: 4, sm: 6, md: 10}} borderBottom="1px solid rgba(226, 232, 240, 0.6)" bg="white">
         <Box maxW="800px" mx="auto" position="relative">
-          <Flex
-            align="center"
-            gap={2}
-            as={RouterLink}
-            to="/"
-            position="absolute"
-            top="-40px"
-            left="0"
-            _hover={{opacity: 0.7}}
-            transition="opacity 0.2s"
-          >
+          <Flex align="center" gap={2} as={RouterLink} to="/" position={{base: 'relative', sm: 'absolute'}} top={{sm: '-40px'}} left="0" mb={{base: 4, sm: 0}} _hover={{opacity: 0.7}} transition="opacity 0.2s">
             <Text fontSize="lg" color="#2D3748">
               ←
             </Text>
@@ -31,431 +21,382 @@ export default function TermsOfService() {
           <Text color="#38A169" fontWeight="bold" letterSpacing="widest" fontSize="xs" textTransform="uppercase">
             Legal
           </Text>
-          <Heading size="2xl" color="#1A202C" mt={2} letterSpacing="tighter">
+          <Heading size={{base: 'xl', sm: '2xl'}} color="#1A202C" mt={2} letterSpacing="tighter">
             Terms of Service
           </Heading>
-          <Text color="#718096" fontSize="sm" mt={2}>
+          <Text color="#718096" fontSize="xs" mt={2}>
             Last Updated: {lastUpdated}
           </Text>
         </Box>
       </Box>
 
       {/* Content */}
-      <Box maxW="800px" mx="auto" px={10} pt={12}>
-        <VStack align="stretch" spacing={8} color="#4A5568" lineHeight="tall">
-          {/* AGREEMENT TO OUR LEGAL TERMS */}
+      <Box maxW="800px" mx="auto" px={{base: 4, sm: 6, md: 10}} pt={{base: 6, md: 12}}>
+        <VStack align="stretch" spacing={{base: 6, md: 8}} color="#4A5568" lineHeight="tall" fontSize={{base: 'sm', md: 'md'}}>
+          {/* WELCOME / INTRO */}
           <Box>
-            <Heading size="lg" color="#1A202C" mb={4}>
-              AGREEMENT TO OUR LEGAL TERMS
-            </Heading>
             <Text mb={4}>
-              We are <strong>CarbonSense corp.</strong> ("<strong>Company</strong>," "<strong>we</strong>," "<strong>us</strong>," "
-              <strong>our</strong>"), a company registered in the Philippines at Imus, Cavite 4103.
+              Welcome to <strong>CarbonSense: An AI-Driven Recommendation System for Personal Carbon Footprint Mitigation Based on Self-Reported Activities</strong> ("CarbonSense," "we," "us," or "our").
             </Text>
             <Text mb={4}>
-              We operate the website{' '}
-              <ChakraLink color="#3182ce" href="http://www.carbonsense.com" isExternal>
-                http://www.carbonsense.com
-              </ChakraLink>{' '}
-              (the "<strong>Site</strong>"), the mobile application CarbonSense (the "<strong>App</strong>"), as well as any other related
-              products and services that refer or link to these legal terms (the "<strong>Legal Terms</strong>") (collectively, the "
-              <strong>Services</strong>").
+              CarbonSense is an AI-driven system developed as a capstone project by students of National University Dasmariñas (NU Dasmariñas). The system is designed to help users understand, monitor, and mitigate their personal carbon
+              footprint based on their self-reported activities and AI-assisted activity analysis.
             </Text>
-            <Text mb={4}>
-              CarbonSense is a Utility app used for tracking your Carbon Footprint through your daily activities, to help save the
-              environment and make a big impact on nature. CarbonSense also provides an AI-generated summary of your total Carbon Footprint
-              emissions and gives alternatives that will reduce your Footprint emissions.
-            </Text>
-            <Text mb={4}>
-              You can contact us by email at{' '}
-              <ChakraLink color="#3182ce" href="mailto:carbonsense@gmail.com">
-                carbonsense@gmail.com
-              </ChakraLink>{' '}
-              or by mail to Imus, Cavite 4103, Philippines.
-            </Text>
-            <Text mb={4}>
-              These Legal Terms constitute a legally binding agreement made between you, whether personally or on behalf of an entity ("
-              <strong>you</strong>"), and CarbonSense corp., concerning your access to and use of the Services. You agree that by accessing
-              the Services, you have read, understood, and agreed to be bound by all of these Legal Terms. IF YOU DO NOT AGREE WITH ALL OF
-              THESE LEGAL TERMS, THEN YOU ARE EXPRESSLY PROHIBITED FROM USING THE SERVICES AND YOU MUST DISCONTINUE USE IMMEDIATELY.
-            </Text>
-            <Text mb={4}>
-              We will provide you with prior notice of any scheduled changes to the Services you are using. The modified Legal Terms will
-              become effective upon posting or notifying you by email. By continuing to use the Services after the effective date of any
-              changes, you agree to be bound by the modified terms.
-            </Text>
-            <Text>
-              All users who are minors in the jurisdiction in which they reside (generally under the age of 18) must have the permission of,
-              and be directly supervised by, their parent or guardian to use the Services.
-            </Text>
+            <Text>By creating an account, accessing, or using CarbonSense, you agree to these Terms of Use. If you do not agree with these Terms, please do not use the system.</Text>
           </Box>
 
           <Separator borderColor="#E2E8F0" />
 
           {/* TABLE OF CONTENTS */}
-          <Box>
-            <Heading size="md" color="#1A202C" mb={4}>
-              TABLE OF CONTENTS
+          <Box bg="#F8FAFC" p={{base: 4, md: 6}} borderRadius="2xl" border="1px solid #E2E8F0">
+            <Heading size="xs" color="#1A202C" mb={4} textTransform="uppercase" letterSpacing="wider">
+              Table of Contents
             </Heading>
-            <VStack align="start" spacing={2}>
-              <ChakraLink color="#3182ce" href="#services">
-                1. OUR SERVICES
+            <VStack align="start" spacing={1.5} fontSize="xs">
+              <ChakraLink color="#38A169" href="#section-1">
+                1. Acceptance of Terms
               </ChakraLink>
-              <ChakraLink color="#3182ce" href="#ip">
-                2. INTELLECTUAL PROPERTY RIGHTS
+              <ChakraLink color="#38A169" href="#section-2">
+                2. About CarbonSense
               </ChakraLink>
-              <ChakraLink color="#3182ce" href="#userreps">
-                3. USER REPRESENTATIONS
+              <ChakraLink color="#38A169" href="#section-3">
+                3. Eligibility
               </ChakraLink>
-              <ChakraLink color="#3182ce" href="#userreg">
-                4. USER REGISTRATION
+              <ChakraLink color="#38A169" href="#section-4">
+                4. Account Registration and Security
               </ChakraLink>
-              <ChakraLink color="#3182ce" href="#purchases">
-                5. PURCHASES AND PAYMENT
+              <ChakraLink color="#38A169" href="#section-5">
+                5. Information and Activities Submitted by Users
               </ChakraLink>
-              <ChakraLink color="#3182ce" href="#software">
-                6. SOFTWARE
+              <ChakraLink color="#38A169" href="#section-6">
+                6. AI-Assisted Features
               </ChakraLink>
-              <ChakraLink color="#3182ce" href="#prohibited">
-                7. PROHIBITED ACTIVITIES
+              <ChakraLink color="#38A169" href="#section-7">
+                7. Carbon Footprint Estimates and AI Disclaimer
               </ChakraLink>
-              <ChakraLink color="#3182ce" href="#ugc">
-                8. USER GENERATED CONTRIBUTIONS
+              <ChakraLink color="#38A169" href="#section-8">
+                8. Location and GPS Data
               </ChakraLink>
-              <ChakraLink color="#3182ce" href="#license">
-                9. CONTRIBUTION LICENSE
+              <ChakraLink color="#38A169" href="#section-9">
+                9. Weekly Missions
               </ChakraLink>
-              <ChakraLink color="#3182ce" href="#mobile">
-                10. MOBILE APPLICATION LICENSE
+              <ChakraLink color="#38A169" href="#section-10">
+                10. Acceptable Use
               </ChakraLink>
-              <ChakraLink color="#3182ce" href="#sitemanage">
-                11. SERVICES MANAGEMENT
+              <ChakraLink color="#38A169" href="#section-11">
+                11. Account Suspension and Termination
               </ChakraLink>
-              <ChakraLink color="#3182ce" href="#terms">
-                12. TERM AND TERMINATION
+              <ChakraLink color="#38A169" href="#section-12">
+                12. Account Deletion and Data Retention
               </ChakraLink>
-              <ChakraLink color="#3182ce" href="#modifications">
-                13. MODIFICATIONS AND INTERRUPTIONS
+              <ChakraLink color="#38A169" href="#section-13">
+                13. Research and System Improvement
               </ChakraLink>
-              <ChakraLink color="#3182ce" href="#law">
-                14. GOVERNING LAW
+              <ChakraLink color="#38A169" href="#section-14">
+                14. Intellectual Property
               </ChakraLink>
-              <ChakraLink color="#3182ce" href="#disputes">
-                15. DISPUTE RESOLUTION
+              <ChakraLink color="#38A169" href="#section-15">
+                15. Third-Party Services
               </ChakraLink>
-              <ChakraLink color="#3182ce" href="#corrections">
-                16. CORRECTIONS
+              <ChakraLink color="#38A169" href="#section-16">
+                16. Availability and Changes to the System
               </ChakraLink>
-              <ChakraLink color="#3182ce" href="#disclaimer">
-                17. DISCLAIMER
+              <ChakraLink color="#38A169" href="#section-17">
+                17. Disclaimer of Warranties
               </ChakraLink>
-              <ChakraLink color="#3182ce" href="#liability">
-                18. LIMITATIONS OF LIABILITY
+              <ChakraLink color="#38A169" href="#section-18">
+                18. Limitation of Liability
               </ChakraLink>
-              <ChakraLink color="#3182ce" href="#indemnification">
-                19. INDEMNIFICATION
+              <ChakraLink color="#38A169" href="#section-19">
+                19. Privacy
               </ChakraLink>
-              <ChakraLink color="#3182ce" href="#userdata">
-                20. USER DATA
+              <ChakraLink color="#38A169" href="#section-20">
+                20. Governing Law
               </ChakraLink>
-              <ChakraLink color="#3182ce" href="#electronic">
-                21. ELECTRONIC COMMUNICATIONS, TRANSACTIONS, AND SIGNATURES
+              <ChakraLink color="#38A169" href="#section-21">
+                21. Changes to These Terms
               </ChakraLink>
-              <ChakraLink color="#3182ce" href="#misc">
-                22. MISCELLANEOUS
-              </ChakraLink>
-              <ChakraLink color="#3182ce" href="#contact">
-                23. CONTACT US
+              <ChakraLink color="#38A169" href="#section-22">
+                22. Contact Us
               </ChakraLink>
             </VStack>
           </Box>
 
-          {/* 1. OUR SERVICES */}
-          <Box id="services" pt={6}>
+          <Separator borderColor="#E2E8F0" />
+
+          {/* 1. ACCEPTANCE OF TERMS */}
+          <Box id="section-1" pt={2}>
             <Heading size="md" color="#1A202C" mb={3}>
-              1. OUR SERVICES
+              1. Acceptance of Terms
+            </Heading>
+            <Text mb={3}>By accessing or using CarbonSense, you confirm that you have read, understood, and agreed to be bound by these Terms of Use.</Text>
+            <Text>
+              We may update or modify these Terms from time to time as CarbonSense is developed, improved, or made available to a wider audience. Continued use of the system after changes are posted constitutes acceptance of the updated
+              Terms.
+            </Text>
+          </Box>
+
+          {/* 2. ABOUT CARBONSENSE */}
+          <Box id="section-2" pt={2}>
+            <Heading size="md" color="#1A202C" mb={3}>
+              2. About CarbonSense
+            </Heading>
+            <Text mb={3}>CarbonSense is an AI-driven recommendation system that helps users estimate and better understand their personal carbon footprint. The system may allow users to:</Text>
+            <VStack align="start" pl={4} spacing={1.5} mb={3}>
+              <Text>• Log daily activities manually through forms;</Text>
+              <Text>• Use AI-assisted analysis to identify and process certain activities;</Text>
+              <Text>• Analyze food images to estimate food items, ingredients, categories, estimated weight, and associated carbon footprint;</Text>
+              <Text>• Analyze electricity bills to estimate electricity consumption and related carbon emissions;</Text>
+              <Text>• Record transportation habits and activities;</Text>
+              <Text>• Record food and dietary activities;</Text>
+              <Text>• Track electricity usage;</Text>
+              <Text>• View summaries of their carbon footprint;</Text>
+              <Text>• Receive general, daily, weekly, monthly, and other activity-based summaries;</Text>
+              <Text>• Participate in weekly carbon-footprint mitigation missions; and</Text>
+              <Text>• Receive AI-driven recommendations based on available activity data.</Text>
+            </VStack>
+            <Text>CarbonSense may also include administrative dashboards and global or aggregated summaries for system monitoring, research, and analysis purposes.</Text>
+          </Box>
+
+          {/* 3. ELIGIBILITY */}
+          <Box id="section-3" pt={2}>
+            <Heading size="md" color="#1A202C" mb={3}>
+              3. Eligibility
+            </Heading>
+            <Text mb={3}>CarbonSense is intended for users who are at least 12 years old. By using CarbonSense, you confirm that you meet this minimum age requirement.</Text>
+            <Text>If you are below the age required to independently provide consent under applicable laws, you should use the system only with appropriate permission or supervision from a parent or legal guardian where required.</Text>
+          </Box>
+
+          {/* 4. ACCOUNT REGISTRATION AND SECURITY */}
+          <Box id="section-4" pt={2}>
+            <Heading size="md" color="#1A202C" mb={3}>
+              4. Account Registration and Security
+            </Heading>
+            <Text mb={3}>To access certain features of CarbonSense, you may be required to create an account using your email address and password. You agree to:</Text>
+            <VStack align="start" pl={4} spacing={1.5} mb={3}>
+              <Text>• Provide accurate and truthful information;</Text>
+              <Text>• Keep your account credentials confidential;</Text>
+              <Text>• Not share your password with unauthorized individuals;</Text>
+              <Text>• Notify us of any suspected unauthorized access to your account; and</Text>
+              <Text>• Take reasonable steps to protect your account and device.</Text>
+            </VStack>
+            <Text mb={3}>You are responsible for activities performed through your account unless the activity resulted from unauthorized access that was not caused by your negligence.</Text>
+            <Text>CarbonSense currently does not support third-party or social media sign-in services.</Text>
+          </Box>
+
+          {/* 5. INFORMATION AND ACTIVITIES SUBMITTED BY USERS */}
+          <Box id="section-5" pt={2}>
+            <Heading size="md" color="#1A202C" mb={3}>
+              5. Information and Activities Submitted by Users
+            </Heading>
+            <Text mb={3}>
+              CarbonSense may collect and process information necessary for its operation, including: full name, email address, profile picture, location/GPS information, daily activities, transportation habits, dietary data, electricity
+              usage, and voluntarily submitted images/bills.
+            </Text>
+            <Text mb={3}>Users are responsible for ensuring that the information and activities they submit are accurate to the best of their knowledge.</Text>
+            <Text>
+              Because CarbonSense relies partly on self-reported activities, inaccurate, incomplete, or misleading information may affect the accuracy of carbon footprint calculations, summaries, recommendations, and other results.
+            </Text>
+          </Box>
+
+          {/* 6. AI-ASSISTED FEATURES */}
+          <Box id="section-6" pt={2}>
+            <Heading size="md" color="#1A202C" mb={3}>
+              6. AI-Assisted Features
+            </Heading>
+            <Text mb={3}>CarbonSense uses Google's Gemini AI through an API to support certain system features. Depending on the feature used, the AI may assist in:</Text>
+            <VStack align="start" pl={4} spacing={1.5} mb={3}>
+              <Text>• Identifying food from submitted images, detecting ingredients, and estimating food weight;</Text>
+              <Text>• Identifying emission-factor categories and associated carbon footprints;</Text>
+              <Text>• Analyzing electricity bills to estimate consumption and emissions;</Text>
+              <Text>• Generating personal activity, monthly, and dashboard aggregated summaries; and</Text>
+              <Text>• Assisting administrators with system briefing prescriptions.</Text>
+            </VStack>
+            <Text>By using AI-assisted features, you understand that information submitted to those features may be processed as necessary to provide the requested functionality and operate the CarbonSense system.</Text>
+          </Box>
+
+          {/* 7. CARBON FOOTPRINT ESTIMATES AND AI DISCLAIMER */}
+          <Box id="section-7" pt={2}>
+            <Heading size="md" color="#1A202C" mb={3}>
+              7. Carbon Footprint Estimates and AI Disclaimer
+            </Heading>
+            <Text mb={3}>CarbonSense provides estimates, not exact or guaranteed measurements of carbon emissions.</Text>
+            <Text mb={3}>
+              Although CarbonSense uses emission factors and information based on legitimate and credible sources where applicable, results should still be understood as estimates. AI-generated results, recommendations, summaries, and
+              analyses may occasionally be incomplete, inaccurate, or incorrect.
+            </Text>
+            <Text>CarbonSense should not be considered a substitute for professional environmental, scientific, legal, financial, or other expert advice.</Text>
+          </Box>
+
+          {/* 8. LOCATION AND GPS DATA */}
+          <Box id="section-8" pt={2}>
+            <Heading size="md" color="#1A202C" mb={3}>
+              8. Location and GPS Data
+            </Heading>
+            <Text mb={3}>CarbonSense may collect location or GPS-related information for research, future development, system improvement, and other features supported by the application.</Text>
+            <Text>Location data may be used to study activity patterns, improve carbon-footprint estimation methods, improve recommendations, and support future research and development.</Text>
+          </Box>
+
+          {/* 9. WEEKLY MISSIONS */}
+          <Box id="section-9" pt={2}>
+            <Heading size="md" color="#1A202C" mb={3}>
+              9. Weekly Missions
+            </Heading>
+            <Text mb={3}>CarbonSense may provide weekly missions designed to encourage users to reduce or mitigate their estimated carbon footprint.</Text>
+            <Text mb={3}>
+              Upon successful completion of an eligible mission, the system may apply a corresponding reduction to the user's total estimated carbon footprint for the applicable month. These mission-related reductions are system-generated
+              calculations, not monetary rewards, and are not exchangeable for cash or real-world compensation.
+            </Text>
+            <Text>Users must not attempt to manipulate, falsify, exploit, or bypass mission requirements.</Text>
+          </Box>
+
+          {/* 10. ACCEPTABLE USE */}
+          <Box id="section-10" pt={2}>
+            <Heading size="md" color="#1A202C" mb={3}>
+              10. Acceptable Use
+            </Heading>
+            <Text mb={3}>When using CarbonSense, you agree not to:</Text>
+            <VStack align="start" pl={4} spacing={1.5}>
+              <Text>• Provide deliberately false or misleading activity information;</Text>
+              <Text>• Manipulate activity logs, missions, calculations, or footprint results;</Text>
+              <Text>• Create or use multiple accounts for abusing system features;</Text>
+              <Text>• Attempt to gain unauthorized access to accounts, databases, or administrative features;</Text>
+              <Text>• Introduce malicious code, viruses, or harmful software;</Text>
+              <Text>• Reverse engineer or exploit the system; or</Text>
+              <Text>• Use the system for illegal, fraudulent, or harmful purposes.</Text>
+            </VStack>
+          </Box>
+
+          {/* 11. ACCOUNT SUSPENSION AND TERMINATION */}
+          <Box id="section-11" pt={2}>
+            <Heading size="md" color="#1A202C" mb={3}>
+              11. Account Suspension and Termination
             </Heading>
             <Text>
-              The information provided when using the Services is not intended for distribution to or use by any person or entity in any
-              jurisdiction or country where such distribution or use would be contrary to law or regulation or which would subject us to any
-              registration requirement within such jurisdiction or country.
+              We reserve the right to suspend, restrict, or terminate an account when we reasonably believe that a user has violated these Terms of Use, submitted fraudulent information, attempted unauthorized access, or compromised system
+              security.
             </Text>
           </Box>
 
-          {/* 2. INTELLECTUAL PROPERTY RIGHTS */}
-          <Box id="ip" pt={6}>
-            <Heading size="md" color="#1A202C" mb={4}>
-              2. INTELLECTUAL PROPERTY RIGHTS
-            </Heading>
-            <Heading size="sm" color="#2D3748" mb={2}>
-              Our intellectual property
-            </Heading>
-            <Text mb={4}>
-              We are the owner or the licensee of all intellectual property rights in our Services, including all source code, databases,
-              functionality, software, website designs, audio, video, text, photographs, and graphics in the Services (collectively, the
-              "Content"), as well as the trademarks, service marks, and logos contained therein (the "Marks").
-            </Text>
-            <Heading size="sm" color="#2D3748" mb={2}>
-              Your use of our Services
-            </Heading>
-            <Text mb={2}>
-              Subject to your compliance with these Legal Terms, including the "PROHIBITED ACTIVITIES" section below, we grant you a
-              non-exclusive, non-transferable, revocable license to:
-            </Text>
-
-            {/* 🟢 FIXED: Using List.Root and List.Item compound tags */}
-            <List.Root pl={5} mb={4} style={{listStyleType: 'disc'}}>
-              <List.Item>access the Services; and</List.Item>
-              <List.Item>download or print a copy of any portion of the Content to which you have properly gained access.</List.Item>
-            </List.Root>
-
-            <Heading size="sm" color="#2D3748" mb={2}>
-              Your submissions
-            </Heading>
-            <Text mb={2}>
-              By directly sending us any question, comment, suggestion, idea, feedback, or other information about the Services
-              ("Submissions"), you agree to assign to us all intellectual property rights in such Submission.
-            </Text>
-          </Box>
-
-          {/* 3. USER REPRESENTATIONS */}
-          <Box id="userreps" pt={6}>
+          {/* 12. ACCOUNT DELETION AND DATA RETENTION */}
+          <Box id="section-12" pt={2}>
             <Heading size="md" color="#1A202C" mb={3}>
-              3. USER REPRESENTATIONS
+              12. Account Deletion and Data Retention
+            </Heading>
+            <Text mb={3}>Users may request or initiate deletion of their CarbonSense account through available system features.</Text>
+            <Text>
+              When an account is deleted, the account may be removed from active use and archived. Certain information associated with deleted accounts may be retained for research, system evaluation, and improving AI-assisted feature
+              accuracy, subject to anonymization and de-identification where appropriate.
+            </Text>
+          </Box>
+
+          {/* 13. RESEARCH AND SYSTEM IMPROVEMENT */}
+          <Box id="section-13" pt={2}>
+            <Heading size="md" color="#1A202C" mb={3}>
+              13. Research and System Improvement
             </Heading>
             <Text>
-              By using the Services, you represent and warrant that: (1) all registration information you submit will be true, accurate,
-              current, and complete; (2) you will maintain the accuracy of such information; (3) you have the legal capacity and agree to
-              comply with these Legal Terms; (4) you are not a minor; (5) you will not access the Services through automated or non-human
-              means; (6) you will not use the Services for any illegal or unauthorized purpose; and (7) your use of the Services will not
-              violate any applicable law or regulation.
+              CarbonSense was originally developed as a capstone project for National University Dasmariñas and may continue to be improved. The system may use appropriately processed user data, activity patterns, and aggregated information
+              for academic research and system testing.
             </Text>
           </Box>
 
-          {/* 4. USER REGISTRATION */}
-          <Box id="userreg" pt={6}>
+          {/* 14. INTELLECTUAL PROPERTY */}
+          <Box id="section-14" pt={2}>
             <Heading size="md" color="#1A202C" mb={3}>
-              4. USER REGISTRATION
+              14. Intellectual Property
             </Heading>
             <Text>
-              You may be required to register to use the Services. You agree to keep your password confidential and will be responsible for
-              all use of your account and password. We reserve the right to remove, reclaim, or change a username you select if we
-              determine, in our sole discretion, that such username is inappropriate, obscene, or otherwise objectionable.
+              The CarbonSense name, system design, software, interface, content, features, and branding are owned by or used with authorization by the CarbonSense development team. Users may not copy, reproduce, distribute, or commercially
+              exploit CarbonSense materials without prior written authorization.
             </Text>
           </Box>
 
-          {/* 5. PURCHASES AND PAYMENT */}
-          <Box id="purchases" pt={6}>
+          {/* 15. THIRD-PARTY SERVICES */}
+          <Box id="section-15" pt={2}>
             <Heading size="md" color="#1A202C" mb={3}>
-              5. PURCHASES AND PAYMENT
-            </Heading>
-            <Text mb={2}>
-              You agree to provide current, complete, and accurate purchase and account information for all purchases made via the Services.
-              We may change prices at any time. We reserve the right to refuse any order placed through the Services.
-            </Text>
-          </Box>
-
-          {/* 6. SOFTWARE */}
-          <Box id="software" pt={6}>
-            <Heading size="md" color="#1A202C" mb={3}>
-              6. SOFTWARE
+              15. Third-Party Services
             </Heading>
             <Text>
-              We may include software for use in connection with our Services. If such software is accompanied by an end user license
-              agreement ("EULA"), the terms of the EULA will govern your use of the software.
+              CarbonSense may rely on third-party technologies including Google's Gemini AI, Firebase Cloud Messaging, Supabase, and Vercel infrastructure. CarbonSense is not responsible for the independent actions or practices of
+              third-party service providers.
             </Text>
           </Box>
 
-          {/* 7. PROHIBITED ACTIVITIES */}
-          <Box id="prohibited" pt={6}>
+          {/* 16. AVAILABILITY AND CHANGES TO THE SYSTEM */}
+          <Box id="section-16" pt={2}>
             <Heading size="md" color="#1A202C" mb={3}>
-              7. PROHIBITED ACTIVITIES
+              16. Availability and Changes to the System
             </Heading>
-            <Text mb={3}>As a user of the Services, you agree not to:</Text>
-
-            {/* 🟢 FIXED: Using List.Root and List.Item compound tags */}
-            <List.Root pl={5} spacing={2} style={{listStyleType: 'disc'}}>
-              <List.Item>
-                Systematically retrieve data or other content from the Services to create or compile a collection, database, or directory
-                without written permission.
-              </List.Item>
-              <List.Item>
-                Trick, defraud, or mislead us and other users, especially in any attempt to learn sensitive account information such as user
-                passwords.
-              </List.Item>
-              <List.Item>Circumvent, disable, or otherwise interfere with security-related features of the Services.</List.Item>
-              <List.Item>Disparage, tarnish, or otherwise harm, in our opinion, us and/or the Services.</List.Item>
-              <List.Item>Use any information obtained from the Services in order to harass, abuse, or harm another person.</List.Item>
-              <List.Item>Use the Services in a manner inconsistent with any applicable laws or regulations.</List.Item>
-              <List.Item>
-                Upload or transmit viruses, Trojan horses, or other material that interferes with any party’s uninterrupted use of the
-                Services.
-              </List.Item>
-              <List.Item>
-                Engage in any automated use of the system, such as using scripts to send comments or messages, or using any data mining
-                robots.
-              </List.Item>
-              <List.Item>Attempt to impersonate another user or person or use the username of another user.</List.Item>
-              <List.Item>Sell or otherwise transfer your profile.</List.Item>
-              <List.Item>Deliberately sabotage the system's service/Trolling.</List.Item>
-            </List.Root>
+            <Text>We may add, modify, or remove features, update emission factors, or temporarily suspend access for maintenance. We do not guarantee that CarbonSense will always be available without interruption or error.</Text>
           </Box>
 
-          {/* 8. USER GENERATED CONTRIBUTIONS */}
-          <Box id="ugc" pt={6}>
+          {/* 17. DISCLAIMER OF WARRANTIES */}
+          <Box id="section-17" pt={2}>
             <Heading size="md" color="#1A202C" mb={3}>
-              8. USER GENERATED CONTRIBUTIONS
+              17. Disclaimer of Warranties
+            </Heading>
+            <Text>CarbonSense is provided on an "as is" and "as available" basis. We do not guarantee that carbon footprint estimates or AI-generated results will always be exact or completely free from errors.</Text>
+          </Box>
+
+          {/* 18. LIMITATION OF LIABILITY */}
+          <Box id="section-18" pt={2}>
+            <Heading size="md" color="#1A202C" mb={3}>
+              18. Limitation of Liability
             </Heading>
             <Text>
-              The Services may provide you with the opportunity to create, submit, post, display, transmit, perform, publish, distribute, or
-              broadcast content and materials ("Contributions"). You are solely responsible for ensuring these do not infringe on
-              intellectual property rights, violate privacy, or contain offensive material.
+              To the extent permitted by applicable law, CarbonSense and its developers will not be liable for losses, damages, or decisions resulting solely from reliance on estimated carbon footprint calculations or AI-generated
+              recommendations.
             </Text>
           </Box>
 
-          {/* 9. CONTRIBUTION LICENSE */}
-          <Box id="license" pt={6}>
+          {/* 19. PRIVACY */}
+          <Box id="section-19" pt={2}>
             <Heading size="md" color="#1A202C" mb={3}>
-              9. CONTRIBUTION LICENSE
+              19. Privacy
             </Heading>
-            <Text>
-              By submitting suggestions or other feedback regarding the Services, you agree that we can use and share such feedback for any
-              purpose without compensation to you. We do not assert any ownership over your Contributions.
-            </Text>
+            <Text>Your use of CarbonSense is also subject to our Privacy Policy, which explains how personal information, activity data, and location data are collected, protected, and processed.</Text>
           </Box>
 
-          {/* 10. MOBILE APPLICATION LICENSE */}
-          <Box id="mobile" pt={6}>
+          {/* 20. GOVERNING LAW */}
+          <Box id="section-20" pt={2}>
             <Heading size="md" color="#1A202C" mb={3}>
-              10. MOBILE APPLICATION LICENSE
+              20. Governing Law
             </Heading>
-            <Text>
-              If you access the Services via the App, we grant you a revocable, non-exclusive, non-transferable, limited right to install
-              and use the App on wireless electronic devices owned or controlled by you strictly in accordance with the terms of this
-              license.
-            </Text>
+            <Text>These Terms of Use shall be governed by and interpreted in accordance with the laws of the Republic of the Philippines.</Text>
           </Box>
 
-          {/* 11. SERVICES MANAGEMENT */}
-          <Box id="sitemanage" pt={6}>
+          {/* 21. CHANGES TO THESE TERMS */}
+          <Box id="section-21" pt={2}>
             <Heading size="md" color="#1A202C" mb={3}>
-              11. SERVICES MANAGEMENT
+              21. Changes to These Terms
             </Heading>
-            <Text>
-              We reserve the right, but not the obligation, to: (1) monitor the Services for violations; (2) take appropriate legal action
-              against anyone who violates the law or these Terms; and (3) otherwise manage the Services in a manner designed to protect our
-              rights and property.
-            </Text>
+            <Text>We may revise these Terms of Use as CarbonSense develops or operational requirements change. Notice of significant revisions will be indicated by the "Last Updated" date at the top of these Terms.</Text>
           </Box>
 
-          {/* 12. TERM AND TERMINATION */}
-          <Box id="terms" pt={6}>
+          {/* 22. CONTACT US */}
+          <Box id="section-22" pt={2} pb={8}>
             <Heading size="md" color="#1A202C" mb={3}>
-              12. TERM AND TERMINATION
+              22. Contact Us
             </Heading>
-            <Text>
-              These Legal Terms shall remain in full force and effect while you use the Services. We reserve the right to deny access to and
-              use of the Services to any person for any reason, including for breach of any representation contained in these terms.
+            <Text mb={2}>If you have questions, concerns, or requests regarding these Terms of Use or the CarbonSense system, please contact us at:</Text>
+            <Text fontWeight="bold" color="#1C4532">
+              CarbonSense Capstone Research Team
             </Text>
-          </Box>
-
-          {/* 13. MODIFICATIONS AND INTERRUPTIONS */}
-          <Box id="modifications" pt={6}>
-            <Heading size="md" color="#1A202C" mb={3}>
-              13. MODIFICATIONS AND INTERRUPTIONS
-            </Heading>
-            <Text>
-              We reserve the right to change, modify, or remove the contents of the Services at any time or for any reason at our sole
-              discretion without notice. We cannot guarantee the Services will be available at all times.
-            </Text>
-          </Box>
-
-          {/* 14. GOVERNING LAW */}
-          <Box id="law" pt={6}>
-            <Heading size="md" color="#1A202C" mb={3}>
-              14. GOVERNING LAW
-            </Heading>
-            <Text>
-              These Legal Terms shall be governed by and defined following the laws of the Philippines. CarbonSense corp. and yourself
-              irrevocably consent that the courts of the Philippines shall have exclusive jurisdiction to resolve any dispute.
-            </Text>
-          </Box>
-
-          {/* 15. DISPUTE RESOLUTION */}
-          <Box id="disputes" pt={6}>
-            <Heading size="md" color="#1A202C" mb={3}>
-              15. DISPUTE RESOLUTION
-            </Heading>
-            <Text>
-              Any dispute arising out of or in connection with these Legal Terms shall be finally resolved by binding arbitration. The seat
-              of arbitration shall be Manila, Philippines, and the language of the proceedings shall be English.
-            </Text>
-          </Box>
-
-          {/* 16 - 22: COMBINED MISC SECTIONS */}
-          <Box id="corrections" pt={6}>
-            <Heading size="md" color="#1A202C" mb={3}>
-              16-22. DISCLAIMERS & MISCELLANEOUS
-            </Heading>
-            <Text mb={4}>
-              <strong>16. CORRECTIONS:</strong> We reserve the right to correct any typographical errors, inaccuracies, or omissions on the
-              Services without prior notice.
-            </Text>
-            <Text mb={4}>
-              <strong>17. DISCLAIMER:</strong> THE SERVICES ARE PROVIDED ON AN AS-IS AND AS-AVAILABLE BASIS. YOU AGREE THAT YOUR USE OF THE
-              SERVICES WILL BE AT YOUR SOLE RISK.
-            </Text>
-            <Text mb={4}>
-              <strong>18. LIMITATIONS OF LIABILITY:</strong> In no event will we be liable to you or any third party for any direct,
-              indirect, consequential, or punitive damages arising from your use of the Services.
-            </Text>
-            <Text mb={4}>
-              <strong>19. INDEMNIFICATION:</strong> You agree to defend, indemnify, and hold us harmless from and against any loss, damage,
-              liability, or claim made by any third party due to your use of the Services.
-            </Text>
-            <Text mb={4}>
-              <strong>20. USER DATA:</strong> We will maintain certain data that you transmit to the Services, but you are solely
-              responsible for all data that you transmit.
-            </Text>
-            <Text mb={4}>
-              <strong>21. ELECTRONIC COMMUNICATIONS:</strong> You consent to receive electronic communications, and you agree that all
-              agreements and notices we provide to you electronically satisfy any legal requirement that such communication be in writing.
-            </Text>
-            <Text>
-              <strong>22. MISCELLANEOUS:</strong> These Legal Terms constitute the entire agreement and understanding between you and us.
-            </Text>
-          </Box>
-
-          {/* 23. CONTACT US */}
-          <Box id="contact" pt={6} pb={10}>
-            <Heading size="md" color="#1A202C" mb={3}>
-              23. CONTACT US
-            </Heading>
-            <Text mb={2}>
-              In order to resolve a complaint regarding the Services or to receive further information regarding use of the Services, please
-              contact us at:
-            </Text>
-            <Text fontWeight="bold" color="#2D3748">
-              CarbonSense corp.
-            </Text>
-            <Text>Imus, Cavite 4103</Text>
-            <Text>Philippines</Text>
+            <Text fontSize="sm">National University Dasmariñas (NU Dasmariñas)</Text>
+            <Text fontSize="sm">Dasmariñas City, Cavite, Philippines</Text>
             <Text mt={2}>
-              <ChakraLink color="#3182ce" href="mailto:carbonsense@gmail.com">
-                carbonsense@gmail.com
+              <ChakraLink color="#38A169" href="mailto:ph.carbonsense@gmail.com" fontWeight="bold">
+                ph.carbonsense@gmail.com
               </ChakraLink>
             </Text>
           </Box>
 
           <Separator borderColor="#E2E8F0" />
 
-          <Box pb={8} pt={2} textAlign="center">
-            <Text color="#A0AEC0" fontSize="xs">
-              This Terms and Conditions was created using Termly's{' '}
-              <ChakraLink href="https://termly.io/products/terms-and-conditions-generator/" isExternal textDecoration="underline">
-                Terms and Conditions Generator
-              </ChakraLink>
-              .
+          <Box pb={8} textAlign="center">
+            <Text color="#A0AEC0" fontSize="2xs">
+              CarbonSense © 2026 — An AI-Driven Recommendation System for Personal Carbon Footprint Mitigation.
             </Text>
           </Box>
         </VStack>

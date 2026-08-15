@@ -1,56 +1,18 @@
 // components/AdminRoute.jsx
-import {useState, useEffect} from 'react'
 import {Navigate} from 'react-router-dom'
-import {Center, Spinner, Text, Box} from '@chakra-ui/react'
-import {supabase} from '../supabase'
+import {Box} from '@chakra-ui/react'
 
-export default function AdminRoute({children}) {
-  const [isAdmin, setIsAdmin] = useState(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const checkAdminStatus = async () => {
-      try {
-        const {
-          data: {user}
-        } = await supabase.auth.getUser()
-
-        if (!user) {
-          setIsAdmin(false)
-          return
-        }
-
-        // Fetch the user's role from the database
-        const {data} = await supabase.from('user_profiles').select('role').eq('user_id', user.id).single()
-
-        setIsAdmin(data?.role === 'admin')
-      } catch (error) {
-        console.error('Error checking admin status:', error)
-        setIsAdmin(false)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    checkAdminStatus()
-  }, [])
-
-  if (loading) {
-    return (
-      <Center minH="100vh" bg="#FCFDFD" flexDirection="column" gap={4}>
-        <Spinner size="xl" color="#E53E3E" thickness="4px" />
-        <Text color="#718096" fontWeight="bold">
-          Verifying Admin Credentials...
-        </Text>
-      </Center>
-    )
-  }
-
-  // If they aren't an admin, kick them back to the dashboard silently
+// AdminRoute trusts the `isAdmin` value computed once in App.jsx (which
+// already does a fail-closed Supabase check + realtime ban/archive
+// listener before Routes ever render). Re-checking here independently
+// was pure redundancy: an extra DB round trip and a duplicate loading
+// spinner on every visit to /admin, with no additional security benefit
+// since App.jsx's loading shield guarantees isAdmin is already settled
+// by the time this component mounts.
+export default function AdminRoute({isAdmin, children}) {
   if (!isAdmin) {
     return <Navigate to="/dashboard" replace />
   }
 
-  // If they are an admin, render the restricted page
   return <Box>{children}</Box>
 }

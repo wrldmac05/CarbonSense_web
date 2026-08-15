@@ -50,11 +50,26 @@ export default function App() {
     }
 
     // 🟢 ENHANCED ACCESS CHECK: Checks if account is archived OR banned
+    // NOTE: fails CLOSED — if we can't verify status, we do not treat the
+    // user as clear. A banned/archived user must never slip through because
+    // of a transient query error.
     const checkAccountStatus = async userId => {
       try {
         const {data, error} = await supabase.from('user_profiles').select('role, is_archived, is_banned').eq('user_id', userId).maybeSingle()
 
-        if (error || !data) return {isRestricted: false, role: 'user'}
+        if (error) {
+          // Could not verify — don't grant access. Sign out and show a
+          // retry-able notice rather than silently letting them through.
+          await handleRestrictionKick('Unable to Verify Account', "We couldn't verify your account status. Please try signing in again in a moment.")
+          return {isRestricted: true, role: null}
+        }
+
+        if (!data) {
+          // No profile row at all — treat as not-yet-provisioned rather
+          // than as a free pass. Adjust here if new users legitimately
+          // have no row yet at first login.
+          return {isRestricted: false, role: 'user'}
+        }
 
         // ⛔ BANNED ACCOUNT BOOT
         if (data.is_banned) {
@@ -70,7 +85,58 @@ export default function App() {
 
         return {isRestricted: false, role: data.role || 'user'}
       } catch (err) {
-        return {isRestricted: false, role: 'user'}
+        // Network/unexpected error — same fail-closed treatment.
+        await handleRestrictionKick('Unable to Verify Account', "We couldn't verify your account status. Please try signing in again in a moment.")
+        return {isRestricted: true, role: null}
+      }
+    }
+
+    // ⚡ REALTIME LISTENER: Listens for live ban/archive actions
+    const ensureProfileSubscription = userId => {
+      if (profileSubscription) return
+      profileSubscription = supabase
+        .channel(`security_user_${userId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'user_profiles',
+            filter: `user_id=eq.${userId}`
+          },
+          async payload => {
+            if (payload.new?.is_banned) {
+              await handleRestrictionKick('Account Suspended', 'Your account has been suspended by an administrator. You have been automatically signed out.')
+            } else if (payload.new?.is_archived) {
+              await handleRestrictionKick('Account Archived', 'Your account has been archived by an administrator. You have been automatically signed out.')
+            }
+          }
+        )
+        .subscribe()
+    }
+
+    // Single source of truth for "given this session, what's our auth state?"
+    // Used by both the initial boot and the onAuthStateChange listener so
+    // the two paths can't silently drift apart.
+    const applyAuthResult = async session => {
+      if (!session?.user) {
+        if (isMounted) {
+          setIsLoggedIn(false)
+          setUserRole(null)
+        }
+        return
+      }
+
+      const status = await checkAccountStatus(session.user.id)
+      if (!isMounted) return
+
+      if (status.isRestricted) {
+        setIsLoggedIn(false)
+        setUserRole(null)
+      } else {
+        setIsLoggedIn(true)
+        setUserRole(status.role)
+        ensureProfileSubscription(session.user.id)
       }
     }
 
@@ -80,46 +146,7 @@ export default function App() {
         data: {session}
       } = await supabase.auth.getSession()
 
-      if (session?.user) {
-        const status = await checkAccountStatus(session.user.id)
-        if (isMounted) {
-          if (status.isRestricted) {
-            setIsLoggedIn(false)
-            setUserRole(null)
-          } else {
-            setIsLoggedIn(true)
-            setUserRole(status.role)
-
-            // ⚡ REALTIME LISTENER: Listens for live ban/archive actions
-            if (!profileSubscription) {
-              profileSubscription = supabase
-                .channel(`security_user_${session.user.id}`)
-                .on(
-                  'postgres_changes',
-                  {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'user_profiles',
-                    filter: `user_id=eq.${session.user.id}`
-                  },
-                  async payload => {
-                    if (payload.new?.is_banned) {
-                      await handleRestrictionKick('Account Suspended', 'Your account has been suspended by an administrator. You have been automatically signed out.')
-                    } else if (payload.new?.is_archived) {
-                      await handleRestrictionKick('Account Archived', 'Your account has been archived by an administrator. You have been automatically signed out.')
-                    }
-                  }
-                )
-                .subscribe()
-            }
-          }
-        }
-      } else {
-        if (isMounted) {
-          setIsLoggedIn(false)
-          setUserRole(null)
-        }
-      }
+      await applyAuthResult(session)
       if (isMounted) setIsAuthLoading(false)
     }
 
@@ -130,20 +157,9 @@ export default function App() {
       data: {subscription}
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (['SIGNED_IN', 'TOKEN_REFRESHED', 'INITIAL_SESSION'].includes(event)) {
-        if (session?.user) {
-          checkAccountStatus(session.user.id).then(status => {
-            if (isMounted) {
-              if (status.isRestricted) {
-                setIsLoggedIn(false)
-                setUserRole(null)
-              } else {
-                setIsLoggedIn(true)
-                setUserRole(status.role)
-              }
-              setIsAuthLoading(false)
-            }
-          })
-        }
+        applyAuthResult(session).then(() => {
+          if (isMounted) setIsAuthLoading(false)
+        })
       } else if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
         if (isMounted) {
           setIsLoggedIn(false)
@@ -173,7 +189,12 @@ export default function App() {
       if (profileSubscription) supabase.removeChannel(profileSubscription)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [location.pathname, navigate])
+    // Intentionally NOT depending on location.pathname: this effect sets up
+    // auth state once on mount (plus a visibility-based re-check). It was
+    // previously keyed on the route, which re-ran the full session fetch +
+    // profile query + realtime resubscribe on every navigation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // 🛡️ GLOBAL SESSION LOADING SHIELD
   if (isAuthLoading) {

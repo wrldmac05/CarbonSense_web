@@ -76,7 +76,7 @@ export default function AdminDashboard() {
   const notificationTimer = useRef(null)
 
   // Filter tab state for User Management
-  const [userFilter, setUserFilter] = useState('all') // 'all' | 'active' | 'banned' | 'archived'
+  const [userFilter, setUserFilter] = useState('all')
 
   const showNotification = (title, description, status = 'success') => {
     setNotification({title, description, status})
@@ -180,7 +180,6 @@ export default function AdminDashboard() {
       const {data: profiles, error: profileErr} = await supabase.rpc('get_admin_user_list')
       if (profileErr) console.error('RPC Error:', profileErr)
 
-      // 🟢 REMOVED 'location' from lifestyle_profiles (it is already in 'profiles')
       const {data: lifestyles, error: lifestyleErr} = await supabase.from('lifestyle_profiles').select('user_id, diet_type, commute_type')
 
       if (lifestyleErr) console.error('Lifestyle Error:', lifestyleErr)
@@ -260,8 +259,6 @@ export default function AdminDashboard() {
       value: Math.round(value)
     }))
 
-    // In AdminDashboard.jsx inside recalculateStatsForDate:
-
     const countFreq = (arr, key) =>
       arr?.reduce((acc, item) => {
         if (item && item[key]) {
@@ -279,7 +276,7 @@ export default function AdminDashboard() {
       categoryData,
       diets: countFreq(lifestyles, 'diet_type'),
       commutes: countFreq(lifestyles, 'commute_type'),
-      locations: countFreq(profiles, 'location') // 🟢 Reads location directly from user_profiles RPC output
+      locations: countFreq(profiles, 'location')
     })
   }
 
@@ -728,8 +725,27 @@ export default function AdminDashboard() {
       .slice(0, 5)
 
   return (
-    <Flex minH="100vh" bg="#F3F5F8" position="relative" overflow="hidden">
-      {/* FLOATING MINI-SIDEBAR */}
+    <Flex minH="100vh" bg="#F3F5F8" direction={{base: 'column', md: 'row'}} position="relative" overflow="hidden">
+      {/* MOBILE TOP NAVIGATION TABS BAR */}
+      <Flex display={{base: 'flex', md: 'none'}} bg="white" px={4} py={3} borderBottom="1px solid #E2E8F0" align="center" justify="space-between" overflowX="auto">
+        <Flex gap={2}>
+          {[
+            {id: 'overview', label: 'Overview'},
+            {id: 'factors', label: 'Factors'},
+            {id: 'tasks', label: 'Tasks'},
+            {id: 'users', label: 'Users'}
+          ].map(tab => (
+            <Button key={tab.id} size="xs" borderRadius="full" px={3} py={2} bg={activeTab === tab.id ? '#1A202C' : '#F7FAFC'} color={activeTab === tab.id ? 'white' : '#4A5568'} onClick={() => setActiveTab(tab.id)}>
+              {tab.label}
+            </Button>
+          ))}
+        </Flex>
+        <Button size="xs" variant="ghost" color="#E53E3E" onClick={handleLogout}>
+          Log Out
+        </Button>
+      </Flex>
+
+      {/* FLOATING MINI-SIDEBAR (DESKTOP) */}
       <Flex direction="column" align="center" w="100px" py={8} h="100vh" display={{base: 'none', md: 'flex'}}>
         <Flex direction="column" align="center" mb={10} cursor="pointer" transition="transform 0.2s" _hover={{transform: 'scale(1.05)'}}>
           <Image src="/Logo.png" alt="CarbonSense Logo" w="44px" h="44px" objectFit="contain" mb={2} dropShadow="0 4px 10px rgba(0,0,0,0.1)" />
@@ -875,25 +891,49 @@ export default function AdminDashboard() {
       </Flex>
 
       {/* MAIN CONTENT AREA */}
-      <Flex flex="1" direction="column" maxH="100vh" overflowY="auto" px={{base: 6, lg: 10}} py={10}>
-        <Flex justify="space-between" align="center" mb={10}>
+      <Flex flex="1" direction="column" maxH="100vh" overflowY="auto" px={{base: 4, sm: 6, lg: 10}} py={{base: 6, md: 10}}>
+        <Flex justify="space-between" align="center" mb={{base: 6, md: 10}} gap={2}>
           <Box>
-            <Heading size="lg" color="#1A202C" letterSpacing="tight">
+            <Heading size={{base: 'md', md: 'lg'}} color="#1A202C" letterSpacing="tight">
               Hi, {adminUser?.display_name?.split(' ')[0] || 'Admin'}!
             </Heading>
-            <Text color="#718096" mt={1}>
-              Let's take a look at community activity up to {selectedDate.toLocaleDateString()}.
+            <Text color="#718096" fontSize={{base: 'xs', md: 'sm'}} mt={1}>
+              Community activity up to {selectedDate.toLocaleDateString()}.
             </Text>
           </Box>
-          <Button bg="#1A202C" color="white" borderRadius="full" px={8} py={6} _hover={{bg: '#2D3748', transform: 'translateY(-2px)'}} transition="all 0.2s" onClick={exportSystemReport} display={{base: 'none', md: 'inline-flex'}}>
+          {/* 🟢 ALWAYS VISIBLE & RESPONSIVE EXPORT LEDGER BUTTON */}
+          <Button
+            bg="#1A202C"
+            color="white"
+            borderRadius="full"
+            px={{base: 4, md: 8}}
+            py={{base: 3, md: 6}}
+            fontSize={{base: 'xs', md: 'sm'}}
+            _hover={{bg: '#2D3748', transform: 'translateY(-2px)'}}
+            transition="all 0.2s"
+            onClick={exportSystemReport}
+            display="inline-flex"
+            flexShrink={0}
+          >
             Export Ledger
           </Button>
         </Flex>
 
         {activeTab === 'overview' && (
           <Box>
-            <Grid templateColumns={{base: '1fr', xl: '1.5fr 1fr'}} gap={8} mb={8} animation={`${slideUp} 0.6s ease-out 0.1s both`}>
-              <Flex direction="column" bg="linear-gradient(135deg, #276749 0%, #1C4532 100%)" borderRadius="3xl" p={8} color="white" position="relative" overflow="hidden" boxShadow="xl" minH="340px" justify="space-between">
+            <Grid templateColumns={{base: '1fr', xl: '1.5fr 1fr'}} gap={{base: 6, md: 8}} mb={8} animation={`${slideUp} 0.6s ease-out 0.1s both`}>
+              <Flex
+                direction="column"
+                bg="linear-gradient(135deg, #276749 0%, #1C4532 100%)"
+                borderRadius="3xl"
+                p={{base: 5, md: 8}}
+                color="white"
+                position="relative"
+                overflow="hidden"
+                boxShadow="xl"
+                minH={{base: 'auto', md: '340px'}}
+                justify="space-between"
+              >
                 <Box position="absolute" right="-5%" top="-15%" opacity="0.05" fontSize="250px" pointerEvents="none" userSelect="none">
                   🌍
                 </Box>
@@ -904,52 +944,52 @@ export default function AdminDashboard() {
                       LIVE TELEMETRY
                     </Badge>
                   </Flex>
-                  <Text color="#9AE6B4" fontSize="sm" mt={2} fontWeight="medium">
+                  <Text color="#9AE6B4" fontSize="xs" mt={2} fontWeight="medium">
                     System records up to {selectedDate.toLocaleDateString()}
                   </Text>
                 </Box>
 
-                <Box position="relative" zIndex={1} mb={8}>
-                  <Text fontSize="sm" color="#C6F6D5" fontWeight="bold" textTransform="uppercase" letterSpacing="wider" mb={2}>
+                <Box position="relative" zIndex={1} mb={{base: 6, md: 8}}>
+                  <Text fontSize="xs" color="#C6F6D5" fontWeight="bold" textTransform="uppercase" letterSpacing="wider" mb={2}>
                     Gross Carbon Footprint
                   </Text>
                   <Flex align="baseline" gap={2}>
-                    <Heading size="4xl" fontWeight="black" letterSpacing="tighter">
+                    <Heading size={{base: '2xl', sm: '3xl', md: '4xl'}} fontWeight="black" letterSpacing="tighter">
                       <AnimatedNumber value={overviewStats.totalCo2} decimals={1} />
                     </Heading>
-                    <Text fontSize="2xl" fontWeight="bold" color="#9AE6B4">
+                    <Text fontSize={{base: 'lg', md: '2xl'}} fontWeight="bold" color="#9AE6B4">
                       kg
                     </Text>
                   </Flex>
                 </Box>
 
-                <Grid templateColumns="1fr 1fr" gap={4} position="relative" zIndex={1}>
-                  <Flex direction="column" bg="rgba(255, 255, 255, 0.1)" p={5} borderRadius="2xl" backdropFilter="blur(10px)" border="1px solid rgba(255, 255, 255, 0.15)">
+                <Grid templateColumns={{base: '1fr', sm: '1fr 1fr'}} gap={4} position="relative" zIndex={1}>
+                  <Flex direction="column" bg="rgba(255, 255, 255, 0.1)" p={4} borderRadius="2xl" backdropFilter="blur(10px)" border="1px solid rgba(255, 255, 255, 0.15)">
                     <Flex align="center" gap={3} mb={2}>
-                      <Flex w="32px" h="32px" bg="rgba(255, 255, 255, 0.2)" borderRadius="full" align="center" justify="center" fontSize="sm">
+                      <Flex w="28px" h="28px" bg="rgba(255, 255, 255, 0.2)" borderRadius="full" align="center" justify="center" fontSize="xs">
                         👥
                       </Flex>
                       <Text fontSize="xs" fontWeight="bold" color="#C6F6D5" textTransform="uppercase" letterSpacing="wider">
                         Active Users
                       </Text>
                     </Flex>
-                    <Heading size="lg" fontWeight="black">
+                    <Heading size="md" fontWeight="black">
                       <AnimatedNumber value={overviewStats.totalUsers} decimals={0} />
                     </Heading>
                   </Flex>
 
-                  <Flex direction="column" bg="rgba(255, 255, 255, 0.1)" p={5} borderRadius="2xl" backdropFilter="blur(10px)" border="1px solid rgba(255, 255, 255, 0.15)">
+                  <Flex direction="column" bg="rgba(255, 255, 255, 0.1)" p={4} borderRadius="2xl" backdropFilter="blur(10px)" border="1px solid rgba(255, 255, 255, 0.15)">
                     <Flex align="center" gap={3} mb={2}>
-                      <Flex w="32px" h="32px" bg="rgba(255, 255, 255, 0.2)" borderRadius="full" align="center" justify="center" fontSize="sm">
+                      <Flex w="28px" h="28px" bg="rgba(255, 255, 255, 0.2)" borderRadius="full" align="center" justify="center" fontSize="xs">
                         🎯
                       </Flex>
                       <Text fontSize="xs" fontWeight="bold" color="#C6F6D5" textTransform="uppercase" letterSpacing="wider">
                         Avg. Target
                       </Text>
                     </Flex>
-                    <Heading size="lg" fontWeight="black">
+                    <Heading size="md" fontWeight="black">
                       <AnimatedNumber value={overviewStats.avgTarget} decimals={0} />{' '}
-                      <Text as="span" fontSize="sm" color="#9AE6B4">
+                      <Text as="span" fontSize="xs" color="#9AE6B4">
                         kg
                       </Text>
                     </Heading>
@@ -957,7 +997,8 @@ export default function AdminDashboard() {
                 </Grid>
               </Flex>
 
-              <Box bg="#1A202C" borderRadius="3xl" p={8} boxShadow="xl">
+              {/* Time Travel Calendar */}
+              <Box bg="#1A202C" borderRadius="3xl" p={{base: 5, md: 8}} boxShadow="xl">
                 <Flex justify="space-between" align="center" mb={6}>
                   <Heading size="sm" color="white">
                     Time Travel
@@ -966,7 +1007,7 @@ export default function AdminDashboard() {
                     <Button size="xs" variant="ghost" color="#A0AEC0" onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))}>
                       {'<'}
                     </Button>
-                    <Text color="#E2E8F0" fontSize="sm" fontWeight="bold" minW="80px" textAlign="center">
+                    <Text color="#E2E8F0" fontSize="xs" fontWeight="bold" minW="70px" textAlign="center">
                       {calendarMonth.toLocaleString('default', {
                         month: 'short',
                         year: 'numeric'
@@ -978,15 +1019,15 @@ export default function AdminDashboard() {
                   </Flex>
                 </Flex>
 
-                <Grid templateColumns="repeat(7, 1fr)" gap={2} mb={2}>
+                <Grid templateColumns="repeat(7, 1fr)" gap={1} mb={2}>
                   {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
-                    <Text key={i} color="#4A5568" fontSize="xs" fontWeight="bold" textAlign="center">
+                    <Text key={i} color="#4A5568" fontSize="2xs" fontWeight="bold" textAlign="center">
                       {day}
                     </Text>
                   ))}
                 </Grid>
 
-                <Grid templateColumns="repeat(7, 1fr)" gap={2}>
+                <Grid templateColumns="repeat(7, 1fr)" gap={1}>
                   {getCalendarDays().map((date, i) => {
                     if (!date) return <Box key={`empty-${i}`} />
                     const isSelected = date.toDateString() === selectedDate.toDateString()
@@ -995,8 +1036,8 @@ export default function AdminDashboard() {
                     return (
                       <Flex
                         key={i}
-                        w="32px"
-                        h="32px"
+                        w={{base: '28px', sm: '32px'}}
+                        h={{base: '28px', sm: '32px'}}
                         mx="auto"
                         align="center"
                         justify="center"
@@ -1005,14 +1046,12 @@ export default function AdminDashboard() {
                         bg={isSelected ? '#38A169' : isToday ? '#2D3748' : 'transparent'}
                         color={isSelected ? 'white' : isToday ? 'white' : '#A0AEC0'}
                         fontWeight={isSelected || isToday ? 'black' : 'medium'}
-                        fontSize="sm"
+                        fontSize="xs"
                         transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
                         _hover={{
                           bg: isSelected ? '#2F855A' : '#2D3748',
-                          color: 'white',
-                          transform: 'scale(1.1)'
+                          color: 'white'
                         }}
-                        _active={{transform: 'scale(0.9)'}}
                         onClick={() => setSelectedDate(date)}
                       >
                         {date.getDate()}
@@ -1020,45 +1059,32 @@ export default function AdminDashboard() {
                     )
                   })}
                 </Grid>
-                <Flex mt={8} gap={4} justify="center">
-                  <Flex align="center" gap={2}>
-                    <Box w="6px" h="6px" borderRadius="full" bg="#38A169" />
-                    <Text fontSize="2xs" color="#718096">
-                      Selected View
-                    </Text>
-                  </Flex>
-                  <Flex align="center" gap={2}>
-                    <Box w="6px" h="6px" borderRadius="full" bg="#2D3748" />
-                    <Text fontSize="2xs" color="#718096">
-                      Today
-                    </Text>
-                  </Flex>
-                </Flex>
               </Box>
             </Grid>
 
-            <Grid templateColumns={{base: '1fr', lg: '1fr 1fr'}} gap={8} mb={8} animation={`${slideUp} 0.6s ease-out 0.2s both`}>
-              <Box p={6} bg="white" borderRadius="3xl" border="1px solid #E2E8F0" h="320px" boxShadow="0 4px 20px -5px rgba(0,0,0,0.03)">
-                <Heading size="sm" color="#1A202C" mb={6}>
+            {/* Line and Area Charts Grid */}
+            <Grid templateColumns={{base: '1fr', lg: '1fr 1fr'}} gap={{base: 6, md: 8}} mb={8} animation={`${slideUp} 0.6s ease-out 0.2s both`}>
+              <Box p={{base: 4, md: 6}} bg="white" borderRadius="3xl" border="1px solid #E2E8F0" h={{base: '280px', md: '320px'}} boxShadow="0 4px 20px -5px rgba(0,0,0,0.03)">
+                <Heading size="sm" color="#1A202C" mb={4}>
                   Platform Growth (6M)
                 </Heading>
                 <ResponsiveContainer width="100%" height="80%">
-                  <LineChart data={overviewStats.monthlyUsers}>
+                  <LineChart data={overviewStats.monthlyUsers} margin={{top: 10, right: 10, left: -20, bottom: 0}}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#718096', fontSize: 12}} dy={10} />
-                    <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{fill: '#718096', fontSize: 12}} />
+                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#718096', fontSize: 11}} dy={10} />
+                    <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{fill: '#718096', fontSize: 11}} />
                     <Tooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)'}} />
                     <Line isAnimationActive={true} type="monotone" dataKey="users" name="Active Users" stroke="#3182CE" strokeWidth={3} dot={{r: 4, fill: '#3182CE'}} animationDuration={1200} animationEasing="ease-out" />
                   </LineChart>
                 </ResponsiveContainer>
               </Box>
 
-              <Box p={6} bg="white" borderRadius="3xl" border="1px solid #E2E8F0" h="320px" boxShadow="0 4px 20px -5px rgba(0,0,0,0.03)">
-                <Heading size="sm" color="#1A202C" mb={6}>
+              <Box p={{base: 4, md: 6}} bg="white" borderRadius="3xl" border="1px solid #E2E8F0" h={{base: '280px', md: '320px'}} boxShadow="0 4px 20px -5px rgba(0,0,0,0.03)">
+                <Heading size="sm" color="#1A202C" mb={4}>
                   Emissions Volume (kg)
                 </Heading>
                 <ResponsiveContainer width="100%" height="80%">
-                  <AreaChart data={overviewStats.monthlyEmissions}>
+                  <AreaChart data={overviewStats.monthlyEmissions} margin={{top: 10, right: 10, left: -20, bottom: 0}}>
                     <defs>
                       <linearGradient id="colorAdminCO2" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#E53E3E" stopOpacity={0.2} />
@@ -1066,8 +1092,8 @@ export default function AdminDashboard() {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#718096', fontSize: 12}} dy={10} />
-                    <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{fill: '#718096', fontSize: 12}} />
+                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#718096', fontSize: 11}} dy={10} />
+                    <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{fill: '#718096', fontSize: 11}} />
                     <Tooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)'}} />
                     <Area isAnimationActive={true} type="monotone" dataKey="co2" name="CO₂ Emitted" stroke="#E53E3E" strokeWidth={2} fillOpacity={1} fill="url(#colorAdminCO2)" animationDuration={1200} animationEasing="ease-out" />
                   </AreaChart>
@@ -1075,15 +1101,16 @@ export default function AdminDashboard() {
               </Box>
             </Grid>
 
-            <Grid templateColumns={{base: '1fr', xl: '1fr 1.5fr'}} gap={8} mb={8} animation={`${slideUp} 0.6s ease-out 0.3s both`}>
-              <Box p={8} bg="white" borderRadius="3xl" border="1px solid #E2E8F0" boxShadow="0 4px 20px -5px rgba(0,0,0,0.03)">
+            {/* AI Briefing and Pie Breakdown */}
+            <Grid templateColumns={{base: '1fr', xl: '1fr 1.5fr'}} gap={{base: 6, md: 8}} mb={8} animation={`${slideUp} 0.6s ease-out 0.3s both`}>
+              <Box p={{base: 5, md: 8}} bg="white" borderRadius="3xl" border="1px solid #E2E8F0" boxShadow="0 4px 20px -5px rgba(0,0,0,0.03)">
                 <Heading size="sm" color="#1A202C" mb={4}>
                   Sector Breakdown
                 </Heading>
                 {overviewStats.categoryData.length > 0 ? (
                   <ResponsiveContainer width="100%" height={180}>
                     <PieChart>
-                      <Pie isAnimationActive={true} data={overviewStats.categoryData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={5} dataKey="value" animationDuration={1000} animationEasing="ease-out">
+                      <Pie isAnimationActive={true} data={overviewStats.categoryData} cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={5} dataKey="value" animationDuration={1000} animationEasing="ease-out">
                         {overviewStats.categoryData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                         ))}
@@ -1098,42 +1125,19 @@ export default function AdminDashboard() {
                     </Text>
                   </Center>
                 )}
-                <Flex wrap="wrap" justify="center" gap={3} mt={2}>
-                  {overviewStats.categoryData.map((entry, index) => (
-                    <Flex key={entry.name} align="center" gap={1}>
-                      <Box w="10px" h="10px" borderRadius="full" bg={PIE_COLORS[index % PIE_COLORS.length]} />
-                      <Text fontSize="xs" color="#4A5568" fontWeight="bold">
-                        {entry.name}
-                      </Text>
-                    </Flex>
-                  ))}
-                </Flex>
               </Box>
 
-              <Flex direction="column" bg="white" borderRadius="3xl" p={8} border="1px solid #E2E8F0" boxShadow="0 4px 20px -5px rgba(0,0,0,0.03)" position="relative" overflow="hidden">
-                <Box
-                  position="absolute"
-                  top="-50px"
-                  right="-50px"
-                  w="250px"
-                  h="250px"
-                  bg="linear-gradient(135deg, rgba(56, 161, 105, 0.1) 0%, rgba(49, 130, 206, 0.1) 100%)"
-                  filter="blur(40px)"
-                  zIndex={0}
-                  borderRadius="full"
-                  pointerEvents="none"
-                />
-
-                <Flex justify="space-between" align="center" mb={6} position="relative" zIndex={1}>
-                  <Flex align="center" gap={4}>
-                    <Flex w="48px" h="48px" bg="linear-gradient(135deg, #38A169, #3182CE)" borderRadius="xl" align="center" justify="center" color="white" fontSize="xl" boxShadow="md">
+              <Flex direction="column" bg="white" borderRadius="3xl" p={{base: 5, md: 8}} border="1px solid #E2E8F0" boxShadow="0 4px 20px -5px rgba(0,0,0,0.03)" position="relative" overflow="hidden">
+                <Flex justify="space-between" align={{base: 'flex-start', sm: 'center'}} direction={{base: 'column', sm: 'row'}} gap={4} mb={6} position="relative" zIndex={1}>
+                  <Flex align="center" gap={3}>
+                    <Flex w="40px" h="40px" bg="linear-gradient(135deg, #38A169, #3182CE)" borderRadius="xl" align="center" justify="center" color="white" fontSize="lg" boxShadow="md">
                       ✨
                     </Flex>
                     <Box>
-                      <Heading size="md" color="#1A202C" letterSpacing="tight">
+                      <Heading size="sm" color="#1A202C" letterSpacing="tight">
                         AI Executive Briefing
                       </Heading>
-                      <Text color="#718096" fontSize="xs" mt={1} fontWeight="bold" textTransform="uppercase" letterSpacing="widest">
+                      <Text color="#718096" fontSize="2xs" mt={0.5} fontWeight="bold" textTransform="uppercase" letterSpacing="widest">
                         CarbonSense Intelligence
                       </Text>
                     </Box>
@@ -1143,17 +1147,15 @@ export default function AdminDashboard() {
                     {['daily', 'weekly', 'monthly'].map(period => (
                       <Button
                         key={period}
-                        size="sm"
+                        size="xs"
                         borderRadius="full"
-                        px={5}
+                        px={3}
                         bg={activeInsightTab === period ? 'white' : 'transparent'}
                         color={activeInsightTab === period ? '#1A202C' : '#A0AEC0'}
                         boxShadow={activeInsightTab === period ? 'sm' : 'none'}
-                        _hover={{bg: activeInsightTab === period ? 'white' : '#EDF2F7'}}
                         onClick={() => setActiveInsightTab(period)}
                         textTransform="capitalize"
                         fontWeight="bold"
-                        transition="all 0.2s ease"
                       >
                         {period}
                       </Button>
@@ -1161,24 +1163,25 @@ export default function AdminDashboard() {
                   </Flex>
                 </Flex>
 
-                <Box flex="1" position="relative" zIndex={1} overflowY="auto" maxH="220px" pr={4}>
-                  <Text color="#2D3748" fontSize="sm" lineHeight="2" fontWeight="medium" whiteSpace="pre-wrap">
+                <Box flex="1" position="relative" zIndex={1} overflowY="auto" maxH="220px" pr={2}>
+                  <Text color="#2D3748" fontSize="xs" lineHeight="2" fontWeight="medium" whiteSpace="pre-wrap">
                     {prescriptions[activeInsightTab]}
                   </Text>
                 </Box>
               </Flex>
             </Grid>
 
-            <Box bg="white" borderRadius="3xl" p={8} boxShadow="0 4px 20px -5px rgba(0,0,0,0.03)" animation={`${slideUp} 0.6s ease-out 0.4s both`}>
-              <Heading size="sm" color="#1A202C" mb={8}>
+            {/* Demographics Card */}
+            <Box bg="white" borderRadius="3xl" p={{base: 5, md: 8}} boxShadow="0 4px 20px -5px rgba(0,0,0,0.03)" animation={`${slideUp} 0.6s ease-out 0.4s both`}>
+              <Heading size="sm" color="#1A202C" mb={6}>
                 Demographics Breakdown
               </Heading>
-              <Grid templateColumns={{base: '1fr', md: 'repeat(3, 1fr)'}} gap={8}>
+              <Grid templateColumns={{base: '1fr', md: 'repeat(3, 1fr)'}} gap={6}>
                 <Box>
-                  <Text color="#A0AEC0" fontSize="2xs" textTransform="uppercase" letterSpacing="widest" mb={4}>
+                  <Text color="#A0AEC0" fontSize="2xs" textTransform="uppercase" letterSpacing="widest" mb={3}>
                     Diet Types
                   </Text>
-                  <VStack align="stretch" spacing={4}>
+                  <VStack align="stretch" spacing={3}>
                     {Object.keys(overviewStats.diets).length > 0 ? (
                       getTop5(overviewStats.diets).map(([d, c]) => renderDemographicBar(d, c, overviewStats.totalUsers))
                     ) : (
@@ -1189,10 +1192,10 @@ export default function AdminDashboard() {
                   </VStack>
                 </Box>
                 <Box>
-                  <Text color="#A0AEC0" fontSize="2xs" textTransform="uppercase" letterSpacing="widest" mb={4}>
+                  <Text color="#A0AEC0" fontSize="2xs" textTransform="uppercase" letterSpacing="widest" mb={3}>
                     Primary Commute
                   </Text>
-                  <VStack align="stretch" spacing={4}>
+                  <VStack align="stretch" spacing={3}>
                     {Object.keys(overviewStats.commutes).length > 0 ? (
                       getTop5(overviewStats.commutes).map(([c, count]) => renderDemographicBar(c, count, overviewStats.totalUsers))
                     ) : (
@@ -1203,10 +1206,10 @@ export default function AdminDashboard() {
                   </VStack>
                 </Box>
                 <Box>
-                  <Text color="#A0AEC0" fontSize="2xs" textTransform="uppercase" letterSpacing="widest" mb={4}>
+                  <Text color="#A0AEC0" fontSize="2xs" textTransform="uppercase" letterSpacing="widest" mb={3}>
                     Top Locations
                   </Text>
-                  <VStack align="stretch" spacing={4}>
+                  <VStack align="stretch" spacing={3}>
                     {Object.keys(overviewStats.locations).length > 0 ? (
                       getTop5(overviewStats.locations).map(([l, c]) => renderDemographicBar(l, c, overviewStats.totalUsers))
                     ) : (
@@ -1221,6 +1224,7 @@ export default function AdminDashboard() {
           </Box>
         )}
 
+        {/* FACTORS TAB */}
         {activeTab === 'factors' && (
           <Box animation={`${slideUp} 0.5s ease-out both`}>
             <Flex justify="space-between" align="center" mb={6}>
@@ -1228,22 +1232,22 @@ export default function AdminDashboard() {
                 <Heading size="md" color="#1A202C" mb={1}>
                   Emission Factors
                 </Heading>
-                <Text color="#718096" fontSize="sm">
+                <Text color="#718096" fontSize="xs">
                   Manage math multipliers for footprint calculations.
                 </Text>
               </Box>
-              <Button bg="#1C4532" color="white" borderRadius="full" transition="all 0.2s" _hover={{bg: '#2D3748', transform: 'translateY(-1px)'}} onClick={() => setIsAddFactorOpen(true)}>
+              <Button bg="#1C4532" size="sm" color="white" borderRadius="full" transition="all 0.2s" onClick={() => setIsAddFactorOpen(true)}>
                 + Add Factor
               </Button>
             </Flex>
 
-            <Box bg="white" borderRadius="3xl" border="1px solid #E2E8F0" overflow="hidden" boxShadow="0 4px 20px -5px rgba(0,0,0,0.03)">
+            <Box bg="white" borderRadius="3xl" border="1px solid #E2E8F0" overflow="hidden" boxShadow="0 4px 20px -5px rgba(0,0,0,0.03)" overflowX="auto">
               {isLoading ? (
                 <Center p={10}>
                   <Spinner color="#38A169" />
                 </Center>
               ) : (
-                <Box w="100%">
+                <Box minW="700px">
                   <Grid templateColumns="1.5fr 3fr 1.5fr 1fr 1fr" gap={4} p={5} bg="#F8FAFC" borderBottom="1px solid #E2E8F0" alignItems="center">
                     <Text fontSize="xs" fontWeight="bold" color="#718096" textTransform="uppercase">
                       Category
@@ -1281,7 +1285,7 @@ export default function AdminDashboard() {
 
                       <Flex justify="flex-end" gap={2}>
                         <Button
-                          size="sm"
+                          size="xs"
                           borderRadius="full"
                           bg="white"
                           color="#4A5568"
@@ -1294,7 +1298,7 @@ export default function AdminDashboard() {
                           Edit
                         </Button>
                         <Button
-                          size="sm"
+                          size="xs"
                           borderRadius="full"
                           bg="white"
                           color="#C53030"
@@ -1318,6 +1322,7 @@ export default function AdminDashboard() {
           </Box>
         )}
 
+        {/* TASKS TAB */}
         {activeTab === 'tasks' && (
           <Box animation={`${slideUp} 0.5s ease-out both`}>
             <Flex justify="space-between" align="center" mb={6}>
@@ -1325,22 +1330,22 @@ export default function AdminDashboard() {
                 <Heading size="md" color="#1A202C" mb={1}>
                   Task Dictionary
                 </Heading>
-                <Text color="#718096" fontSize="sm">
+                <Text color="#718096" fontSize="xs">
                   Manage the gamification challenges.
                 </Text>
               </Box>
-              <Button bg="#1C4532" color="white" borderRadius="full" onClick={() => setIsAddTaskOpen(true)}>
+              <Button bg="#1C4532" size="sm" color="white" borderRadius="full" onClick={() => setIsAddTaskOpen(true)}>
                 + Add Task
               </Button>
             </Flex>
 
-            <Box bg="white" borderRadius="3xl" border="1px solid #E2E8F0" overflow="hidden" boxShadow="0 4px 20px -5px rgba(0,0,0,0.03)">
+            <Box bg="white" borderRadius="3xl" border="1px solid #E2E8F0" overflow="hidden" boxShadow="0 4px 20px -5px rgba(0,0,0,0.03)" overflowX="auto">
               {isLoading ? (
                 <Center p={10}>
                   <Spinner color="#38A169" />
                 </Center>
               ) : (
-                <Box w="100%">
+                <Box minW="700px">
                   <Grid templateColumns="1fr 1fr 3fr 1fr 1fr" gap={4} p={5} bg="#F8FAFC" borderBottom="1px solid #E2E8F0" alignItems="center">
                     <Text fontSize="xs" fontWeight="bold" color="#718096" textTransform="uppercase">
                       Tier
@@ -1366,19 +1371,19 @@ export default function AdminDashboard() {
                           {task.tier}
                         </Badge>
                       </Box>
-                      <Text fontSize="sm" color="#4A5568" fontWeight="bold">
+                      <Text fontSize="xs" color="#4A5568" fontWeight="bold">
                         {task.target_lifestyle_tag}
                       </Text>
-                      <Text fontWeight="bold" color="#2D3748" fontSize="sm">
+                      <Text fontWeight="bold" color="#2D3748" fontSize="xs">
                         {task.description}
                       </Text>
-                      <Text fontWeight="black" color="#38A169" textAlign="right">
+                      <Text fontWeight="black" color="#38A169" textAlign="right" fontSize="xs">
                         -{parseFloat(task.co2_saved_estimate).toFixed(1)} kg
                       </Text>
 
                       <Flex justify="flex-end" gap={2}>
                         <Button
-                          size="sm"
+                          size="xs"
                           borderRadius="full"
                           bg="white"
                           color="#4A5568"
@@ -1392,7 +1397,7 @@ export default function AdminDashboard() {
                           Edit
                         </Button>
                         <Button
-                          size="sm"
+                          size="xs"
                           borderRadius="full"
                           bg="white"
                           color="#C53030"
@@ -1416,6 +1421,7 @@ export default function AdminDashboard() {
           </Box>
         )}
 
+        {/* USERS TAB */}
         {activeTab === 'users' && (
           <Box animation={`${slideUp} 0.5s ease-out both`}>
             <Flex justify="space-between" align="center" mb={6}>
@@ -1423,8 +1429,8 @@ export default function AdminDashboard() {
                 <Heading size="md" color="#1A202C" mb={1}>
                   User Management
                 </Heading>
-                <Text color="#718096" fontSize="sm">
-                  Monitor community members and look up system roles.
+                <Text color="#718096" fontSize="xs">
+                  Monitor community members and system roles.
                 </Text>
               </Box>
             </Flex>
@@ -1432,11 +1438,10 @@ export default function AdminDashboard() {
             {/* SEARCH BAR & CATEGORY SUB-TABS */}
             <Flex direction={{base: 'column', md: 'row'}} gap={4} mb={6} justify="space-between" align={{base: 'stretch', md: 'center'}}>
               <Box flex="1" bg="white" p={1.5} borderRadius="2xl" border="1px solid #E2E8F0" boxShadow="sm">
-                <Input placeholder="Secure Lookup: Enter Name, Email or ID..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} bg="#F8FAFC" border="none" py={5} fontSize="sm" />
+                <Input placeholder="Search user or email..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} bg="#F8FAFC" border="none" py={4} fontSize="xs" />
               </Box>
 
-              {/* FILTER BUTTONS FOR BANNED / ARCHIVED SEPARATION */}
-              <Flex gap={1} bg="white" p={1.5} borderRadius="2xl" border="1px solid #E2E8F0" boxShadow="sm">
+              <Flex gap={1} bg="white" p={1.5} borderRadius="2xl" border="1px solid #E2E8F0" boxShadow="sm" overflowX="auto">
                 {[
                   {id: 'all', label: 'All Users', count: users.length},
                   {id: 'active', label: 'Active', count: users.filter(u => u.status === 'Active' || u.status === 'Inactive').length},
@@ -1445,17 +1450,15 @@ export default function AdminDashboard() {
                 ].map(filter => (
                   <Button
                     key={filter.id}
-                    size="sm"
+                    size="xs"
                     borderRadius="xl"
-                    px={4}
-                    py={4}
-                    fontSize="xs"
+                    px={3}
+                    py={3}
+                    fontSize="2xs"
                     fontWeight="bold"
                     bg={userFilter === filter.id ? '#1C4532' : 'transparent'}
                     color={userFilter === filter.id ? 'white' : '#718096'}
-                    _hover={{bg: userFilter === filter.id ? '#1C4532' : '#F7FAFC'}}
                     onClick={() => setUserFilter(filter.id)}
-                    transition="all 0.2s"
                   >
                     {filter.label} ({filter.count})
                   </Button>
@@ -1464,13 +1467,13 @@ export default function AdminDashboard() {
             </Flex>
 
             {/* USERS TABLE */}
-            <Box bg="white" borderRadius="3xl" border="1px solid #E2E8F0" overflow="hidden" boxShadow="0 4px 20px -5px rgba(0,0,0,0.03)">
+            <Box bg="white" borderRadius="3xl" border="1px solid #E2E8F0" overflow="hidden" boxShadow="0 4px 20px -5px rgba(0,0,0,0.03)" overflowX="auto">
               {isLoading ? (
                 <Center p={10}>
                   <Spinner color="#38A169" />
                 </Center>
               ) : (
-                <Box w="100%">
+                <Box minW="750px">
                   <Grid templateColumns="2fr 0.8fr 1fr 1fr 1.5fr 1fr 1fr" gap={4} p={5} bg="#F8FAFC" borderBottom="1px solid #E2E8F0" alignItems="center">
                     <Text fontSize="xs" fontWeight="bold" color="#718096" textTransform="uppercase">
                       Identity
@@ -1497,14 +1500,12 @@ export default function AdminDashboard() {
 
                   {users
                     .filter(user => {
-                      // 1. Search filter
                       const anonymizedId = `User #${user.profile_id.substring(0, 6).toUpperCase()}`
                       const realName = user.display_name || ''
                       const accountEmail = user.email || ''
                       const cleanQuery = searchQuery.toLowerCase()
                       const matchesSearch = anonymizedId.toLowerCase().includes(cleanQuery) || realName.toLowerCase().includes(cleanQuery) || accountEmail.toLowerCase().includes(cleanQuery)
 
-                      // 2. Tab filter for Banned / Archived / Active separation
                       let matchesTab = true
                       if (userFilter === 'banned') matchesTab = user.is_banned
                       else if (userFilter === 'archived') matchesTab = user.is_archived
@@ -1538,7 +1539,7 @@ export default function AdminDashboard() {
                               {!user.avatar_url && (isStaff ? displayName.charAt(0).toUpperCase() : '👤')}
                             </Flex>
                             <Box>
-                              <Text fontWeight="bold" color="#2D3748" fontSize="sm">
+                              <Text fontWeight="bold" color="#2D3748" fontSize="xs">
                                 {displayName}
                               </Text>
                               {!isStaff && (
@@ -1550,7 +1551,7 @@ export default function AdminDashboard() {
                           </Flex>
 
                           <Box>
-                            <Badge colorScheme={isStaff ? 'red' : 'green'} px={3} py={1} borderRadius="full">
+                            <Badge colorScheme={isStaff ? 'red' : 'green'} px={2} py={0.5} borderRadius="full" fontSize="2xs">
                               {user.role}
                             </Badge>
                           </Box>
@@ -1559,9 +1560,10 @@ export default function AdminDashboard() {
                             <Badge
                               variant="solid"
                               colorScheme={user.status === 'System' ? 'purple' : user.status === 'Banned' ? 'red' : user.status === 'Archived' ? 'orange' : user.status === 'Active' ? 'teal' : 'gray'}
-                              px={3}
-                              py={1}
+                              px={2}
+                              py={0.5}
                               borderRadius="full"
+                              fontSize="2xs"
                             >
                               {user.status}
                             </Badge>
@@ -1569,11 +1571,11 @@ export default function AdminDashboard() {
 
                           <Box pl={2}>
                             {isStaff ? (
-                              <Text color="#A0AEC0" fontSize="sm" fontStyle="italic">
+                              <Text color="#A0AEC0" fontSize="xs" fontStyle="italic">
                                 —
                               </Text>
                             ) : (
-                              <Text fontSize="sm" fontWeight="bold" color={user.total_logs > 0 ? '#2B6CB0' : '#718096'}>
+                              <Text fontSize="xs" fontWeight="bold" color={user.total_logs > 0 ? '#2B6CB0' : '#718096'}>
                                 {user.total_logs} {user.total_logs === 1 ? 'log' : 'logs'}
                               </Text>
                             )}
@@ -1581,13 +1583,13 @@ export default function AdminDashboard() {
 
                           <Box>
                             {isStaff ? (
-                              <Text color="#A0AEC0" fontSize="sm" fontStyle="italic">
+                              <Text color="#A0AEC0" fontSize="xs" fontStyle="italic">
                                 System Default
                               </Text>
                             ) : (
                               <Flex align="center" gap={2}>
                                 <Box w="6px" h="6px" borderRadius="full" bg={user.last_active === 'No Activity' ? '#CBD5E0' : '#38A169'} />
-                                <Text color="#718096" fontSize="sm" fontWeight={user.last_active !== 'No Activity' ? 'bold' : 'normal'}>
+                                <Text color="#718096" fontSize="xs" fontWeight={user.last_active !== 'No Activity' ? 'bold' : 'normal'}>
                                   {user.last_active}
                                 </Text>
                               </Flex>
@@ -1596,11 +1598,11 @@ export default function AdminDashboard() {
 
                           <Box textAlign="right">
                             {isStaff ? (
-                              <Text color="#A0AEC0" fontSize="sm" fontStyle="italic">
+                              <Text color="#A0AEC0" fontSize="xs" fontStyle="italic">
                                 N/A
                               </Text>
                             ) : (
-                              <Text fontWeight="black" color="#1A202C">
+                              <Text fontWeight="black" color="#1A202C" fontSize="xs">
                                 {user.monthly_co2_target} kg
                               </Text>
                             )}
@@ -1608,29 +1610,28 @@ export default function AdminDashboard() {
 
                           <Flex justify="flex-end">
                             {isStaff ? (
-                              <Text color="#A0AEC0" fontSize="xs" fontStyle="italic" pr={4}>
-                                System Locked
+                              <Text color="#A0AEC0" fontSize="2xs" fontStyle="italic" pr={2}>
+                                Locked
                               </Text>
                             ) : (
                               <Menu.Root lazyMount>
                                 <Menu.Trigger asChild>
-                                  <Button size="sm" variant="outline" borderRadius="full" borderColor="#E2E8F0" fontSize="xs" fontWeight="bold" color="#4A5568">
+                                  <Button size="xs" variant="outline" borderRadius="full" borderColor="#E2E8F0" fontSize="2xs" fontWeight="bold" color="#4A5568">
                                     Actions ▼
                                   </Button>
                                 </Menu.Trigger>
                                 <Menu.Content borderColor="#E2E8F0" boxShadow="md" borderRadius="xl" zIndex={10} bg="white" p={1}>
-                                  <Menu.Item value="password-reset" fontSize="sm" color="#2B6CB0" cursor="pointer" p={2} borderRadius="md" _hover={{bg: '#EBF8FF'}} onClick={() => handlePasswordReset(user.email)}>
+                                  <Menu.Item value="password-reset" fontSize="xs" color="#2B6CB0" cursor="pointer" p={2} borderRadius="md" onClick={() => handlePasswordReset(user.email)}>
                                     🔑 Password Reset
                                   </Menu.Item>
 
                                   <Menu.Item
                                     value="toggle-archive"
-                                    fontSize="sm"
+                                    fontSize="xs"
                                     color={user.is_archived ? '#38A169' : '#DD6B20'}
                                     cursor="pointer"
                                     p={2}
                                     borderRadius="md"
-                                    _hover={{bg: user.is_archived ? '#F0FFF4' : '#FFFAF0'}}
                                     onClick={() => handleToggleArchive(user.profile_id, user.is_archived, displayName)}
                                   >
                                     {user.is_archived ? '🔄 Restore Account' : '📦 Archive Account'}
@@ -1638,12 +1639,11 @@ export default function AdminDashboard() {
 
                                   <Menu.Item
                                     value="toggle-ban"
-                                    fontSize="sm"
+                                    fontSize="xs"
                                     color={user.is_banned ? '#38A169' : '#E53E3E'}
                                     cursor="pointer"
                                     p={2}
                                     borderRadius="md"
-                                    _hover={{bg: user.is_banned ? '#F0FFF4' : '#FFF5F5'}}
                                     onClick={() => handleToggleBan(user.profile_id, user.is_banned, displayName)}
                                   >
                                     {user.is_banned ? '🔓 Unban User' : '🚫 Ban User'}
@@ -1666,7 +1666,7 @@ export default function AdminDashboard() {
       {selectedFactor && (
         <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.4)" zIndex={9999} justify="flex-end" onClick={() => setSelectedFactor(null)}>
           <Flex direction="column" bg="white" w={{base: '100%', md: '450px'}} h="100vh" boxShadow="-10px 0 40px rgba(0,0,0,0.1)" onClick={e => e.stopPropagation()}>
-            <Flex justify="space-between" align="center" p={8} borderBottom="1px solid #E2E8F0">
+            <Flex justify="space-between" align="center" p={{base: 5, md: 8}} borderBottom="1px solid #E2E8F0">
               <Box>
                 <Text fontSize="xs" color="#38A169" fontWeight="bold" textTransform="uppercase" letterSpacing="wider" mb={1}>
                   System Multiplier
@@ -1680,7 +1680,7 @@ export default function AdminDashboard() {
               </Button>
             </Flex>
 
-            <Box flex="1" overflowY="auto" p={8}>
+            <Box flex="1" overflowY="auto" p={{base: 5, md: 8}}>
               <Text fontSize="sm" color="#4A5568" mb={8} lineHeight="tall">
                 Adjusting calculation weights for:{' '}
                 <Text as="span" fontWeight="black" color="#1A202C">
@@ -1723,7 +1723,7 @@ export default function AdminDashboard() {
       {selectedTask && (
         <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.4)" zIndex={9999} justify="flex-end" onClick={() => setSelectedTask(null)}>
           <Flex direction="column" bg="white" w={{base: '100%', md: '450px'}} h="100vh" boxShadow="-10px 0 40px rgba(0,0,0,0.1)" onClick={e => e.stopPropagation()}>
-            <Flex justify="space-between" align="center" p={8} borderBottom="1px solid #E2E8F0">
+            <Flex justify="space-between" align="center" p={{base: 5, md: 8}} borderBottom="1px solid #E2E8F0">
               <Box>
                 <Text fontSize="xs" color="#3182CE" fontWeight="bold" textTransform="uppercase" letterSpacing="wider" mb={1}>
                   Gamified Dictionary
@@ -1737,7 +1737,7 @@ export default function AdminDashboard() {
               </Button>
             </Flex>
 
-            <Box flex="1" overflowY="auto" p={8}>
+            <Box flex="1" overflowY="auto" p={{base: 5, md: 8}}>
               <VStack spacing={8} align="stretch">
                 <Box>
                   <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color="#A0AEC0" mb={4}>
@@ -1769,7 +1769,7 @@ export default function AdminDashboard() {
       {isAddFactorOpen && (
         <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.4)" zIndex={9999} justify="flex-end" onClick={() => setIsAddFactorOpen(false)}>
           <Flex direction="column" bg="white" w={{base: '100%', md: '450px'}} h="100vh" boxShadow="-10px 0 40px rgba(0,0,0,0.1)" onClick={e => e.stopPropagation()}>
-            <Flex justify="space-between" align="center" p={8} borderBottom="1px solid #E2E8F0">
+            <Flex justify="space-between" align="center" p={{base: 5, md: 8}} borderBottom="1px solid #E2E8F0">
               <Box>
                 <Text fontSize="xs" color="#319795" fontWeight="bold" textTransform="uppercase" letterSpacing="wider" mb={1}>
                   Global Math Model
@@ -1783,7 +1783,7 @@ export default function AdminDashboard() {
               </Button>
             </Flex>
 
-            <Box flex="1" overflowY="auto" p={8}>
+            <Box flex="1" overflowY="auto" p={{base: 5, md: 8}}>
               <VStack spacing={8} align="stretch">
                 <Box>
                   <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color="#A0AEC0" mb={2}>
@@ -1870,7 +1870,7 @@ export default function AdminDashboard() {
       {isAddTaskOpen && (
         <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.4)" zIndex={9999} justify="flex-end" onClick={() => setIsAddTaskOpen(false)}>
           <Flex direction="column" bg="white" w={{base: '100%', md: '450px'}} h="100vh" boxShadow="-10px 0 40px rgba(0,0,0,0.1)" onClick={e => e.stopPropagation()}>
-            <Flex justify="space-between" align="center" p={8} borderBottom="1px solid #E2E8F0">
+            <Flex justify="space-between" align="center" p={{base: 5, md: 8}} borderBottom="1px solid #E2E8F0">
               <Box>
                 <Text fontSize="xs" color="#D69E2E" fontWeight="bold" textTransform="uppercase" letterSpacing="wider" mb={1}>
                   Gamified Engine
@@ -1884,7 +1884,7 @@ export default function AdminDashboard() {
               </Button>
             </Flex>
 
-            <Box flex="1" overflowY="auto" p={8}>
+            <Box flex="1" overflowY="auto" p={{base: 5, md: 8}}>
               <VStack spacing={8} align="stretch">
                 <Flex gap={6}>
                   <Box flex="1">
@@ -1968,7 +1968,7 @@ export default function AdminDashboard() {
 
       {deleteTarget && (
         <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.6)" backdropFilter="blur(6px)" zIndex={9999} align="center" justify="center" px={4} onClick={() => setDeleteTarget(null)}>
-          <Box bg="white" p={10} borderRadius="3xl" maxW="420px" w="100%" boxShadow="0 25px 50px -12px rgba(229, 62, 62, 0.25)" onClick={e => e.stopPropagation()} position="relative" textAlign="center">
+          <Box bg="white" p={{base: 6, md: 10}} borderRadius="3xl" maxW="420px" w="100%" boxShadow="0 25px 50px -12px rgba(229, 62, 62, 0.25)" onClick={e => e.stopPropagation()} position="relative" textAlign="center">
             <Flex w="16" h="16" bg="#FFF5F5" border="4px solid white" outline="1px solid #FED7D7" borderRadius="full" align="center" justify="center" mx="auto" mb={6} boxShadow="lg">
               <Text fontSize="2xl">⚠️</Text>
             </Flex>
@@ -2000,7 +2000,7 @@ export default function AdminDashboard() {
         <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.6)" backdropFilter="blur(6px)" zIndex={9999} align="center" justify="center" px={4} onClick={() => setConfirmDialog(null)}>
           <Box
             bg="white"
-            p={10}
+            p={{base: 6, md: 10}}
             borderRadius="3xl"
             maxW="420px"
             w="100%"
@@ -2047,8 +2047,9 @@ export default function AdminDashboard() {
       {notification && (
         <Flex
           position="fixed"
-          bottom="24px"
-          right="24px"
+          bottom={{base: '12px', md: '24px'}}
+          right={{base: '12px', md: '24px'}}
+          left={{base: '12px', md: 'auto'}}
           bg="white"
           p={4}
           borderRadius="xl"
@@ -2056,7 +2057,7 @@ export default function AdminDashboard() {
           borderLeft="4px solid"
           borderLeftColor={notification.status === 'success' ? '#38A169' : notification.status === 'error' ? '#E53E3E' : '#D69E2E'}
           zIndex={10000}
-          maxW="350px"
+          maxW={{base: '100%', md: '350px'}}
           align="flex-start"
           gap={3}
         >

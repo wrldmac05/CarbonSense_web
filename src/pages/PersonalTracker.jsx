@@ -356,14 +356,25 @@ export default function Tracker() {
   }
 
   return (
-    <Box minH="100vh" bg="#F4F9F5" backgroundImage="url('https://www.transparenttextures.com/patterns/cubes.png')" backgroundBlendMode="multiply" position="relative" overflow="hidden" pb={20}>
-      <Box position="absolute" top="-10%" left="-5%" w="700px" h="700px" bgGradient="radial(#48BB78 0%, transparent 65%)" opacity="0.15" borderRadius="full" pointerEvents="none" />
-      <Box position="absolute" top="-5%" right="-5%" w="700px" h="700px" bgGradient="radial(#319795 0%, transparent 65%)" opacity="0.12" borderRadius="full" pointerEvents="none" />
+    <Box minH="100vh" bg="#F4F9F5" backgroundImage="url('https://www.transparenttextures.com/patterns/cubes.png')" backgroundBlendMode="multiply" position="relative" overflow="hidden" pb={{base: 12, md: 20}}>
+      {/* Background Aurora Glows */}
+      <Box position="absolute" top="-10%" left="-5%" w={{base: '350px', md: '700px'}} h={{base: '350px', md: '700px'}} bgGradient="radial(#48BB78 0%, transparent 65%)" opacity="0.15" borderRadius="full" pointerEvents="none" />
+      <Box position="absolute" top="-5%" right="-5%" w={{base: '350px', md: '700px'}} h={{base: '350px', md: '700px'}} bgGradient="radial(#319795 0%, transparent 65%)" opacity="0.12" borderRadius="full" pointerEvents="none" />
 
       <Box position="relative" zIndex={1}>
-        <Box w="100%" pt={16} pb={8} px={10} borderBottom="1px solid rgba(72, 187, 120, 0.2)" bg="rgba(244, 249, 245, 0.6)" backdropFilter="blur(12px)" animation={`${slideUp} 0.5s ease-out both`}>
+        {/* Header Section */}
+        <Box
+          w="100%"
+          pt={{base: 12, md: 16}}
+          pb={{base: 6, md: 8}}
+          px={{base: 4, sm: 6, md: 10}}
+          borderBottom="1px solid rgba(72, 187, 120, 0.2)"
+          bg="rgba(244, 249, 245, 0.6)"
+          backdropFilter="blur(12px)"
+          animation={`${slideUp} 0.5s ease-out both`}
+        >
           <Box maxW="1200px" mx="auto" position="relative">
-            <Flex align="center" gap={2} as={Link} to="/" position="absolute" top="-40px" left="0" transition="all 0.2s" _hover={{opacity: 0.7, transform: 'translateX(-4px)'}}>
+            <Flex align="center" gap={2} as={Link} to="/" position="absolute" top={{base: '-32px', md: '-40px'}} left="0" transition="all 0.2s" _hover={{opacity: 0.7, transform: 'translateX(-4px)'}}>
               <Text fontSize="lg" color="#1C4532">
                 ←
               </Text>
@@ -372,25 +383,37 @@ export default function Tracker() {
               </Text>
             </Flex>
 
-            <Flex justify="space-between" align="flex-end" wrap="wrap" gap={6}>
+            <Flex justify="space-between" align={{base: 'flex-start', md: 'flex-end'}} direction={{base: 'column', md: 'row'}} gap={6}>
               <Box>
                 <Text color="#276749" fontWeight="bold" letterSpacing="widest" fontSize="xs" textTransform="uppercase">
                   Private Dashboard
                 </Text>
-                <Heading size="2xl" color="#1C4532" mt={2} letterSpacing="tighter">
+                <Heading size={{base: 'xl', md: '2xl'}} color="#1C4532" mt={2} letterSpacing="tighter">
                   Personal Tracker
                 </Heading>
-                <Text color="#4A5568" fontSize="md" mt={2} maxW="500px" lineHeight="tall">
+                <Text color="#4A5568" fontSize={{base: 'sm', md: 'md'}} mt={2} maxW="500px" lineHeight="tall">
                   Monitor your daily footprint, track your active streak, and stay below your custom monthly reduction target.
                 </Text>
               </Box>
 
-              <Flex direction="column" align={{base: 'flex-start', md: 'flex-end'}} gap={4}>
-                <Flex bg="#E6FFFA" p={1.5} borderRadius="xl" border="1px solid #9AE6B4" boxShadow="inset 0 2px 4px rgba(28, 69, 50, 0.05)">
-                  <Button bg="white" color="#1C4532" boxShadow="sm" borderRadius="lg" px={6} size="md" fontWeight="bold" pointerEvents="none">
+              <Flex direction="column" align={{base: 'flex-start', md: 'flex-end'}} gap={4} w={{base: '100%', md: 'auto'}}>
+                <Flex w={{base: '100%', sm: 'auto'}} bg="#E6FFFA" p={1.5} borderRadius="xl" border="1px solid #9AE6B4" boxShadow="inset 0 2px 4px rgba(28, 69, 50, 0.05)">
+                  <Button flex={{base: '1', sm: 'initial'}} bg="white" color="#1C4532" boxShadow="sm" borderRadius="lg" px={{base: 3, md: 6}} size={{base: 'sm', md: 'md'}} fontWeight="bold" pointerEvents="none">
                     My Tracker
                   </Button>
-                  <Button as={Link} to="/dashboard" bg="transparent" color="#2F855A" _hover={{color: '#1C4532', bg: 'rgba(255, 255, 255, 0.6)'}} borderRadius="lg" px={6} size="md" fontWeight="bold" transition="all 0.2s">
+                  <Button
+                    flex={{base: '1', sm: 'initial'}}
+                    as={Link}
+                    to="/dashboard"
+                    bg="transparent"
+                    color="#2F855A"
+                    _hover={{color: '#1C4532', bg: 'rgba(255, 255, 255, 0.6)'}}
+                    borderRadius="lg"
+                    px={{base: 3, md: 6}}
+                    size={{base: 'sm', md: 'md'}}
+                    fontWeight="bold"
+                    transition="all 0.2s"
+                  >
                     Global Dashboard
                   </Button>
                 </Flex>
@@ -409,19 +432,21 @@ export default function Tracker() {
           </Box>
         </Box>
 
-        <Box position="relative" maxW="1200px" mx="auto" px={10} pt={10}>
+        {/* Content Container */}
+        <Box position="relative" maxW="1200px" mx="auto" px={{base: 4, sm: 6, md: 10}} pt={{base: 6, md: 10}}>
           {isGuest && (
-            <Flex position="absolute" top={0} left={0} right={0} bottom={0} zIndex={10} align="flex-start" justify="center" pt={24}>
+            <Flex position="absolute" top={0} left={0} right={0} bottom={0} zIndex={10} align="flex-start" justify="center" pt={{base: 12, md: 24}} px={4}>
               <VStack
                 bg="rgba(244, 249, 245, 0.85)"
                 backdropFilter="blur(16px)"
-                p={10}
+                p={{base: 6, md: 10}}
                 borderRadius="2xl"
                 boxShadow="0 25px 50px -12px rgba(28, 69, 50, 0.15)"
                 textAlign="center"
                 maxW="400px"
+                w="100%"
                 border="1px solid rgba(72, 187, 120, 0.3)"
-                animation={`${cardPop => keyframes`from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); }`} 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both`}
+                animation={`${modalGrow} 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both`}
               >
                 <Box fontSize="4xl" mb={2}>
                   🔒
@@ -451,31 +476,40 @@ export default function Tracker() {
           )}
 
           <Box filter={isGuest ? 'blur(6px)' : 'none'} opacity={isGuest ? 0.5 : 1} pointerEvents={isGuest ? 'none' : 'auto'} userSelect={isGuest ? 'none' : 'auto'} transition="all 0.4s ease">
-            <SimpleGrid columns={{base: 1, md: 3}} gap={6} mb={10} animation={`${slideUp} 0.5s ease-out 0.1s both`}>
-              <Box p={6} borderRadius="xl" border="1px solid rgba(72, 187, 120, 0.2)" bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)">
+            {/* Top Stats Cards */}
+            <SimpleGrid columns={{base: 1, sm: 2, md: 3}} gap={{base: 4, md: 6}} mb={{base: 6, md: 10}} animation={`${slideUp} 0.5s ease-out 0.1s both`}>
+              <Box p={{base: 5, md: 6}} borderRadius="xl" border="1px solid rgba(72, 187, 120, 0.2)" bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)">
                 <Text fontSize="xs" fontWeight="bold" color="#4A5568" textTransform="uppercase" mb={2}>
                   This Month's Footprint
                 </Text>
-                <Text fontSize="3xl" fontWeight="black" color="#1C4532">
+                <Text fontSize={{base: '2xl', md: '3xl'}} fontWeight="black" color="#1C4532">
                   <AnimatedNumber value={stats.thisMonth} decimals={1} />{' '}
                   <Text as="span" fontSize="lg" color="#718096">
                     kg CO₂
                   </Text>
                 </Text>
               </Box>
-              <Box p={6} borderRadius="xl" border="1px solid rgba(72, 187, 120, 0.2)" bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)">
+              <Box p={{base: 5, md: 6}} borderRadius="xl" border="1px solid rgba(72, 187, 120, 0.2)" bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)">
                 <Text fontSize="xs" fontWeight="bold" color="#4A5568" textTransform="uppercase" mb={2}>
                   Total Activities Logged
                 </Text>
-                <Text fontSize="3xl" fontWeight="black" color="#1C4532">
+                <Text fontSize={{base: '2xl', md: '3xl'}} fontWeight="black" color="#1C4532">
                   <AnimatedNumber value={stats.totalActivities} decimals={0} />
                 </Text>
               </Box>
-              <Box p={6} borderRadius="xl" border="1px solid rgba(72, 187, 120, 0.2)" bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)">
+              <Box
+                p={{base: 5, md: 6}}
+                borderRadius="xl"
+                border="1px solid rgba(72, 187, 120, 0.2)"
+                bg="rgba(255, 255, 255, 0.9)"
+                backdropFilter="blur(10px)"
+                boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)"
+                gridColumn={{base: 'span 1', sm: 'span 2', md: 'span 1'}}
+              >
                 <Text fontSize="xs" fontWeight="bold" color="#4A5568" textTransform="uppercase" mb={2}>
                   Current App Streak
                 </Text>
-                <Text fontSize="3xl" fontWeight="black" color="#1C4532">
+                <Text fontSize={{base: '2xl', md: '3xl'}} fontWeight="black" color="#1C4532">
                   <AnimatedNumber value={stats.streak} decimals={0} />{' '}
                   <Text as="span" fontSize="lg" color="#718096">
                     Days
@@ -484,16 +518,18 @@ export default function Tracker() {
               </Box>
             </SimpleGrid>
 
-            <Grid templateColumns={{base: '1fr', lg: 'repeat(3, 1fr)'}} gap={8}>
+            {/* Main Content Grid */}
+            <Grid templateColumns={{base: '1fr', lg: 'repeat(3, 1fr)'}} gap={{base: 6, md: 8}}>
               <GridItem colSpan={{base: 1, lg: 2}} animation={`${slideUp} 0.5s ease-out 0.2s both`}>
-                <VStack align="stretch" spacing={8} h="100%">
-                  <Box p={6} borderRadius="xl" border="1px solid rgba(72, 187, 120, 0.2)" bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)">
-                    <Text fontWeight="bold" color="#1C4532" fontSize="lg" mb={6}>
+                <VStack align="stretch" spacing={{base: 6, md: 8}} h="100%">
+                  {/* Chart Card */}
+                  <Box p={{base: 4, md: 6}} borderRadius="xl" border="1px solid rgba(72, 187, 120, 0.2)" bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)">
+                    <Text fontWeight="bold" color="#1C4532" fontSize="lg" mb={4}>
                       My 6-Month Trend
                     </Text>
-                    <Box h="300px" w="100%" minW="0" overflow="hidden">
+                    <Box h={{base: '220px', md: '300px'}} w="100%" minW="0" overflow="hidden">
                       <ResponsiveContainer width="99%" height="100%">
-                        <AreaChart data={chartData}>
+                        <AreaChart data={chartData} margin={{top: 10, right: 10, left: -20, bottom: 0}}>
                           <defs>
                             <linearGradient id="colorEmissions" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="5%" stopColor="#38A169" stopOpacity={0.25} />
@@ -501,8 +537,8 @@ export default function Tracker() {
                             </linearGradient>
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" stroke="rgba(72, 187, 120, 0.15)" vertical={false} />
-                          <XAxis dataKey="name" stroke="#4A5568" axisLine={false} tickLine={false} dy={10} fontSize={12} />
-                          <YAxis allowDecimals={false} stroke="#4A5568" axisLine={false} tickLine={false} dx={-10} fontSize={12} />
+                          <XAxis dataKey="name" stroke="#4A5568" axisLine={false} tickLine={false} dy={10} fontSize={11} />
+                          <YAxis allowDecimals={false} stroke="#4A5568" axisLine={false} tickLine={false} dx={-5} fontSize={11} />
                           <Tooltip contentStyle={{backgroundColor: '#1C4532', border: 'none', borderRadius: '8px', color: 'white'}} />
                           <Area
                             isAnimationActive={true}
@@ -521,7 +557,8 @@ export default function Tracker() {
                     </Box>
                   </Box>
 
-                  <Box p={6} borderRadius="xl" border="1px solid rgba(72, 187, 120, 0.2)" bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)">
+                  {/* Weekly Missions Card */}
+                  <Box p={{base: 5, md: 6}} borderRadius="xl" border="1px solid rgba(72, 187, 120, 0.2)" bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)">
                     <Heading size="md" color="#1C4532" letterSpacing="tight" mb={2}>
                       Weekly Missions
                     </Heading>
@@ -529,9 +566,8 @@ export default function Tracker() {
                       Click a task to view details. Use the CarbonSense mobile app to log activities and complete challenges!
                     </Text>
 
-                    {/* 🌟 REVERTED TO GRID VIEW, RETAINED NEW STYLES */}
                     {tasks.length > 0 ? (
-                      <Grid templateColumns={{base: '1fr', md: '1fr 1fr'}} gap={4}>
+                      <Grid templateColumns={{base: '1fr', sm: '1fr 1fr'}} gap={4}>
                         {tasks.map((task, index) => {
                           const dict = task.tasks_dictionary
                           const isCompleted = task.is_completed
@@ -554,7 +590,6 @@ export default function Tracker() {
                               _hover={!isGuest && !isCompleted ? {transform: 'translateY(-2px)', boxShadow: `0 12px 20px ${design.main}26`} : {}}
                               _active={!isGuest ? {transform: 'scale(0.98)'} : {}}
                             >
-                              {/* Background Nature Watermark Icon */}
                               {!isCompleted && (
                                 <Box position="absolute" right="-15px" bottom="-15px" opacity={0.12} fontSize="85px" lineHeight="1" pointerEvents="none" userSelect="none">
                                   {design.icon}
@@ -563,7 +598,6 @@ export default function Tracker() {
 
                               <Flex direction="column" h="100%" position="relative" zIndex={1}>
                                 <Flex justify="space-between" align="flex-start" mb={3}>
-                                  {/* Inner Tier Badge Design */}
                                   <Flex
                                     align="center"
                                     gap={1.5}
@@ -583,7 +617,6 @@ export default function Tracker() {
                                     </Text>
                                   </Flex>
 
-                                  {/* Custom Checkbox Layout */}
                                   <Flex w="20px" h="20px" borderRadius="md" border={isCompleted ? 'none' : `2px solid ${design.main}`} bg={isCompleted ? '#38A169' : 'transparent'} align="center" justify="center" flexShrink={0}>
                                     {isCompleted && (
                                       <Text fontSize="10px" color="white" fontWeight="bold">
@@ -603,7 +636,7 @@ export default function Tracker() {
                       </Grid>
                     ) : (
                       <Center py={10}>
-                        <Text color="#718096" fontSize="sm" fontStyle="italic">
+                        <Text color="#718096" fontSize="sm" fontStyle="italic" textAlign="center">
                           Establishing your activity baseline. Log some activities or wait 7 days to unlock your personalized weekly missions!
                         </Text>
                       </Center>
@@ -613,8 +646,9 @@ export default function Tracker() {
               </GridItem>
 
               <GridItem colSpan={1} animation={`${slideUp} 0.5s ease-out 0.3s both`}>
-                <VStack gap={6} align="stretch" h="100%">
-                  <Box p={6} borderRadius="xl" border="1px solid rgba(72, 187, 120, 0.2)" bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)">
+                <VStack gap={{base: 6, md: 8}} align="stretch" h="100%">
+                  {/* Goal Card */}
+                  <Box p={{base: 5, md: 6}} borderRadius="xl" border="1px solid rgba(72, 187, 120, 0.2)" bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)">
                     <Text fontWeight="bold" color="#1C4532" mb={1}>
                       Reduction Goal
                     </Text>
@@ -632,7 +666,8 @@ export default function Tracker() {
                     </Flex>
                   </Box>
 
-                  <Box p={6} borderRadius="xl" border="1px solid rgba(72, 187, 120, 0.2)" bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)" flex="1">
+                  {/* Recent Activity Card */}
+                  <Box p={{base: 5, md: 6}} borderRadius="xl" border="1px solid rgba(72, 187, 120, 0.2)" bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)" flex="1">
                     <Text fontWeight="bold" color="#1C4532" mb={4}>
                       Recent Activity
                     </Text>
@@ -691,7 +726,7 @@ export default function Tracker() {
         <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(28, 69, 50, 0.4)" backdropFilter="blur(6px)" zIndex={9999} align="center" justify="center" px={4} onClick={() => setSelectedTask(null)}>
           <Box
             bg="white"
-            p={8}
+            p={{base: 5, md: 8}}
             borderRadius="3xl"
             maxW="410px"
             w="100%"
@@ -755,7 +790,7 @@ export default function Tracker() {
         <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(28, 69, 50, 0.4)" backdropFilter="blur(6px)" zIndex={9999} align="center" justify="center" px={4} onClick={() => setSelectedLog(null)}>
           <Box
             bg="white"
-            p={8}
+            p={{base: 5, md: 8}}
             borderRadius="3xl"
             maxW="410px"
             w="100%"

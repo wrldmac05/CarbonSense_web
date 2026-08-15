@@ -1,6 +1,6 @@
 // pages/Dashboard.jsx
 import {useState, useEffect, useRef} from 'react'
-import {Box, Heading, Text, Flex, Grid, VStack, Center, Spinner, Button} from '@chakra-ui/react'
+import {Box, Heading, Text, Flex, Grid, VStack, Center, Spinner, Button, useBreakpointValue} from '@chakra-ui/react'
 import {Link} from 'react-router-dom'
 import {supabase} from '../supabase'
 import {AreaChart, Area, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer} from 'recharts'
@@ -71,6 +71,11 @@ export default function Dashboard() {
     locations: {}
   })
 
+  // Responsive values for Pie Chart sizing across devices
+  const isMobile = useBreakpointValue({base: true, md: false})
+  const innerRadius = useBreakpointValue({base: 50, md: 80})
+  const outerRadius = useBreakpointValue({base: 80, md: 120})
+
   const COLORS = ['#38A169', '#319795', '#2B6CB0', '#D69E2E', '#E53E3E']
 
   useEffect(() => {
@@ -78,93 +83,44 @@ export default function Dashboard() {
       try {
         setIsLoading(true)
 
-        const {data: insightData} = await supabase
-          .from('global_insights')
-          .select('insight_text')
-          .order('created_at', {ascending: false})
-          .limit(1)
-          .maybeSingle()
+        // 1. Fetch AI Insight
+        const {data: insightData, error: insightError} = await supabase.from('global_insights').select('insight_text').order('created_at', {ascending: false}).limit(1).maybeSingle()
 
-        if (insightData) setAiInsight(insightData.insight_text)
-
-        const {data: users} = await supabase.from('users').select('created_at')
-        const {data: profiles} = await supabase.from('user_profiles').select('location, monthly_co2_target')
-        const {data: lifestyles} = await supabase.from('lifestyle_profiles').select('diet_type, commute_type')
-        const {data: logs} = await supabase.from('activity_logs').select(`
-          total_co2e, logged_at, emission_factors ( category )
-        `)
-
-        const totalUsers = users?.length || 0
-        const totalCO2 = logs?.reduce((sum, log) => sum + Number(log.total_co2e), 0) || 0
-        const validTargets = profiles?.filter(p => p.monthly_co2_target > 0) || []
-        const avgTarget = validTargets.length
-          ? validTargets.reduce((sum, p) => sum + Number(p.monthly_co2_target), 0) / validTargets.length
-          : 0
-
-        const getLast6Months = () => {
-          const months = []
-          const d = new Date()
-          for (let i = 5; i >= 0; i--) {
-            const pastDate = new Date(d.getFullYear(), d.getMonth() - i, 1)
-            months.push(pastDate.toLocaleString('default', {month: 'short'}))
-          }
-          return months
+        if (insightError) {
+          console.error('Error fetching global insight:', insightError.message)
+        } else if (insightData) {
+          setAiInsight(insightData.insight_text)
         }
-        const timeline = getLast6Months()
 
-        const userCountsByMonth = {}
-        users?.forEach(u => {
-          const month = new Date(u.created_at).toLocaleString('default', {month: 'short'})
-          userCountsByMonth[month] = (userCountsByMonth[month] || 0) + 1
-        })
+        // 2. Invoke Secure Edge Function
+        const {data, error} = await supabase.functions.invoke('get-global-stats')
 
-        let cumulative = 0
-        const monthlyUsers = timeline.map(month => {
-          cumulative += userCountsByMonth[month] || 0
-          return {month, users: cumulative}
-        })
+        if (error) {
+          console.error('Failed to fetch from Edge Function:', error.message)
+          return
+        }
 
-        const emissionCountsByMonth = {}
-        logs?.forEach(log => {
-          const month = new Date(log.logged_at).toLocaleString('default', {month: 'short'})
-          emissionCountsByMonth[month] = (emissionCountsByMonth[month] || 0) + Number(log.total_co2e)
-        })
-
-        const monthlyEmissions = timeline.map(month => ({
-          month,
-          co2: Math.round(emissionCountsByMonth[month] || 0)
-        }))
-
-        const catTotals = {}
-        logs?.forEach(log => {
-          const cat = log.emission_factors?.category || 'Other'
-          catTotals[cat] = (catTotals[cat] || 0) + Number(log.total_co2e)
-        })
-        const categoryData = Object.entries(catTotals).map(([name, value]) => ({name, value: Math.round(value)}))
-
-        const countFreq = (arr, key) =>
-          arr?.reduce((acc, item) => {
-            if (item[key]) acc[item[key]] = (acc[item[key]] || 0) + 1
-            return acc
-          }, {}) || {}
-
-        setStats({
-          totalUsers,
-          totalCO2: totalCO2.toFixed(1),
-          avgTarget: Math.round(avgTarget),
-          monthlyUsers,
-          monthlyEmissions,
-          categoryData,
-          diets: countFreq(lifestyles, 'diet_type'),
-          commutes: countFreq(lifestyles, 'commute_type'),
-          locations: countFreq(profiles, 'location')
-        })
+        // 3. Set state using payload
+        if (data) {
+          setStats({
+            totalUsers: data.totalUsers || 0,
+            totalCO2: data.totalCO2 || 0,
+            avgTarget: data.avgTarget || 0,
+            monthlyUsers: data.monthlyUsers || [],
+            monthlyEmissions: data.monthlyEmissions || [],
+            categoryData: data.categoryData || [],
+            diets: data.diets || {},
+            commutes: data.commutes || {},
+            locations: data.locations || {}
+          })
+        }
       } catch (error) {
         console.error('Error fetching dashboard data:', error.message)
       } finally {
         setIsLoading(false)
       }
     }
+
     fetchGlobalData()
   }, [])
 
@@ -195,12 +151,7 @@ export default function Dashboard() {
           </Text>
         </Flex>
         <Box w="100%" h="6px" bg="#EDF2F7" borderRadius="full" overflow="hidden">
-          <Box
-            h="100%"
-            w={`${percentage}%`}
-            bg="#319795"
-            transition="width 1.2s cubic-bezier(0.34, 1.56, 0.64, 1)" // ✨ Fluid spring logic!
-          />
+          <Box h="100%" w={`${percentage}%`} bg="#319795" transition="width 1.2s cubic-bezier(0.34, 1.56, 0.64, 1)" />
         </Box>
       </Box>
     )
@@ -212,63 +163,25 @@ export default function Dashboard() {
       .slice(0, 5)
 
   return (
-    <Box
-      minH="100vh"
-      bg="#F4F9F5" // Soft earthy sage
-      backgroundImage="url('https://www.transparenttextures.com/patterns/cubes.png')"
-      backgroundBlendMode="multiply"
-      position="relative"
-      overflow="hidden"
-      pb={20}
-    >
-      {/* 🌿 Lush Organic Glows instead of solid blur boxes */}
-      <Box
-        position="absolute"
-        top="-10%"
-        left="-5%"
-        w="700px"
-        h="700px"
-        bgGradient="radial(#48BB78 0%, transparent 65%)"
-        opacity="0.15"
-        borderRadius="full"
-        pointerEvents="none"
-      />
-      <Box
-        position="absolute"
-        bottom="-10%"
-        right="-5%"
-        w="700px"
-        h="700px"
-        bgGradient="radial(#319795 0%, transparent 65%)"
-        opacity="0.12"
-        borderRadius="full"
-        pointerEvents="none"
-      />
+    <Box minH="100vh" bg="#F4F9F5" backgroundImage="url('https://www.transparenttextures.com/patterns/cubes.png')" backgroundBlendMode="multiply" position="relative" overflow="hidden" pb={{base: 12, md: 20}}>
+      {/* Background Glows */}
+      <Box position="absolute" top="-10%" left="-5%" w={{base: '350px', md: '700px'}} h={{base: '350px', md: '700px'}} bgGradient="radial(#48BB78 0%, transparent 65%)" opacity="0.15" borderRadius="full" pointerEvents="none" />
+      <Box position="absolute" bottom="-10%" right="-5%" w={{base: '350px', md: '700px'}} h={{base: '350px', md: '700px'}} bgGradient="radial(#319795 0%, transparent 65%)" opacity="0.12" borderRadius="full" pointerEvents="none" />
 
       <Box position="relative" zIndex={1}>
-        {/* 🟢 Frosted Glass Header Section */}
+        {/* 🟢 Header Section */}
         <Box
           w="100%"
-          pt={16}
-          pb={8}
-          px={10}
+          pt={{base: 12, md: 16}}
+          pb={{base: 6, md: 8}}
+          px={{base: 4, sm: 6, md: 10}}
           borderBottom="1px solid rgba(72, 187, 120, 0.2)"
           bg="rgba(244, 249, 245, 0.6)"
           backdropFilter="blur(12px)"
           animation={`${slideUp} 0.5s ease-out both`}
         >
           <Box maxW="1200px" mx="auto" position="relative">
-            <Flex
-              align="center"
-              gap={2}
-              as={Link}
-              to="/"
-              position="absolute"
-              top="-40px"
-              left="0"
-              transition="all 0.2s"
-              _hover={{opacity: 0.7, transform: 'translateX(-4px)'}}
-            >
+            <Flex align="center" gap={2} as={Link} to="/" position="absolute" top={{base: '-32px', md: '-40px'}} left="0" transition="all 0.2s" _hover={{opacity: 0.7, transform: 'translateX(-4px)'}}>
               <Text fontSize="lg" color="#1C4532">
                 ←
               </Text>
@@ -277,35 +190,36 @@ export default function Dashboard() {
               </Text>
             </Flex>
 
-            <Flex justify="space-between" align="flex-end" wrap="wrap" gap={6}>
+            <Flex justify="space-between" align={{base: 'flex-start', md: 'flex-end'}} direction={{base: 'column', md: 'row'}} gap={6}>
               <Box>
                 <Text color="#276749" fontWeight="bold" letterSpacing="widest" fontSize="xs" textTransform="uppercase">
                   Community
                 </Text>
-                <Heading size="2xl" color="#1C4532" mt={2} letterSpacing="tighter">
+                <Heading size={{base: 'xl', md: '2xl'}} color="#1C4532" mt={2} letterSpacing="tighter">
                   Global Impact
                 </Heading>
-                <Text color="#4A5568" fontSize="md" mt={2} maxW="600px">
+                <Text color="#4A5568" fontSize={{base: 'sm', md: 'md'}} mt={2} maxW="600px">
                   Real-time analytics aggregating the anonymized emission logs and demographics of all users worldwide.
                 </Text>
               </Box>
 
-              <Flex bg="#E6FFFA" p={1.5} borderRadius="xl" border="1px solid #9AE6B4" boxShadow="inset 0 2px 4px rgba(28, 69, 50, 0.05)">
+              <Flex w={{base: '100%', sm: 'auto'}} bg="#E6FFFA" p={1.5} borderRadius="xl" border="1px solid #9AE6B4" boxShadow="inset 0 2px 4px rgba(28, 69, 50, 0.05)">
                 <Button
+                  flex={{base: '1', sm: 'initial'}}
                   as={Link}
                   to="/tracker"
                   bg="transparent"
                   color="#2F855A"
                   _hover={{color: '#1C4532', bg: 'rgba(255, 255, 255, 0.6)'}}
                   borderRadius="lg"
-                  px={6}
-                  size="md"
+                  px={{base: 3, md: 6}}
+                  size={{base: 'sm', md: 'md'}}
                   fontWeight="bold"
                   transition="all 0.2s"
                 >
                   My Tracker
                 </Button>
-                <Button bg="white" color="#1C4532" boxShadow="sm" borderRadius="lg" px={6} size="md" fontWeight="bold" pointerEvents="none">
+                <Button flex={{base: '1', sm: 'initial'}} bg="white" color="#1C4532" boxShadow="sm" borderRadius="lg" px={{base: 3, md: 6}} size={{base: 'sm', md: 'md'}} fontWeight="bold" pointerEvents="none">
                   Global Dashboard
                 </Button>
               </Flex>
@@ -313,13 +227,13 @@ export default function Dashboard() {
           </Box>
         </Box>
 
-        {/* 🟢 Main Dashboard Body Content */}
-        <Box maxW="1200px" mx="auto" px={10} pt={10}>
+        {/* 🟢 Main Dashboard Content */}
+        <Box maxW="1200px" mx="auto" px={{base: 4, sm: 6, md: 10}} pt={{base: 6, md: 10}}>
           {/* Executive AI Summary Briefing Card */}
           {aiInsight && (
             <Box
-              mb={10}
-              p={6}
+              mb={{base: 6, md: 10}}
+              p={{base: 5, md: 6}}
               bg="linear-gradient(135deg, rgba(240, 255, 244, 0.9) 0%, rgba(230, 255, 250, 0.9) 100%)"
               backdropFilter="blur(10px)"
               border="1px solid #9AE6B4"
@@ -329,59 +243,31 @@ export default function Dashboard() {
               overflow="hidden"
               animation={`${alertPop} 0.5s cubic-bezier(0.16, 1, 0.3, 1) both`}
             >
-              <Box
-                position="absolute"
-                top="-20px"
-                right="-20px"
-                w="100px"
-                h="100px"
-                bg="#38A169"
-                opacity="0.15"
-                filter="blur(20px)"
-                borderRadius="full"
-              />
-              <Text
-                fontSize="sm"
-                color="#234E52"
-                fontWeight="black"
-                textTransform="uppercase"
-                letterSpacing="wider"
-                mb={2}
-                display="flex"
-                alignItems="center"
-                gap={2}
-              >
+              <Box position="absolute" top="-20px" right="-20px" w="100px" h="100px" bg="#38A169" opacity="0.15" filter="blur(20px)" borderRadius="full" />
+              <Text fontSize="sm" color="#234E52" fontWeight="black" textTransform="uppercase" letterSpacing="wider" mb={2} display="flex" alignItems="center" gap={2}>
                 <Text as="span" fontSize="lg">
                   ✨
                 </Text>{' '}
                 Executive AI Summary
               </Text>
-              <Text color="#1C4532" fontSize="lg" lineHeight="tall" fontWeight="medium">
+              <Text color="#1C4532" fontSize={{base: 'md', md: 'lg'}} lineHeight="tall" fontWeight="medium">
                 {aiInsight}
               </Text>
             </Box>
           )}
 
           {/* Rolling Stats Summary Grid Row */}
-          <Grid templateColumns={{base: '1fr', md: 'repeat(3, 1fr)'}} gap={6} mb={10} animation={`${slideUp} 0.5s ease-out 0.1s both`}>
-            {/* Swapped pure black for Deep Forest Green */}
-            <Box
-              p={8}
-              bg="#1C4532"
-              borderRadius="2xl"
-              boxShadow="0 15px 35px -10px rgba(28, 69, 50, 0.4)"
-              transition="transform 0.2s"
-              _hover={{transform: 'translateY(-2px)'}}
-            >
+          <Grid templateColumns={{base: '1fr', sm: '1fr 1fr', md: 'repeat(3, 1fr)'}} gap={{base: 4, md: 6}} mb={{base: 6, md: 10}} animation={`${slideUp} 0.5s ease-out 0.1s both`}>
+            <Box p={{base: 5, md: 8}} bg="#1C4532" borderRadius="2xl" boxShadow="0 15px 35px -10px rgba(28, 69, 50, 0.4)" transition="transform 0.2s" _hover={{transform: 'translateY(-2px)'}}>
               <Text color="#9AE6B4" fontSize="xs" fontWeight="bold" textTransform="uppercase" mb={2}>
                 Total Eco Warriors
               </Text>
-              <Heading color="white" size="2xl">
+              <Heading color="white" size={{base: 'xl', md: '2xl'}}>
                 <AnimatedNumber value={stats.totalUsers} decimals={0} />
               </Heading>
             </Box>
             <Box
-              p={8}
+              p={{base: 5, md: 8}}
               bg="rgba(255, 255, 255, 0.9)"
               backdropFilter="blur(10px)"
               border="1px solid rgba(72, 187, 120, 0.2)"
@@ -393,15 +279,15 @@ export default function Dashboard() {
               <Text color="#4A5568" fontSize="xs" fontWeight="bold" textTransform="uppercase" mb={2}>
                 Total CO₂ Tracked
               </Text>
-              <Heading color="#1C4532" size="2xl">
+              <Heading color="#1C4532" size={{base: 'xl', md: '2xl'}}>
                 <AnimatedNumber value={stats.totalCO2} decimals={1} />{' '}
-                <Text as="span" fontSize="lg" color="#319795">
+                <Text as="span" fontSize={{base: 'md', md: 'lg'}} color="#319795">
                   kg
                 </Text>
               </Heading>
             </Box>
             <Box
-              p={8}
+              p={{base: 5, md: 8}}
               bg="rgba(255, 255, 255, 0.9)"
               backdropFilter="blur(10px)"
               border="1px solid rgba(72, 187, 120, 0.2)"
@@ -409,13 +295,14 @@ export default function Dashboard() {
               boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)"
               transition="transform 0.2s"
               _hover={{transform: 'translateY(-2px)'}}
+              gridColumn={{base: 'span 1', sm: 'span 2', md: 'span 1'}}
             >
               <Text color="#4A5568" fontSize="xs" fontWeight="bold" textTransform="uppercase" mb={2}>
                 Avg Monthly Target
               </Text>
-              <Heading color="#1C4532" size="2xl">
+              <Heading color="#1C4532" size={{base: 'xl', md: '2xl'}}>
                 <AnimatedNumber value={stats.avgTarget} decimals={0} />{' '}
-                <Text as="span" fontSize="lg" color="#718096">
+                <Text as="span" fontSize={{base: 'md', md: 'lg'}} color="#718096">
                   kg
                 </Text>
               </Heading>
@@ -423,29 +310,29 @@ export default function Dashboard() {
           </Grid>
 
           {/* Recharts Analytics Charts Section Block */}
-          <Box mb={10} animation={`${slideUp} 0.5s ease-out 0.2s both`}>
+          <Box mb={{base: 6, md: 10}} animation={`${slideUp} 0.5s ease-out 0.2s both`}>
             <Text color="#1C4532" fontWeight="black" fontSize="xl" letterSpacing="tight" mb={6}>
               Platform Trends
             </Text>
-            <Grid templateColumns={{base: '1fr', lg: 'repeat(2, 1fr)'}} gap={8}>
-              {/* LineChart container */}
+            <Grid templateColumns={{base: '1fr', lg: 'repeat(2, 1fr)'}} gap={{base: 6, md: 8}}>
+              {/* Cumulative Users LineChart */}
               <Box
-                p={6}
+                p={{base: 4, md: 6}}
                 bg="rgba(255, 255, 255, 0.9)"
                 backdropFilter="blur(10px)"
                 border="1px solid rgba(72, 187, 120, 0.2)"
                 borderRadius="2xl"
-                h="350px"
+                h={{base: '280px', md: '350px'}}
                 boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)"
               >
-                <Heading size="sm" color="#1C4532" mb={6}>
+                <Heading size="sm" color="#1C4532" mb={4}>
                   Cumulative Users (Monthly)
                 </Heading>
                 <ResponsiveContainer width="100%" height="80%">
-                  <LineChart data={stats.monthlyUsers}>
+                  <LineChart data={stats.monthlyUsers} margin={{top: 10, right: 10, left: -20, bottom: 0}}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(72, 187, 120, 0.15)" />
-                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#4A5568', fontSize: 12}} dy={10} />
-                    <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{fill: '#4A5568', fontSize: 12}} />
+                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#4A5568', fontSize: 11}} dy={10} />
+                    <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{fill: '#4A5568', fontSize: 11}} />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: '#1C4532',
@@ -470,21 +357,21 @@ export default function Dashboard() {
                 </ResponsiveContainer>
               </Box>
 
-              {/* AreaChart container */}
+              {/* Carbon Tracked AreaChart */}
               <Box
-                p={6}
+                p={{base: 4, md: 6}}
                 bg="rgba(255, 255, 255, 0.9)"
                 backdropFilter="blur(10px)"
                 border="1px solid rgba(72, 187, 120, 0.2)"
                 borderRadius="2xl"
-                h="350px"
+                h={{base: '280px', md: '350px'}}
                 boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)"
               >
-                <Heading size="sm" color="#1C4532" mb={6}>
+                <Heading size="sm" color="#1C4532" mb={4}>
                   Carbon Tracked per Month (kg)
                 </Heading>
                 <ResponsiveContainer width="100%" height="80%">
-                  <AreaChart data={stats.monthlyEmissions}>
+                  <AreaChart data={stats.monthlyEmissions} margin={{top: 10, right: 10, left: -20, bottom: 0}}>
                     <defs>
                       <linearGradient id="colorCO2Global" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#38A169" stopOpacity={0.3} />
@@ -492,8 +379,8 @@ export default function Dashboard() {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(72, 187, 120, 0.15)" />
-                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#4A5568', fontSize: 12}} dy={10} />
-                    <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{fill: '#4A5568', fontSize: 12}} />
+                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#4A5568', fontSize: 11}} dy={10} />
+                    <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{fill: '#4A5568', fontSize: 11}} />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: '#1C4532',
@@ -519,15 +406,15 @@ export default function Dashboard() {
                 </ResponsiveContainer>
               </Box>
 
-              {/* PieChart breakdown block */}
+              {/* Emissions by Category PieChart */}
               <Box
                 gridColumn={{base: '1 / -1', lg: '1 / -1'}}
-                p={6}
+                p={{base: 4, md: 6}}
                 bg="rgba(255, 255, 255, 0.9)"
                 backdropFilter="blur(10px)"
                 border="1px solid rgba(72, 187, 120, 0.2)"
                 borderRadius="2xl"
-                h="400px"
+                h={{base: '320px', md: '400px'}}
                 boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)"
               >
                 <Heading size="sm" color="#1C4532" mb={2}>
@@ -543,11 +430,11 @@ export default function Dashboard() {
                         data={stats.categoryData}
                         cx="50%"
                         cy="50%"
-                        innerRadius={80}
-                        outerRadius={120}
+                        innerRadius={innerRadius}
+                        outerRadius={outerRadius}
                         paddingAngle={5}
                         dataKey="value"
-                        label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        label={isMobile ? false : ({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}
                       >
                         {stats.categoryData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -575,23 +462,16 @@ export default function Dashboard() {
             </Grid>
           </Box>
 
-          {/* Demographic Grid Titles */}
-          <Box pt={10} borderTop="1px solid rgba(72, 187, 120, 0.2)" mb={6} animation={`${slideUp} 0.5s ease-out 0.3s both`}>
+          {/* Demographic Section Title */}
+          <Box pt={{base: 6, md: 10}} borderTop="1px solid rgba(72, 187, 120, 0.2)" mb={6} animation={`${slideUp} 0.5s ease-out 0.3s both`}>
             <Text color="#1C4532" fontWeight="black" fontSize="xl" letterSpacing="tight">
               Community Demographics
             </Text>
           </Box>
 
           {/* Demographic Data Progress Listings */}
-          <Grid templateColumns={{base: '1fr', lg: 'repeat(3, 1fr)'}} gap={8} animation={`${slideUp} 0.5s ease-out 0.3s both`}>
-            <Box
-              p={8}
-              bg="rgba(255, 255, 255, 0.9)"
-              backdropFilter="blur(10px)"
-              border="1px solid rgba(72, 187, 120, 0.2)"
-              borderRadius="2xl"
-              boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)"
-            >
+          <Grid templateColumns={{base: '1fr', lg: 'repeat(3, 1fr)'}} gap={{base: 6, md: 8}} animation={`${slideUp} 0.5s ease-out 0.3s both`}>
+            <Box p={{base: 5, md: 8}} bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" border="1px solid rgba(72, 187, 120, 0.2)" borderRadius="2xl" boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)">
               <Heading size="sm" color="#1C4532" mb={6}>
                 Diet Profiles
               </Heading>
@@ -606,14 +486,7 @@ export default function Dashboard() {
               </VStack>
             </Box>
 
-            <Box
-              p={8}
-              bg="rgba(255, 255, 255, 0.9)"
-              backdropFilter="blur(10px)"
-              border="1px solid rgba(72, 187, 120, 0.2)"
-              borderRadius="2xl"
-              boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)"
-            >
+            <Box p={{base: 5, md: 8}} bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" border="1px solid rgba(72, 187, 120, 0.2)" borderRadius="2xl" boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)">
               <Heading size="sm" color="#1C4532" mb={6}>
                 Primary Commute
               </Heading>
@@ -628,14 +501,7 @@ export default function Dashboard() {
               </VStack>
             </Box>
 
-            <Box
-              p={8}
-              bg="rgba(255, 255, 255, 0.9)"
-              backdropFilter="blur(10px)"
-              border="1px solid rgba(72, 187, 120, 0.2)"
-              borderRadius="2xl"
-              boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)"
-            >
+            <Box p={{base: 5, md: 8}} bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" border="1px solid rgba(72, 187, 120, 0.2)" borderRadius="2xl" boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)">
               <Heading size="sm" color="#1C4532" mb={6}>
                 Top Locations
               </Heading>

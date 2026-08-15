@@ -1,3 +1,4 @@
+// pages/AdminRegister.jsx
 import {useState} from 'react'
 import {Box, Heading, Text, Input, Button, VStack, Flex, Icon, Spinner} from '@chakra-ui/react'
 import {useNavigate} from 'react-router-dom'
@@ -34,7 +35,7 @@ export default function AdminRegister() {
 
   const navigate = useNavigate()
 
-  // 🔍 Field Validation Rules
+  // Field Validation Rules
   const validateForm = () => {
     const errors = {}
 
@@ -45,10 +46,10 @@ export default function AdminRegister() {
     if (!password) errors.password = 'Password is required.'
     if (!confirmPassword) errors.confirmPassword = 'Please confirm your password.'
 
-    // 2. Full Name Rules (Letters and single spaces only)
-    const nameRegex = /^[A-Za-z]+(?: [A-Za-z]+)*$/
+    // 2. Full Name Rules
+    const nameRegex = /^[A-Za-z]+(?:['-][A-Za-z]+)*(?: [A-Za-z]+(?:['-][A-Za-z]+)*)*$/
     if (fullName.trim() && !nameRegex.test(fullName)) {
-      errors.fullName = 'Letters and single spaces only (no numbers, special characters, or extra spaces).'
+      errors.fullName = 'Letters, single spaces, and internal hyphens/apostrophes only.'
     }
 
     // 3. Email Format
@@ -57,16 +58,16 @@ export default function AdminRegister() {
       errors.email = 'Please enter a valid email address.'
     }
 
-    // 4. Password Rules
+    // 4. Password Rules (12+ chars, upper, lower, number)
     if (password) {
-      if (password.length < 6) {
-        errors.password = 'Password must be at least 6 characters long.'
+      if (password.length < 12) {
+        errors.password = 'Password must be at least 12 characters long.'
       } else if (!/[A-Z]/.test(password)) {
         errors.password = 'Password must contain at least one uppercase letter.'
       } else if (!/[a-z]/.test(password)) {
         errors.password = 'Password must contain at least one lowercase letter.'
-      } else if (!/^[A-Za-z0-9]+$/.test(password)) {
-        errors.password = 'Password must not contain special characters (letters and numbers only).'
+      } else if (!/[0-9]/.test(password)) {
+        errors.password = 'Password must contain at least one number.'
       }
     }
 
@@ -128,35 +129,35 @@ export default function AdminRegister() {
   }
 
   return (
-    <Box minH="100vh" w="100%" display="flex" alignItems="center" justifyContent="center" position="relative" overflow="hidden" bgGradient="linear(to-br, #1A202C, #2D3748, #4A5568)" py={10}>
-      <Box w="90%" maxW="480px" bg="white" p={{base: 8, md: 10}} borderRadius="3xl" boxShadow="2xl">
+    <Box minH="100vh" w="100%" display="flex" alignItems="center" justifyContent="center" position="relative" overflow="hidden" bgGradient="linear(to-br, #1A202C, #2D3748, #4A5568)" py={{base: 6, md: 10}} px={4}>
+      <Box w="100%" maxW="480px" bg="white" p={{base: 5, sm: 8, md: 10}} borderRadius="3xl" boxShadow="2xl">
         <VStack spacing={2} mb={6} align="center" textAlign="center">
-          <Box px={3} py={1} bg="#FFF5F5" color="#E53E3E" borderRadius="md" fontSize="xs" fontWeight="black" textTransform="uppercase" letterSpacing="wider">
+          <Box px={3} py={1} bg="#FFF5F5" color="#E53E3E" borderRadius="md" fontSize="2xs" fontWeight="black" textTransform="uppercase" letterSpacing="wider">
             Restricted Access
           </Box>
-          <Heading size="xl" color="#1A202C" letterSpacing="tight" fontWeight="black">
+          <Heading size={{base: 'lg', sm: 'xl'}} color="#1A202C" letterSpacing="tight" fontWeight="black">
             Staff Provisioning
           </Heading>
-          <Text color="#718096" fontSize="sm">
+          <Text color="#718096" fontSize="xs">
             Create a new system administrator account.
           </Text>
         </VStack>
 
         {/* Server Error Alert */}
         {serverError && (
-          <Flex align="center" gap={3} borderRadius="xl" mb={6} bg="#FFF5F5" color="#C53030" border="1px solid #FEB2B2" p={4}>
-            <Text fontSize="lg">⚠️</Text>
-            <Text fontSize="sm" fontWeight="bold">
+          <Flex align="center" gap={3} borderRadius="xl" mb={6} bg="#FFF5F5" color="#C53030" border="1px solid #FEB2B2" p={3.5}>
+            <Text fontSize="md">⚠️</Text>
+            <Text fontSize="xs" fontWeight="bold">
               {serverError}
             </Text>
           </Flex>
         )}
 
         <form onSubmit={handleAdminRegistration} noValidate>
-          <VStack spacing={4} align="stretch">
+          <VStack spacing={3.5} align="stretch">
             {/* Master Passcode */}
             <Box>
-              <Text fontSize="xs" fontWeight="bold" color="#4A5568" textTransform="uppercase" mb={1}>
+              <Text fontSize="2xs" fontWeight="bold" color="#4A5568" textTransform="uppercase" mb={1}>
                 Master Passcode
               </Text>
               <Input
@@ -168,12 +169,13 @@ export default function AdminRegister() {
                 }}
                 placeholder="Enter authorization code"
                 bg="#F7FAFC"
-                py={6}
+                py={{base: 5, md: 6}}
+                fontSize="sm"
                 borderRadius="xl"
                 borderColor={fieldErrors.securityCode ? 'red.400' : 'gray.200'}
               />
               {fieldErrors.securityCode && (
-                <Text color="red.500" fontSize="xs" mt={1}>
+                <Text color="red.500" fontSize="2xs" mt={1}>
                   {fieldErrors.securityCode}
                 </Text>
               )}
@@ -183,18 +185,17 @@ export default function AdminRegister() {
 
             {/* Admin Full Name */}
             <Box>
-              <Text fontSize="xs" fontWeight="bold" color="#4A5568" textTransform="uppercase" mb={1}>
+              <Text fontSize="2xs" fontWeight="bold" color="#4A5568" textTransform="uppercase" mb={1}>
                 Admin Full Name
               </Text>
               <Input
                 type="text"
                 value={fullName}
                 onChange={e => {
-                  // 🟢 Real-time input sanitization:
                   const sanitized = e.target.value
-                    .replace(/[^A-Za-z\s]/g, '') // Strips all numbers & special characters
-                    .replace(/\s+/g, ' ') // Prevents double/multiple spaces
-                    .replace(/^\s+/, '') // Prevents leading spaces
+                    .replace(/[^A-Za-z\s'-]/g, '')
+                    .replace(/\s+/g, ' ')
+                    .replace(/^[\s'-]+/, '')
 
                   setFullName(sanitized)
 
@@ -204,12 +205,13 @@ export default function AdminRegister() {
                 }}
                 placeholder="e.g. John Doe"
                 bg="#F7FAFC"
-                py={6}
+                py={{base: 5, md: 6}}
+                fontSize="sm"
                 borderRadius="xl"
                 borderColor={fieldErrors.fullName ? 'red.400' : 'gray.200'}
               />
               {fieldErrors.fullName && (
-                <Text color="red.500" fontSize="xs" mt={1}>
+                <Text color="red.500" fontSize="2xs" mt={1}>
                   {fieldErrors.fullName}
                 </Text>
               )}
@@ -217,7 +219,7 @@ export default function AdminRegister() {
 
             {/* Official Email */}
             <Box>
-              <Text fontSize="xs" fontWeight="bold" color="#4A5568" textTransform="uppercase" mb={1}>
+              <Text fontSize="2xs" fontWeight="bold" color="#4A5568" textTransform="uppercase" mb={1}>
                 Official Email
               </Text>
               <Input
@@ -229,12 +231,13 @@ export default function AdminRegister() {
                 }}
                 placeholder="name@carbonsense.com"
                 bg="#F7FAFC"
-                py={6}
+                py={{base: 5, md: 6}}
+                fontSize="sm"
                 borderRadius="xl"
                 borderColor={fieldErrors.email ? 'red.400' : 'gray.200'}
               />
               {fieldErrors.email && (
-                <Text color="red.500" fontSize="xs" mt={1}>
+                <Text color="red.500" fontSize="2xs" mt={1}>
                   {fieldErrors.email}
                 </Text>
               )}
@@ -242,7 +245,7 @@ export default function AdminRegister() {
 
             {/* Password */}
             <Box>
-              <Text fontSize="xs" fontWeight="bold" color="#4A5568" textTransform="uppercase" mb={1}>
+              <Text fontSize="2xs" fontWeight="bold" color="#4A5568" textTransform="uppercase" mb={1}>
                 Secure Password
               </Text>
               <Box position="relative">
@@ -255,8 +258,9 @@ export default function AdminRegister() {
                   }}
                   placeholder="••••••••"
                   bg="#F7FAFC"
-                  py={6}
+                  py={{base: 5, md: 6}}
                   pr="3rem"
+                  fontSize="sm"
                   borderRadius="xl"
                   borderColor={fieldErrors.password ? 'red.400' : 'gray.200'}
                 />
@@ -277,7 +281,7 @@ export default function AdminRegister() {
                 </Box>
               </Box>
               {fieldErrors.password && (
-                <Text color="red.500" fontSize="xs" mt={1}>
+                <Text color="red.500" fontSize="2xs" mt={1}>
                   {fieldErrors.password}
                 </Text>
               )}
@@ -285,7 +289,7 @@ export default function AdminRegister() {
 
             {/* Confirm Password */}
             <Box>
-              <Text fontSize="xs" fontWeight="bold" color="#4A5568" textTransform="uppercase" mb={1}>
+              <Text fontSize="2xs" fontWeight="bold" color="#4A5568" textTransform="uppercase" mb={1}>
                 Confirm Password
               </Text>
               <Box position="relative">
@@ -298,8 +302,9 @@ export default function AdminRegister() {
                   }}
                   placeholder="••••••••"
                   bg="#F7FAFC"
-                  py={6}
+                  py={{base: 5, md: 6}}
                   pr="3rem"
+                  fontSize="sm"
                   borderRadius="xl"
                   borderColor={fieldErrors.confirmPassword ? 'red.400' : 'gray.200'}
                 />
@@ -320,20 +325,20 @@ export default function AdminRegister() {
                 </Box>
               </Box>
               {fieldErrors.confirmPassword && (
-                <Text color="red.500" fontSize="xs" mt={1}>
+                <Text color="red.500" fontSize="2xs" mt={1}>
                   {fieldErrors.confirmPassword}
                 </Text>
               )}
             </Box>
 
             {/* Password Requirements Legend */}
-            <Box bg="#EDF2F7" p={3} borderRadius="lg" fontSize="xs" color="#4A5568">
+            <Box bg="#EDF2F7" p={3} borderRadius="lg" fontSize="2xs" color="#4A5568">
               <Text fontWeight="bold" mb={1}>
                 Password Requirements:
               </Text>
-              <Text>• At least 6 characters long</Text>
-              <Text>• Minimum 1 uppercase & 1 lowercase letter</Text>
-              <Text>• Letters and numbers only (no special characters)</Text>
+              <Text>• At least 12 characters long</Text>
+              <Text>• Minimum 1 uppercase letter, 1 lowercase letter, 1 number</Text>
+              <Text>• Special characters are allowed and encouraged</Text>
             </Box>
 
             {/* Submit Button */}
@@ -348,15 +353,15 @@ export default function AdminRegister() {
               _active={{bg: '#1A202C'}}
               _disabled={{opacity: 0.65, cursor: 'not-allowed', bg: '#1A202C'}}
               borderRadius="xl"
-              py={7}
+              py={6}
               mt={2}
-              fontSize="md"
+              fontSize="sm"
               fontWeight="black"
             >
               {loading ? (
                 <Flex align="center" gap={3}>
                   <Spinner size="sm" color="white" thickness="2px" />
-                  <Text>Provisioning Account...</Text>
+                  <Text fontSize="xs">Provisioning Account...</Text>
                 </Flex>
               ) : (
                 'Provision Admin Account'

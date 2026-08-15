@@ -122,10 +122,7 @@ export default function Home() {
 
           if (logYear === thisYear && logMonth === thisMonth) {
             thisMonthSum += Number(log.total_co2e)
-          } else if (
-            (logYear === thisYear && logMonth === thisMonth - 1) ||
-            (logYear === thisYear - 1 && thisMonth === 0 && logMonth === 11)
-          ) {
+          } else if ((logYear === thisYear && logMonth === thisMonth - 1) || (logYear === thisYear - 1 && thisMonth === 0 && logMonth === 11)) {
             lastMonthSum += Number(log.total_co2e)
           }
         })
@@ -155,24 +152,16 @@ export default function Home() {
   }, [])
 
   return (
-    <Box
-      minH="100vh"
-      bg="#F4F9F5" // Changed from sterile white to a very soft, earthy sage
-      backgroundImage="url('https://www.transparenttextures.com/patterns/cubes.png')" // Adds a subtle tactile texture so it isn't flat
-      backgroundBlendMode="multiply"
-      pb={20}
-      overflowX="hidden"
-      position="relative"
-    >
-      {/* 🌿 Lush Organic Glows: Switched from solid faint blurs to vibrant radial gradients */}
+    <Box minH="100vh" bg="#F4F9F5" backgroundImage="url('https://www.transparenttextures.com/patterns/cubes.png')" backgroundBlendMode="multiply" pb={20} overflowX="hidden" position="relative">
+      {/* 🌿 Ambient Glows */}
       <Box
         position="absolute"
         top="-5%"
         left="-10%"
-        w="700px"
-        h="700px"
-        bgGradient="radial(#48BB78 0%, transparent 65%)" // Vibrant leaf green
-        opacity="0.15" // Increased visibility
+        w={{base: '350px', md: '700px'}}
+        h={{base: '350px', md: '700px'}}
+        bgGradient="radial(#48BB78 0%, transparent 65%)"
+        opacity="0.15"
         borderRadius="full"
         zIndex={0}
         pointerEvents="none"
@@ -182,9 +171,9 @@ export default function Home() {
         position="absolute"
         bottom="0%"
         right="-10%"
-        w="650px"
-        h="650px"
-        bgGradient="radial(#319795 0%, transparent 65%)" // Ocean teal
+        w={{base: '350px', md: '650px'}}
+        h={{base: '350px', md: '650px'}}
+        bgGradient="radial(#319795 0%, transparent 65%)"
         opacity="0.12"
         borderRadius="full"
         zIndex={0}
@@ -192,40 +181,30 @@ export default function Home() {
         animation={`${auroraDrift} 25s ease-in-out infinite alternate-reverse`}
       />
 
-      {/* 🟢 Split Layout Hero Section */}
-      <Box maxW="1200px" mx="auto" px={10} pt={{base: 16, md: 32}} pb={20} position="relative" zIndex={1}>
-        <Stack direction={{base: 'column', md: 'row'}} spacing={16} align="center">
-          {/* Left Side: Massive Typography */}
-          <Box flex="1" animation={`${slideInLeft} 0.8s cubic-bezier(0.16, 1, 0.3, 1) both`}>
-            <Text
-              color="#276749"
-              fontWeight="black"
-              letterSpacing="widest"
-              fontSize="sm"
-              textTransform="uppercase"
-              mb={4}
-              display="flex"
-              alignItems="center"
-              gap={2}
-            >
+      {/* 🟢 Hero Section */}
+      <Box maxW="1200px" mx="auto" px={{base: 4, sm: 6, md: 10}} pt={{base: 12, md: 32}} pb={{base: 6, md: 20}} position="relative" zIndex={1}>
+        <Stack direction={{base: 'column', md: 'row'}} spacing={{base: 10, md: 16}} align="center">
+          {/* Left Side: Main Typography & Call-To-Action */}
+          <Box flex="1" w="100%" animation={`${slideInLeft} 0.8s cubic-bezier(0.16, 1, 0.3, 1) both`}>
+            <Text color="#276749" fontWeight="black" letterSpacing="widest" fontSize="sm" textTransform="uppercase" mb={4} display="flex" alignItems="center" gap={2}>
               🌱 Carbonsense Web App
             </Text>
-            {/* Changed from dark gray (#1A202C) to a deep forest green for grounding */}
-            <Heading size="3xl" color="#1C4532" letterSpacing="tighter" lineHeight="1.1" mb={6}>
+            <Heading size={{base: '2xl', md: '3xl'}} color="#1C4532" letterSpacing="tighter" lineHeight="1.1" mb={6}>
               Track your impact. <br />
               <Text as="span" color="#38A169">
                 Shape the future.
               </Text>
             </Heading>
-            <Text fontSize="xl" color="#4A5568" mb={8} maxW="400px" lineHeight="tall">
+            <Text fontSize={{base: 'lg', md: 'xl'}} color="#4A5568" mb={8} maxW="400px" lineHeight="tall">
               A clean, data-driven approach to understanding and reducing your daily carbon footprint in real-time.
             </Text>
-            <Flex gap={4}>
+            <Flex gap={4} wrap="wrap">
               <Button
                 as={Link}
                 to="/tracker"
                 size="lg"
-                bg="#22543D" // Even deeper green
+                flex={{base: '1', sm: 'initial'}}
+                bg="#22543D"
                 color="white"
                 borderRadius="xl"
                 px={8}
@@ -240,9 +219,10 @@ export default function Home() {
                 as={Link}
                 to="/dashboard"
                 size="lg"
+                flex={{base: '1', sm: 'initial'}}
                 bg="white"
                 color="#22543D"
-                border="2px solid #C6F6D5" // Soft green border instead of gray
+                border="2px solid #C6F6D5"
                 borderRadius="xl"
                 transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
                 _hover={{
@@ -258,19 +238,15 @@ export default function Home() {
             </Flex>
           </Box>
 
-          {/* Right Side: Floating Premium White Cards */}
-          <Box
-            flex="1"
-            position="relative"
-            display={{base: 'none', md: 'block'}}
-            animation={`${slideInRight} 0.8s cubic-bezier(0.16, 1, 0.3, 1) both`}
-          >
-            {/* Background design blob (Organic shape instead of perfect circle) */}
+          {/* Right Side: Floating Live Stat Cards (Now Visible & Fully Responsive) */}
+          <Box flex="1" w="100%" mt={{base: 6, md: 0}} position="relative" animation={`${slideInRight} 0.8s cubic-bezier(0.16, 1, 0.3, 1) both`}>
+            {/* Background Blob (Only displayed on tablet/desktop to avoid layout clashing) */}
             <Box
+              display={{base: 'none', md: 'block'}}
               w="450px"
               h="450px"
               bg="linear-gradient(135deg, #C6F6D5 0%, #81E6D9 100%)"
-              borderRadius="40% 60% 70% 30% / 40% 50% 60% 50%" // CSS Morphing Blob
+              borderRadius="40% 60% 70% 30% / 40% 50% 60% 50%"
               position="absolute"
               top="-30px"
               right="-20px"
@@ -278,17 +254,17 @@ export default function Home() {
               opacity="0.7"
               animation={`${auroraDrift} 15s ease-in-out infinite alternate`}
             />
-
-            <Flex direction="column" gap={6} position="relative" zIndex={1} animation={`${float} 6s ease-in-out infinite`}>
+            {/* Cards Flex Container: Disable float on base, enable on md */}
+            <Flex direction="column" gap={{base: 4, md: 6}} position="relative" zIndex={1} animation={`${float} 6s ease-in-out infinite`}>
               {/* Monthly Trend Box */}
               <Box
                 bg="rgba(255, 255, 255, 0.9)"
                 backdropFilter="blur(10px)"
-                p={8}
+                p={{base: 6, md: 8}}
                 borderRadius="3xl"
-                boxShadow="0 25px 50px -12px rgba(28, 69, 50, 0.12)" // Green-tinted shadow
-                border="1px solid rgba(72, 187, 120, 0.2)" // Subtle green border
-                w="85%"
+                boxShadow="0 25px 50px -12px rgba(28, 69, 50, 0.12)"
+                border="1px solid rgba(72, 187, 120, 0.2)"
+                w={{base: '100%', md: '85%'}}
                 ml="auto"
                 transition="all 0.3s ease"
                 _hover={{transform: 'scale(1.02)', boxShadow: '0 30px 60px -12px rgba(28, 69, 50, 0.18)'}}
@@ -297,20 +273,13 @@ export default function Home() {
                   <Text fontSize="xs" color="#4A5568" fontWeight="bold" textTransform="uppercase" letterSpacing="wider">
                     Monthly Trend
                   </Text>
-                  <Box
-                    px={2.5}
-                    py={1}
-                    bg={trendColor === '#38A169' ? '#F0FFF4' : '#FFF5F5'}
-                    borderRadius="md"
-                    border="1px solid"
-                    borderColor={trendColor === '#38A169' ? '#9AE6B4' : '#FEB2B2'}
-                  >
+                  <Box px={2.5} py={1} bg={trendColor === '#38A169' ? '#F0FFF4' : '#FFF5F5'} borderRadius="md" border="1px solid" borderColor={trendColor === '#38A169' ? '#9AE6B4' : '#FEB2B2'}>
                     <Text fontSize="xs" fontWeight="black" color={trendColor}>
                       {trendColor === '#38A169' ? '↓ REDUCTION' : '↑ INCREASE'}
                     </Text>
                   </Box>
                 </Flex>
-                <Text fontSize="5xl" fontWeight="black" color={trendColor} lineHeight="1">
+                <Text fontSize={{base: '4xl', md: '5xl'}} fontWeight="black" color={trendColor} lineHeight="1">
                   {trendSign}
                   <AnimatedNumber value={monthTrend} suffix="%" />
                 </Text>
@@ -320,11 +289,11 @@ export default function Home() {
               <Box
                 bg="rgba(255, 255, 255, 0.9)"
                 backdropFilter="blur(10px)"
-                p={8}
+                p={{base: 6, md: 8}}
                 borderRadius="3xl"
                 boxShadow="0 25px 50px -12px rgba(28, 69, 50, 0.12)"
                 border="1px solid rgba(72, 187, 120, 0.2)"
-                w="90%"
+                w={{base: '100%', md: '90%'}}
                 transition="all 0.3s ease"
                 _hover={{transform: 'scale(1.02)', boxShadow: '0 30px 60px -12px rgba(28, 69, 50, 0.18)'}}
               >
@@ -336,9 +305,9 @@ export default function Home() {
                     Total Community Impact
                   </Text>
                 </Flex>
-                <Text fontSize="5xl" fontWeight="black" color="#1C4532" lineHeight="1">
+                <Text fontSize={{base: '4xl', md: '5xl'}} fontWeight="black" color="#1C4532" lineHeight="1">
                   <AnimatedNumber value={totalOffset} suffix={isKFormat ? 'k' : ''} />{' '}
-                  <Text as="span" fontSize="2xl" color="#718096">
+                  <Text as="span" fontSize={{base: 'xl', md: '2xl'}} color="#718096">
                     kg
                   </Text>
                 </Text>
@@ -360,14 +329,14 @@ export default function Home() {
         </Stack>
       </Box>
 
-      {/* 🟢 Premium Feature Cards */}
-      <Box maxW="1200px" mx="auto" px={10} mt={10} position="relative" zIndex={1} animation={`${fadeIn} 0.8s ease-out 0.3s both`}>
-        <Box borderTop="2px solid #E2E8F0" pt={16}>
-          <SimpleGrid columns={{base: 1, md: 2}} gap={16}>
+      {/* 🟢 Premium Feature Cards Section */}
+      <Box maxW="1200px" mx="auto" px={{base: 4, sm: 6, md: 10}} mt={{base: 2, md: 10}} position="relative" zIndex={1} animation={`${fadeIn} 0.8s ease-out 0.3s both`}>
+        <Box borderTop="2px solid #E2E8F0" pt={{base: 10, md: 16}}>
+          <SimpleGrid columns={{base: 1, md: 2}} gap={{base: 6, md: 16}}>
             <Box
               role="group"
               cursor="pointer"
-              p={8}
+              p={{base: 6, md: 8}}
               bg="white"
               border="1px solid #E2E8F0"
               borderRadius="2xl"
@@ -380,30 +349,21 @@ export default function Home() {
               }}
             >
               <Flex align="center" gap={4} mb={6}>
-                <Center
-                  w="12"
-                  h="12"
-                  bg="#F0FFF4"
-                  color="#38A169"
-                  borderRadius="full"
-                  transition="all 0.3s"
-                  _groupHover={{bg: '#38A169', color: 'white'}}
-                >
+                <Center w="12" h="12" bg="#F0FFF4" color="#38A169" borderRadius="full" transition="all 0.3s" _groupHover={{bg: '#38A169', color: 'white'}}>
                   🍃
                 </Center>
                 <Heading size="md" color="#1C4532">
                   Personal Accountability
                 </Heading>
               </Flex>
-              <Text color="#4A5568" fontSize="lg" lineHeight="tall">
-                Log your daily transport, diet, and energy use. Watch your personal tracker adapt in real-time to help you stay under your
-                monthly carbon ceiling.
+              <Text color="#4A5568" fontSize={{base: 'md', md: 'lg'}} lineHeight="tall">
+                Log your daily transport, diet, and energy use. Watch your personal tracker adapt in real-time to help you stay under your monthly carbon ceiling.
               </Text>
             </Box>
             <Box
               role="group"
               cursor="pointer"
-              p={8}
+              p={{base: 6, md: 8}}
               bg="white"
               border="1px solid #E2E8F0"
               borderRadius="2xl"
@@ -416,24 +376,15 @@ export default function Home() {
               }}
             >
               <Flex align="center" gap={4} mb={6}>
-                <Center
-                  w="12"
-                  h="12"
-                  bg="#E6FFFA"
-                  color="#319795"
-                  borderRadius="full"
-                  transition="all 0.3s"
-                  _groupHover={{bg: '#319795', color: 'white'}}
-                >
+                <Center w="12" h="12" bg="#E6FFFA" color="#319795" borderRadius="full" transition="all 0.3s" _groupHover={{bg: '#319795', color: 'white'}}>
                   🤝
                 </Center>
                 <Heading size="md" color="#1C4532">
                   Community Intelligence
                 </Heading>
               </Flex>
-              <Text color="#4A5568" fontSize="lg" lineHeight="tall">
-                Zoom out to the global dashboard. See how your efforts combine with hundreds of other users to create massive, measurable
-                environmental change.
+              <Text color="#4A5568" fontSize={{base: 'md', md: 'lg'}} lineHeight="tall">
+                Zoom out to the global dashboard. See how your efforts combine with hundreds of other users to create massive, measurable environmental change.
               </Text>
             </Box>
           </SimpleGrid>
