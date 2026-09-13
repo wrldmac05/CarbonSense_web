@@ -1,5 +1,5 @@
 // pages/UpdatePassword.jsx
-import {useState} from 'react'
+import {useState, useEffect} from 'react'
 import {Box, Heading, Text, Input, Button, VStack, Flex, Spinner} from '@chakra-ui/react'
 import {useNavigate} from 'react-router-dom'
 import {supabase} from '../supabase'
@@ -29,6 +29,29 @@ export default function UpdatePassword() {
 
   const navigate = useNavigate()
 
+  // 🟢 Component-Level Guard: Verify active session on direct mount
+  useEffect(() => {
+    let isMounted = true
+
+    const verifySession = async () => {
+      const {
+        data: {session}
+      } = await supabase.auth.getSession()
+
+      if (!isMounted) return
+
+      if (!session) {
+        navigate('/login', {replace: true})
+      }
+    }
+
+    verifySession()
+
+    return () => {
+      isMounted = false
+    }
+  }, [navigate])
+
   // 🟢 Real-time Password Validation Checks
   const hasMinLen = newPassword.length >= 6
   const hasUpper = /[A-Z]/.test(newPassword)
@@ -38,7 +61,6 @@ export default function UpdatePassword() {
   const handleUpdate = async e => {
     e.preventDefault()
 
-    // 🟢 Hard Guard: Prevent execution if already loading (stops spam clicks)
     if (loading) return
 
     setLoading(true)
@@ -61,13 +83,11 @@ export default function UpdatePassword() {
 
       setSuccessMsg('Password updated successfully! Redirecting to login...')
 
-      // 🟢 Keep the button in a loading state while we wait to redirect
       setTimeout(() => {
         navigate('/login')
       }, 3000)
     } catch (error) {
       setErrorMsg(error.message)
-      // 🟢 Turn off the spinner ONLY if there was an error so the user can try again
       setLoading(false)
     }
   }
@@ -135,17 +155,7 @@ export default function UpdatePassword() {
         </VStack>
 
         {errorMsg && (
-          <Flex
-            align="center"
-            gap={3}
-            borderRadius="md"
-            mb={6}
-            bg="#FFF5F5"
-            color="#C53030"
-            border="1px solid #FEB2B2"
-            p={4}
-            animation={`${fadeIn} 0.3s ease-out`}
-          >
+          <Flex align="center" gap={3} borderRadius="md" mb={6} bg="#FFF5F5" color="#C53030" border="1px solid #FEB2B2" p={4} animation={`${fadeIn} 0.3s ease-out`}>
             <Text fontSize="lg">⚠️</Text>
             <Text fontSize="sm" fontWeight="bold">
               {errorMsg}
@@ -154,17 +164,7 @@ export default function UpdatePassword() {
         )}
 
         {successMsg && (
-          <Flex
-            align="center"
-            gap={3}
-            borderRadius="md"
-            mb={6}
-            bg="#F0FFF4"
-            color="#1C4532"
-            border="1px solid #9AE6B4"
-            p={4}
-            animation={`${fadeIn} 0.3s ease-out`}
-          >
+          <Flex align="center" gap={3} borderRadius="md" mb={6} bg="#F0FFF4" color="#1C4532" border="1px solid #9AE6B4" p={4} animation={`${fadeIn} 0.3s ease-out`}>
             <Text fontSize="lg">✅</Text>
             <Text fontSize="sm" fontWeight="bold">
               {successMsg}
@@ -279,11 +279,11 @@ export default function UpdatePassword() {
 
             <Button
               type="submit"
-              isDisabled={loading} // 🟢 Native Chakra disable lock
+              isDisabled={loading}
               bg="#22543D"
               color="white"
               _hover={{
-                bg: loading ? '#22543D' : '#1C4532', // Don't show hover effect while loading
+                bg: loading ? '#22543D' : '#1C4532',
                 transform: loading ? 'none' : 'translateY(-3px)',
                 boxShadow: loading ? 'none' : '0 15px 30px rgba(34, 84, 61, 0.25)'
               }}
@@ -295,7 +295,6 @@ export default function UpdatePassword() {
               fontSize="md"
               fontWeight="black"
             >
-              {/* 🟢 Manual Spinner Implementation */}
               {loading ? (
                 <Flex align="center" gap={3}>
                   <Spinner size="sm" color="white" />

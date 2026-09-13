@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 // App.jsx
 import {Box, Flex, Center, Spinner, Text, Heading, Button} from '@chakra-ui/react'
 import {Routes, Route, Navigate, useLocation, useNavigate} from 'react-router-dom'
@@ -50,24 +51,16 @@ export default function App() {
     }
 
     // 🟢 ENHANCED ACCESS CHECK: Checks if account is archived OR banned
-    // NOTE: fails CLOSED — if we can't verify status, we do not treat the
-    // user as clear. A banned/archived user must never slip through because
-    // of a transient query error.
     const checkAccountStatus = async userId => {
       try {
         const {data, error} = await supabase.from('user_profiles').select('role, is_archived, is_banned').eq('user_id', userId).maybeSingle()
 
         if (error) {
-          // Could not verify — don't grant access. Sign out and show a
-          // retry-able notice rather than silently letting them through.
           await handleRestrictionKick('Unable to Verify Account', "We couldn't verify your account status. Please try signing in again in a moment.")
           return {isRestricted: true, role: null}
         }
 
         if (!data) {
-          // No profile row at all — treat as not-yet-provisioned rather
-          // than as a free pass. Adjust here if new users legitimately
-          // have no row yet at first login.
           return {isRestricted: false, role: 'user'}
         }
 
@@ -85,7 +78,6 @@ export default function App() {
 
         return {isRestricted: false, role: data.role || 'user'}
       } catch (err) {
-        // Network/unexpected error — same fail-closed treatment.
         await handleRestrictionKick('Unable to Verify Account', "We couldn't verify your account status. Please try signing in again in a moment.")
         return {isRestricted: true, role: null}
       }
@@ -115,9 +107,7 @@ export default function App() {
         .subscribe()
     }
 
-    // Single source of truth for "given this session, what's our auth state?"
-    // Used by both the initial boot and the onAuthStateChange listener so
-    // the two paths can't silently drift apart.
+    // Single source of truth for session and auth state
     const applyAuthResult = async session => {
       if (!session?.user) {
         if (isMounted) {
@@ -142,9 +132,15 @@ export default function App() {
 
     // 1. Reliable Boot Routine
     const bootApp = async () => {
+      // Check if arriving via Supabase magic link or PKCE recovery callback
+      const hasAuthParams = window.location.search.includes('code=') || window.location.hash.includes('access_token=') || window.location.hash.includes('type=recovery')
+
       const {
         data: {session}
       } = await supabase.auth.getSession()
+
+      // Delay loader dismiss if Supabase is still parsing auth params from URL
+      if (!session && hasAuthParams) return
 
       await applyAuthResult(session)
       if (isMounted) setIsAuthLoading(false)
@@ -156,7 +152,8 @@ export default function App() {
     const {
       data: {subscription}
     } = supabase.auth.onAuthStateChange((event, session) => {
-      if (['SIGNED_IN', 'TOKEN_REFRESHED', 'INITIAL_SESSION'].includes(event)) {
+      // 🟢 Included PASSWORD_RECOVERY to handle password reset handshakes
+      if (['SIGNED_IN', 'TOKEN_REFRESHED', 'INITIAL_SESSION', 'PASSWORD_RECOVERY'].includes(event)) {
         applyAuthResult(session).then(() => {
           if (isMounted) setIsAuthLoading(false)
         })
@@ -189,11 +186,6 @@ export default function App() {
       if (profileSubscription) supabase.removeChannel(profileSubscription)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-    // Intentionally NOT depending on location.pathname: this effect sets up
-    // auth state once on mount (plus a visibility-based re-check). It was
-    // previously keyed on the route, which re-ran the full session fetch +
-    // profile query + realtime resubscribe on every navigation.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // 🛡️ GLOBAL SESSION LOADING SHIELD
@@ -216,12 +208,10 @@ export default function App() {
 
   return (
     <Flex direction="column" minH="100vh" bg="#FFFFFF" color="gray.800" position="relative">
-      {/* Navbar hides for Admin or Minimal Routes */}
       {showPublicLayout && <Navbar isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />}
 
       <Box flex="1">
         <Routes>
-          {/* Ironclad Admin Bounce */}
           <Route path="/" element={isAdmin ? <Navigate to="/admin" replace /> : <Home />} />
           <Route path="/dashboard" element={isAdmin ? <Navigate to="/admin" replace /> : <Dashboard />} />
 
@@ -247,11 +237,11 @@ export default function App() {
           {/* Protected Consumer Route */}
           <Route path="/profile" element={isLoggedIn ? isAdmin ? <Navigate to="/admin" replace /> : <Profile /> : <Navigate to="/login" replace />} />
 
-          <Route path="/update-password" element={<UpdatePassword />} />
+          {/* 🟢 Protected Password Reset Route */}
+          <Route path="/update-password" element={isLoggedIn ? <UpdatePassword /> : <Navigate to="/login" replace />} />
         </Routes>
       </Box>
 
-      {/* Public Footer hides for Admin or Minimal Routes */}
       {showPublicLayout && <Footer />}
 
       {/* 🚫 CUSTOM BAN & RESTRICTION NOTIFICATION MODAL */}

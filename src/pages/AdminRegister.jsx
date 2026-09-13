@@ -1,3 +1,5 @@
+/* eslint-disable no-empty */
+/* eslint-disable no-unused-vars */
 // pages/AdminRegister.jsx
 import {useState} from 'react'
 import {Box, Heading, Text, Input, Button, VStack, Flex, Icon, Spinner} from '@chakra-ui/react'
