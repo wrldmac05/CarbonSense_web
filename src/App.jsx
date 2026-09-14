@@ -39,7 +39,7 @@ export default function App() {
     let isMounted = true
     let profileSubscription = null
 
-    // Helper to purge session and redirect safely
+    // Helper to purge session and redirect safely with notice modal
     const handleRestrictionKick = async (title, message) => {
       await supabase.auth.signOut()
       if (isMounted) {
@@ -64,15 +64,19 @@ export default function App() {
           return {isRestricted: false, role: 'user'}
         }
 
-        // ⛔ BANNED ACCOUNT BOOT
+        // ⛔ BANNED ACCOUNT BOOT (Displays suspension modal)
         if (data.is_banned) {
           await handleRestrictionKick('Account Suspended', 'Your account has been suspended due to violations of platform terms and conditions. If you believe this is an error, please contact support.')
           return {isRestricted: true, role: null}
         }
 
-        // ⛔ ARCHIVED ACCOUNT BOOT
+        // ⛔ ARCHIVED ACCOUNT CHECK (Silently rejects session; message handled by login UI)
         if (data.is_archived) {
-          await handleRestrictionKick('Account Archived', 'Your account has been archived by an administrator. Please reach out to system support for assistance.')
+          await supabase.auth.signOut()
+          if (isMounted) {
+            setIsLoggedIn(false)
+            setUserRole(null)
+          }
           return {isRestricted: true, role: null}
         }
 
@@ -83,7 +87,7 @@ export default function App() {
       }
     }
 
-    // ⚡ REALTIME LISTENER: Listens for live ban/archive actions
+    // ⚡ REALTIME LISTENER: Listens for live ban actions
     const ensureProfileSubscription = userId => {
       if (profileSubscription) return
       profileSubscription = supabase
@@ -99,8 +103,6 @@ export default function App() {
           async payload => {
             if (payload.new?.is_banned) {
               await handleRestrictionKick('Account Suspended', 'Your account has been suspended by an administrator. You have been automatically signed out.')
-            } else if (payload.new?.is_archived) {
-              await handleRestrictionKick('Account Archived', 'Your account has been archived by an administrator. You have been automatically signed out.')
             }
           }
         )
@@ -132,14 +134,12 @@ export default function App() {
 
     // 1. Reliable Boot Routine
     const bootApp = async () => {
-      // Check if arriving via Supabase magic link or PKCE recovery callback
       const hasAuthParams = window.location.search.includes('code=') || window.location.hash.includes('access_token=') || window.location.hash.includes('type=recovery')
 
       const {
         data: {session}
       } = await supabase.auth.getSession()
 
-      // Delay loader dismiss if Supabase is still parsing auth params from URL
       if (!session && hasAuthParams) return
 
       await applyAuthResult(session)
@@ -152,7 +152,6 @@ export default function App() {
     const {
       data: {subscription}
     } = supabase.auth.onAuthStateChange((event, session) => {
-      // 🟢 Included PASSWORD_RECOVERY to handle password reset handshakes
       if (['SIGNED_IN', 'TOKEN_REFRESHED', 'INITIAL_SESSION', 'PASSWORD_RECOVERY'].includes(event)) {
         applyAuthResult(session).then(() => {
           if (isMounted) setIsAuthLoading(false)

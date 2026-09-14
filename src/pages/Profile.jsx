@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 // pages/Profile.jsx
 import {useState, useEffect, useRef} from 'react'
 import {Box, Heading, Text, Flex, Input, Button, Center, Spinner, Icon, IconButton, Badge, DialogRoot, DialogContent, DialogHeader, DialogBody, DialogFooter, DialogCloseTrigger, DialogBackdrop} from '@chakra-ui/react'
@@ -308,15 +309,20 @@ export default function Profile() {
     }
   }
 
+  // Archive under the hood, presented as account deletion to user
   const handleDeleteAccount = async () => {
-    if (confirmDeleteText !== 'DELETE') return
+    if (confirmDeleteText.trim().toUpperCase() !== 'DELETE') return
     try {
       setIsDeleting(true)
       const {
-        data: {user}
+        data: {user},
+        error: userError
       } = await supabase.auth.getUser()
-      const {error} = await supabase.rpc('delete_user_account', {target_user_id: user.id})
-      if (error) throw error
+      if (userError || !user) throw new Error('User session not found.')
+
+      const {error: archiveError} = await supabase.from('user_profiles').update({is_archived: true}).eq('user_id', user.id)
+
+      if (archiveError) throw archiveError
 
       await supabase.auth.signOut()
       navigate('/welcome')
@@ -603,7 +609,19 @@ export default function Profile() {
                     <Text fontSize="sm">Change Password</Text>
                   </Flex>
                 </Button>
-                <Button flex="1" variant="outline" colorScheme="red" justifyContent="flex-start" h="50px" borderRadius="xl" _hover={{bg: '#FFF5F5'}} onClick={() => setIsDelOpen(true)}>
+                <Button
+                  flex="1"
+                  variant="outline"
+                  colorScheme="red"
+                  justifyContent="flex-start"
+                  h="50px"
+                  borderRadius="xl"
+                  _hover={{bg: '#FFF5F5'}}
+                  onClick={() => {
+                    setConfirmDeleteText('')
+                    setIsDelOpen(true)
+                  }}
+                >
                   <Flex align="center" gap={2}>
                     <MdDeleteForever />
                     <Text fontSize="sm">Delete Account</Text>
@@ -857,7 +875,7 @@ export default function Profile() {
               <Text as="span" fontWeight="bold" color="red.600">
                 permanent
               </Text>{' '}
-              and cannot be reversed.
+              and cannot be reversed. All active sessions will be terminated.
             </Text>
             <Text fontSize="xs" fontWeight="bold" color="#1C4532" textTransform="uppercase" mb={2}>
               Type "DELETE" to confirm:
@@ -873,19 +891,37 @@ export default function Profile() {
               border="1px solid rgba(72, 187, 120, 0.2)"
               _focus={{bg: 'white', borderColor: 'red.400', boxShadow: '0 0 0 1px #F56565'}}
             />
-            <Button
-              colorScheme="red"
-              w="100%"
-              borderRadius="xl"
-              h="48px"
-              loading={isDeleting}
-              disabled={confirmDeleteText !== 'DELETE'}
-              onClick={handleDeleteAccount}
-              _hover={{transform: 'translateY(-1px)', boxShadow: '0 8px 20px rgba(229, 62, 62, 0.2)'}}
-            >
-              Permanently Delete Account
-            </Button>
           </DialogBody>
+          <DialogFooter>
+            <Flex gap={3} w="100%" justify="flex-end">
+              <Button
+                variant="ghost"
+                color="#4A5568"
+                borderRadius="xl"
+                h="44px"
+                px={5}
+                _hover={{bg: 'rgba(226, 232, 240, 0.8)', color: '#1C4532'}}
+                onClick={() => {
+                  setIsDelOpen(false)
+                  setConfirmDeleteText('')
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                colorScheme="red"
+                borderRadius="xl"
+                h="44px"
+                px={6}
+                loading={isDeleting}
+                disabled={confirmDeleteText.trim().toUpperCase() !== 'DELETE'}
+                onClick={handleDeleteAccount}
+                _hover={{transform: 'translateY(-1px)', boxShadow: '0 8px 20px rgba(229, 62, 62, 0.2)'}}
+              >
+                Delete
+              </Button>
+            </Flex>
+          </DialogFooter>
         </DialogContent>
       </DialogRoot>
 

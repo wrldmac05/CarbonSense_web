@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 // pages/Home.jsx
 import {useState, useEffect, useRef} from 'react'
 import {supabase} from '../supabase'
@@ -186,9 +187,6 @@ export default function Home() {
         <Stack direction={{base: 'column', md: 'row'}} spacing={{base: 10, md: 16}} align="center">
           {/* Left Side: Main Typography & Call-To-Action */}
           <Box flex="1" w="100%" animation={`${slideInLeft} 0.8s cubic-bezier(0.16, 1, 0.3, 1) both`}>
-            <Text color="#276749" fontWeight="black" letterSpacing="widest" fontSize="sm" textTransform="uppercase" mb={4} display="flex" alignItems="center" gap={2}>
-              🌱 Carbonsense Web App
-            </Text>
             <Heading size={{base: '2xl', md: '3xl'}} color="#1C4532" letterSpacing="tighter" lineHeight="1.1" mb={6}>
               Track your impact. <br />
               <Text as="span" color="#38A169">

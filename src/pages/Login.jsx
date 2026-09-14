@@ -1,7 +1,7 @@
 // pages/Login.jsx
 import {useState} from 'react'
-import {Heading, Text, Input, Button, VStack, Badge, Spinner} from '@chakra-ui/react'
-import {Flex, Box, Image as ChakraImage} from '@chakra-ui/react'
+import {Heading, Text, Input, Button, VStack, Spinner} from '@chakra-ui/react'
+import {Flex, Box} from '@chakra-ui/react'
 import {Link, useNavigate} from 'react-router-dom'
 import {supabase} from '../supabase'
 import {keyframes} from '@emotion/react'
@@ -57,20 +57,25 @@ export default function Login() {
     try {
       // 1. FORGOT PASSWORD FLOW
       if (isResetting) {
+        if (!email.trim()) throw new Error('Please enter your email address.')
         if (!isValidEmail(email)) throw new Error('Please enter a valid email address.')
+
         const {error} = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/update-password`
         })
         if (error) throw error
 
-        setSuccessMsg('Check your email for the password reset link!')
+        setSuccessMsg('Check your email for the password reset link.')
         setLoading(false)
         return
       }
 
       // 2. SIGN UP FLOW
       if (isSignUp) {
+        if (!fullName.trim()) throw new Error('Please enter your full name.')
+        if (!email.trim()) throw new Error('Please enter your email address.')
         if (!isValidEmail(email)) throw new Error('Please enter a valid email address.')
+        if (!password) throw new Error('Please enter a password.')
         if (!hasMinLen || !hasUpper || !hasLower || !noSpecialChars) {
           throw new Error('Please ensure your password meets all requirements.')
         }
@@ -88,8 +93,18 @@ export default function Login() {
       }
 
       // 3. LOGIN FLOW
+      if (!email.trim() && !password.trim()) {
+        throw new Error('Please enter your email and password.')
+      }
+      if (!email.trim()) {
+        throw new Error('Please enter your email address.')
+      }
+      if (!password.trim()) {
+        throw new Error('Please enter your password.')
+      }
+
       const {data, error} = await supabase.auth.signInWithPassword({
-        email,
+        email: email.trim(),
         password
       })
       if (error) throw error
@@ -99,7 +114,7 @@ export default function Login() {
 
       if (profile?.is_archived) {
         await supabase.auth.signOut()
-        throw new Error('Your account has been archived. Please contact an administrator.')
+        throw new Error('Account Login Error')
       }
 
       if (profile?.role === 'admin') {
@@ -108,7 +123,11 @@ export default function Login() {
         navigate('/tracker')
       }
     } catch (error) {
-      setErrorMsg(error.message)
+      if (error.message.includes('Invalid login credentials')) {
+        setErrorMsg('Invalid email or password. Please try again.')
+      } else {
+        setErrorMsg(error.message)
+      }
       setLoading(false)
     }
   }
@@ -131,14 +150,11 @@ export default function Login() {
           textAlign="center"
           animation={`${cardPop} 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both`}
         >
-          <Flex w="60px" h="60px" bg="#F0FFF4" border="1px solid #C6F6D5" borderRadius="full" align="center" justify="center" mx="auto" mb={6}>
-            <Text fontSize="2xl">📧</Text>
-          </Flex>
-          <Heading size="lg" color="#1A202C" letterSpacing="tight" mb={3}>
+          <Heading size="lg" color="#1A202C" letterSpacing="tight" mb={3} mt={2}>
             Check your inbox
           </Heading>
           <Text color="#718096" fontSize={{base: 'sm', md: 'md'}} mb={8} lineHeight="tall">
-            We just sent a verification link to <b>{email}</b>. Please click the link in that email to activate your account.
+            We sent a verification link to <b>{email}</b>. Please click the link in that email to activate your account.
           </Text>
           <Button
             w="100%"
@@ -231,25 +247,20 @@ export default function Login() {
           </Text>
         </VStack>
 
+        {/* Text-Only Alert Messages */}
         {errorMsg && (
-          <Flex align="center" gap={3} borderRadius="xl" mb={6} bg="#FFF5F5" color="#C53030" border="1px solid #FEB2B2" p={3.5} animation={`${alertSlide} 0.3s ease-out both`}>
-            <Text fontSize="md">⚠️</Text>
-            <Text fontSize="xs" fontWeight="bold">
-              {errorMsg}
-            </Text>
-          </Flex>
+          <Text color="#E53E3E" fontSize="xs" fontWeight="medium" textAlign="center" mb={4} animation={`${alertSlide} 0.3s ease-out both`}>
+            {errorMsg}
+          </Text>
         )}
 
         {successMsg && (
-          <Flex align="center" gap={3} borderRadius="xl" mb={6} bg="#F0FFF4" color="#276749" border="1px solid #9AE6B4" p={3.5} animation={`${alertSlide} 0.3s ease-out both`}>
-            <Text fontSize="md">✅</Text>
-            <Text fontSize="xs" fontWeight="bold">
-              {successMsg}
-            </Text>
-          </Flex>
+          <Text color="#2F855A" fontSize="xs" fontWeight="medium" textAlign="center" mb={4} animation={`${alertSlide} 0.3s ease-out both`}>
+            {successMsg}
+          </Text>
         )}
 
-        <form onSubmit={handleAuth}>
+        <form onSubmit={handleAuth} noValidate>
           <VStack spacing={4} align="stretch">
             {isSignUp && !isResetting && (
               <Box animation={`${fieldFadeIn} 0.35s ease-out both`} overflow="hidden">
@@ -257,7 +268,6 @@ export default function Login() {
                   Full Name
                 </Text>
                 <Input
-                  required
                   value={fullName}
                   onChange={e => {
                     let value = e.target.value
@@ -294,7 +304,6 @@ export default function Login() {
                 Email Address
               </Text>
               <Input
-                required
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
@@ -340,7 +349,6 @@ export default function Login() {
 
                 <Box position="relative">
                   <Input
-                    required
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={e => setPassword(e.target.value)}
@@ -400,7 +408,7 @@ export default function Login() {
                           {hasMinLen ? '✓' : null}
                         </Flex>
                         <Text fontSize="2xs" color={hasMinLen ? '#1C4532' : '#718096'} fontWeight={hasMinLen ? '600' : '400'}>
-                          {hasMinLen ? 'Success:' : 'Required:'} At least 6 characters
+                          At least 6 characters
                         </Text>
                       </Flex>
 
@@ -422,7 +430,7 @@ export default function Login() {
                           {hasUpper ? '✓' : null}
                         </Flex>
                         <Text fontSize="2xs" color={hasUpper ? '#1C4532' : '#718096'} fontWeight={hasUpper ? '600' : '400'}>
-                          {hasUpper ? 'Success:' : 'Required:'} One uppercase letter
+                          One uppercase letter
                         </Text>
                       </Flex>
 
@@ -444,7 +452,7 @@ export default function Login() {
                           {hasLower ? '✓' : null}
                         </Flex>
                         <Text fontSize="2xs" color={hasLower ? '#1C4532' : '#718096'} fontWeight={hasLower ? '600' : '400'}>
-                          {hasLower ? 'Success:' : 'Required:'} One lowercase letter
+                          One lowercase letter
                         </Text>
                       </Flex>
 
@@ -466,7 +474,7 @@ export default function Login() {
                           {noSpecialChars ? '✓' : null}
                         </Flex>
                         <Text fontSize="2xs" color={noSpecialChars ? '#1C4532' : '#718096'} fontWeight={noSpecialChars ? '600' : '400'}>
-                          {noSpecialChars ? 'Success:' : 'Required:'} No special characters (!@#$)
+                          No special characters
                         </Text>
                       </Flex>
                     </VStack>
