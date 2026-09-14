@@ -42,7 +42,7 @@ export default function Login() {
   const hasMinLen = password.length >= 6
   const hasUpper = /[A-Z]/.test(password)
   const hasLower = /[a-z]/.test(password)
-  const noSpecialChars = /^[a-zA-Z0-9]+$/.test(password)
+  const hasSpecialChar = /[^A-Za-z0-9]/.test(password)
   const isValidEmail = emailStr => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailStr)
 
   const handleAuth = async e => {
@@ -76,7 +76,7 @@ export default function Login() {
         if (!email.trim()) throw new Error('Please enter your email address.')
         if (!isValidEmail(email)) throw new Error('Please enter a valid email address.')
         if (!password) throw new Error('Please enter a password.')
-        if (!hasMinLen || !hasUpper || !hasLower || !noSpecialChars) {
+        if (!hasMinLen || !hasUpper || !hasLower || !hasSpecialChar) {
           throw new Error('Please ensure your password meets all requirements.')
         }
 
@@ -464,17 +464,17 @@ export default function Login() {
                           borderRadius="full"
                           align="center"
                           justify="center"
-                          bg={noSpecialChars ? '#F0FFF4' : 'transparent'}
-                          border={noSpecialChars ? '1px solid #9AE6B4' : '1.5px solid #CBD5E0'}
+                          bg={hasSpecialChar ? '#F0FFF4' : 'transparent'}
+                          border={hasSpecialChar ? '1px solid #9AE6B4' : '1.5px solid #CBD5E0'}
                           color="#38A169"
                           fontSize="9px"
                           fontWeight="700"
                           flexShrink={0}
                         >
-                          {noSpecialChars ? '✓' : null}
+                          {hasSpecialChar ? '✓' : null}
                         </Flex>
-                        <Text fontSize="2xs" color={noSpecialChars ? '#1C4532' : '#718096'} fontWeight={noSpecialChars ? '600' : '400'}>
-                          No special characters
+                        <Text fontSize="2xs" color={hasSpecialChar ? '#1C4532' : '#718096'} fontWeight={hasSpecialChar ? '600' : '400'}>
+                          One special character (!@#$%...)
                         </Text>
                       </Flex>
                     </VStack>

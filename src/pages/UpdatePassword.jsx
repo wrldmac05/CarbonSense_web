@@ -5,7 +5,7 @@ import {useNavigate} from 'react-router-dom'
 import {supabase} from '../supabase'
 import {keyframes} from '@emotion/react'
 
-// 🟢 Ambient & Entry Animation Definitions
+// Ambient & Entry Animation Definitions
 const fadeIn = keyframes`
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
@@ -29,7 +29,7 @@ export default function UpdatePassword() {
 
   const navigate = useNavigate()
 
-  // 🟢 Component-Level Guard: Verify active session on direct mount
+  // Component-Level Guard: Verify active session on direct mount
   useEffect(() => {
     let isMounted = true
 
@@ -52,11 +52,11 @@ export default function UpdatePassword() {
     }
   }, [navigate])
 
-  // 🟢 Real-time Password Validation Checks
+  // Real-time Password Validation Checks
   const hasMinLen = newPassword.length >= 6
   const hasUpper = /[A-Z]/.test(newPassword)
   const hasLower = /[a-z]/.test(newPassword)
-  const noSpecialChars = /^[a-zA-Z0-9]+$/.test(newPassword)
+  const hasSpecialChar = /[^A-Za-z0-9]/.test(newPassword)
 
   const handleUpdate = async e => {
     e.preventDefault()
@@ -68,7 +68,19 @@ export default function UpdatePassword() {
     setSuccessMsg('')
 
     try {
-      if (!hasMinLen || !hasUpper || !hasLower || !noSpecialChars) {
+      if (!newPassword.trim() && !confirmPassword.trim()) {
+        throw new Error('Please enter and confirm your new password.')
+      }
+
+      if (!newPassword.trim()) {
+        throw new Error('Please enter your new password.')
+      }
+
+      if (!confirmPassword.trim()) {
+        throw new Error('Please confirm your new password.')
+      }
+
+      if (!hasMinLen || !hasUpper || !hasLower || !hasSpecialChar) {
         throw new Error('Please ensure your new password meets all requirements.')
       }
 
@@ -81,7 +93,7 @@ export default function UpdatePassword() {
 
       await supabase.auth.signOut()
 
-      setSuccessMsg('Password updated successfully! Redirecting to login...')
+      setSuccessMsg('Password updated successfully. Redirecting to login...')
 
       setTimeout(() => {
         navigate('/login')
@@ -154,25 +166,20 @@ export default function UpdatePassword() {
           </Text>
         </VStack>
 
+        {/* Text-Only Alert Messages */}
         {errorMsg && (
-          <Flex align="center" gap={3} borderRadius="md" mb={6} bg="#FFF5F5" color="#C53030" border="1px solid #FEB2B2" p={4} animation={`${fadeIn} 0.3s ease-out`}>
-            <Text fontSize="lg">⚠️</Text>
-            <Text fontSize="sm" fontWeight="bold">
-              {errorMsg}
-            </Text>
-          </Flex>
+          <Text color="#E53E3E" fontSize="xs" fontWeight="medium" textAlign="center" mb={4} animation={`${fadeIn} 0.3s ease-out both`}>
+            {errorMsg}
+          </Text>
         )}
 
         {successMsg && (
-          <Flex align="center" gap={3} borderRadius="md" mb={6} bg="#F0FFF4" color="#1C4532" border="1px solid #9AE6B4" p={4} animation={`${fadeIn} 0.3s ease-out`}>
-            <Text fontSize="lg">✅</Text>
-            <Text fontSize="sm" fontWeight="bold">
-              {successMsg}
-            </Text>
-          </Flex>
+          <Text color="#2F855A" fontSize="xs" fontWeight="medium" textAlign="center" mb={4} animation={`${fadeIn} 0.3s ease-out both`}>
+            {successMsg}
+          </Text>
         )}
 
-        <form onSubmit={handleUpdate}>
+        <form onSubmit={handleUpdate} noValidate>
           <VStack spacing={4} align="stretch">
             <Box>
               <Text fontSize="xs" fontWeight="bold" color="#4A5568" textTransform="uppercase" mb={2} ml={1}>
@@ -180,7 +187,6 @@ export default function UpdatePassword() {
               </Text>
               <Box position="relative">
                 <Input
-                  required
                   type={showPassword ? 'text' : 'password'}
                   value={newPassword}
                   onChange={e => setNewPassword(e.target.value)}
@@ -220,7 +226,6 @@ export default function UpdatePassword() {
               </Text>
               <Box position="relative">
                 <Input
-                  required
                   type={showPassword ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={e => setConfirmPassword(e.target.value)}
@@ -266,11 +271,11 @@ export default function UpdatePassword() {
                     </Text>
                   </Flex>
                   <Flex align="center" gap={2}>
-                    <Text fontSize="xs" color={noSpecialChars ? '#38A169' : '#A0AEC0'}>
-                      {noSpecialChars ? '✓' : '○'}
+                    <Text fontSize="xs" color={hasSpecialChar ? '#38A169' : '#A0AEC0'}>
+                      {hasSpecialChar ? '✓' : '○'}
                     </Text>
-                    <Text fontSize="xs" color={noSpecialChars ? '#1C4532' : '#A0AEC0'} fontWeight={noSpecialChars ? 'bold' : 'normal'}>
-                      No special characters (!@#$)
+                    <Text fontSize="xs" color={hasSpecialChar ? '#1C4532' : '#A0AEC0'} fontWeight={hasSpecialChar ? 'bold' : 'normal'}>
+                      One special character (!@#$%...)
                     </Text>
                   </Flex>
                 </VStack>

@@ -1,9 +1,9 @@
 // pages/Dashboard.jsx
-import {useState, useEffect, useRef} from 'react'
+import {useState, useEffect, useRef, useMemo} from 'react'
 import {Box, Heading, Text, Flex, Grid, VStack, Center, Spinner, Button, useBreakpointValue} from '@chakra-ui/react'
 import {Link} from 'react-router-dom'
 import {supabase} from '../supabase'
-import {AreaChart, Area, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer} from 'recharts'
+import {AreaChart, Area, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine} from 'recharts'
 import {keyframes} from '@emotion/react'
 
 // 🟢 Unified Layout Entry Transitions
@@ -56,9 +56,110 @@ const AnimatedNumber = ({value, decimals = 0}) => {
   return <>{displayValue.toFixed(decimals)}</>
 }
 
+// 🟢 Small pill showing a % change, colored by whether that direction is desirable
+const TrendBadge = ({percent, variant = 'good-up', size = 'sm'}) => {
+  if (percent === null || percent === undefined || !isFinite(percent)) return null
+
+  const isUp = percent >= 0
+  // variant tells us which direction counts as "good": 'good-up' (more is better),
+  // 'good-down' (less is better), or 'neutral' (just informational, no judgement)
+  let tone = 'neutral'
+  if (variant === 'good-up') tone = isUp ? 'good' : 'bad'
+  if (variant === 'good-down') tone = isUp ? 'bad' : 'good'
+
+  const palette = {
+    good: {bg: 'rgba(56, 161, 105, 0.12)', border: 'rgba(56, 161, 105, 0.35)', color: '#2F855A'},
+    bad: {bg: 'rgba(229, 62, 62, 0.1)', border: 'rgba(229, 62, 62, 0.3)', color: '#C53030'},
+    neutral: {bg: 'rgba(49, 151, 149, 0.12)', border: 'rgba(49, 151, 149, 0.3)', color: '#2C7A7B'}
+  }[tone]
+
+  return (
+    <Flex as="span" align="center" gap={0.5} display="inline-flex" px={size === 'sm' ? 1.5 : 2} py="1px" borderRadius="full" bg={palette.bg} border="1px solid" borderColor={palette.border}>
+      <Text as="span" fontSize={size === 'sm' ? '2xs' : 'xs'} fontWeight="bold" color={palette.color} lineHeight="1.4">
+        {isUp ? '▲' : '▼'} {Math.abs(percent).toFixed(1)}%
+      </Text>
+    </Flex>
+  )
+}
+
+// 🟢 Shared dark tooltip shell so every chart reads consistently
+const TooltipShell = ({label, children}) => (
+  <Box bg="#1C4532" color="white" px={4} py={3} borderRadius="xl" boxShadow="0 10px 25px rgba(28, 69, 50, 0.3)" minW="150px">
+    {label && (
+      <Text fontSize="2xs" color="#9AE6B4" fontWeight="bold" textTransform="uppercase" letterSpacing="wide" mb={1}>
+        {label}
+      </Text>
+    )}
+    {children}
+  </Box>
+)
+
+const UsersTooltip = ({active, payload, label}) => {
+  if (!active || !payload || !payload.length) return null
+  const point = payload[0].payload
+  return (
+    <TooltipShell label={label}>
+      <Flex align="baseline" gap={1}>
+        <Text fontSize="xl" fontWeight="black">
+          {point.users?.toLocaleString?.() ?? point.users}
+        </Text>
+        <Text fontSize="xs" opacity={0.75}>
+          users
+        </Text>
+      </Flex>
+      {point.delta !== null && point.delta !== undefined && (
+        <Text fontSize="xs" mt={1} color={point.delta >= 0 ? '#9AE6B4' : '#FEB2B2'}>
+          {point.delta >= 0 ? '+' : ''}
+          {point.delta.toLocaleString()} vs prior month
+        </Text>
+      )}
+    </TooltipShell>
+  )
+}
+
+const CarbonTooltip = ({active, payload, label}) => {
+  if (!active || !payload || !payload.length) return null
+  const point = payload[0].payload
+  return (
+    <TooltipShell label={label}>
+      <Flex align="baseline" gap={1}>
+        <Text fontSize="xl" fontWeight="black">
+          {point.co2?.toLocaleString?.() ?? point.co2}
+        </Text>
+        <Text fontSize="xs" opacity={0.75}>
+          kg CO₂
+        </Text>
+      </Flex>
+      {point.delta !== null && point.delta !== undefined && (
+        <Text fontSize="xs" mt={1} color={point.delta <= 0 ? '#9AE6B4' : '#FEB2B2'}>
+          {point.delta >= 0 ? '+' : ''}
+          {point.delta.toLocaleString()} kg vs prior month
+        </Text>
+      )}
+    </TooltipShell>
+  )
+}
+
+const CategoryTooltip = ({active, payload, total}) => {
+  if (!active || !payload || !payload.length) return null
+  const point = payload[0].payload
+  const pct = total > 0 ? ((point.value / total) * 100).toFixed(1) : 0
+  return (
+    <TooltipShell>
+      <Text fontSize="sm" fontWeight="bold" mb={0.5}>
+        {point.name}
+      </Text>
+      <Text fontSize="xs" opacity={0.85}>
+        {point.value.toLocaleString()} kg · {pct}% of total
+      </Text>
+    </TooltipShell>
+  )
+}
+
 export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true)
   const [aiInsight, setAiInsight] = useState('')
+  const [activeCategory, setActiveCategory] = useState(null)
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalCO2: 0,
@@ -73,8 +174,8 @@ export default function Dashboard() {
 
   // Responsive values for Pie Chart sizing across devices
   const isMobile = useBreakpointValue({base: true, md: false})
-  const innerRadius = useBreakpointValue({base: 50, md: 80})
-  const outerRadius = useBreakpointValue({base: 80, md: 120})
+  const innerRadius = useBreakpointValue({base: 55, md: 85})
+  const outerRadius = useBreakpointValue({base: 82, md: 120})
 
   const COLORS = ['#38A169', '#319795', '#2B6CB0', '#D69E2E', '#E53E3E']
 
@@ -124,6 +225,52 @@ export default function Dashboard() {
     fetchGlobalData()
   }, [])
 
+  // 🟢 Derived analytics — computed once per data change, feed the trend badges & tooltips
+  const enrichedUsers = useMemo(
+    () =>
+      stats.monthlyUsers.map((d, i, arr) => ({
+        ...d,
+        delta: i > 0 ? d.users - arr[i - 1].users : null
+      })),
+    [stats.monthlyUsers]
+  )
+
+  const enrichedEmissions = useMemo(
+    () =>
+      stats.monthlyEmissions.map((d, i, arr) => ({
+        ...d,
+        delta: i > 0 ? d.co2 - arr[i - 1].co2 : null
+      })),
+    [stats.monthlyEmissions]
+  )
+
+  const usersMoMPercent = useMemo(() => {
+    if (enrichedUsers.length < 2) return null
+    const last = enrichedUsers[enrichedUsers.length - 1]
+    const prevTotal = last.users - (last.delta || 0)
+    return prevTotal > 0 ? ((last.delta || 0) / prevTotal) * 100 : null
+  }, [enrichedUsers])
+
+  const co2MoMPercent = useMemo(() => {
+    if (enrichedEmissions.length < 2) return null
+    const last = enrichedEmissions[enrichedEmissions.length - 1]
+    const prevTotal = last.co2 - (last.delta || 0)
+    return prevTotal > 0 ? ((last.delta || 0) / prevTotal) * 100 : null
+  }, [enrichedEmissions])
+
+  const avgEmissionsValue = useMemo(() => {
+    if (!enrichedEmissions.length) return 0
+    return enrichedEmissions.reduce((sum, d) => sum + (d.co2 || 0), 0) / enrichedEmissions.length
+  }, [enrichedEmissions])
+
+  const paceVsTargetPercent = useMemo(() => {
+    if (!stats.totalUsers || !stats.avgTarget) return null
+    const actualPerUser = stats.totalCO2 / stats.totalUsers
+    return ((actualPerUser - stats.avgTarget) / stats.avgTarget) * 100
+  }, [stats.totalCO2, stats.totalUsers, stats.avgTarget])
+
+  const categoryTotal = useMemo(() => stats.categoryData.reduce((sum, c) => sum + (c.value || 0), 0), [stats.categoryData])
+
   if (isLoading) {
     return (
       <Center minH="100vh" bg="#FCFDFD" flexDirection="column" gap={4}>
@@ -135,25 +282,30 @@ export default function Dashboard() {
     )
   }
 
-  const renderCountBar = (label, count, total) => {
+  const renderCountBar = (label, count, total, rank) => {
     const percentage = total > 0 ? Math.round((count / total) * 100) : 0
     return (
-      <Box key={label} w="100%">
-        <Flex justify="space-between" mb={1}>
-          <Text fontSize="xs" fontWeight="bold" color="#4A5568">
-            {label}
-          </Text>
-          <Text fontSize="xs" color="#718096" fontWeight="bold">
-            {percentage}%{' '}
-            <Text as="span" fontSize="2xs" fontWeight="normal">
-              ({count})
+      <Flex key={label} w="100%" gap={3} align="center">
+        <Center flexShrink={0} w="22px" h="22px" borderRadius="md" bg={rank === 0 ? '#38A169' : '#EDF2F7'} color={rank === 0 ? 'white' : '#718096'} fontSize="2xs" fontWeight="black">
+          {rank + 1}
+        </Center>
+        <Box flex={1}>
+          <Flex justify="space-between" mb={1}>
+            <Text fontSize="xs" fontWeight="bold" color="#4A5568" noOfLines={1}>
+              {label}
             </Text>
-          </Text>
-        </Flex>
-        <Box w="100%" h="6px" bg="#EDF2F7" borderRadius="full" overflow="hidden">
-          <Box h="100%" w={`${percentage}%`} bg="#319795" transition="width 1.2s cubic-bezier(0.34, 1.56, 0.64, 1)" />
+            <Text fontSize="xs" color="#718096" fontWeight="bold" flexShrink={0} ml={2}>
+              {percentage}%{' '}
+              <Text as="span" fontSize="2xs" fontWeight="normal">
+                ({count})
+              </Text>
+            </Text>
+          </Flex>
+          <Box w="100%" h="6px" bg="#EDF2F7" borderRadius="full" overflow="hidden">
+            <Box h="100%" w={`${percentage}%`} bg={rank === 0 ? '#38A169' : '#319795'} transition="width 1.2s cubic-bezier(0.34, 1.56, 0.64, 1)" />
+          </Box>
         </Box>
-      </Box>
+      </Flex>
     )
   }
 
@@ -265,6 +417,12 @@ export default function Dashboard() {
               <Heading color="white" size={{base: 'xl', md: '2xl'}}>
                 <AnimatedNumber value={stats.totalUsers} decimals={0} />
               </Heading>
+              <Flex align="center" gap={2} mt={3}>
+                <TrendBadge percent={usersMoMPercent} variant="good-up" />
+                <Text fontSize="2xs" color="rgba(255,255,255,0.6)">
+                  vs last month
+                </Text>
+              </Flex>
             </Box>
             <Box
               p={{base: 5, md: 8}}
@@ -285,6 +443,12 @@ export default function Dashboard() {
                   kg
                 </Text>
               </Heading>
+              <Flex align="center" gap={2} mt={3}>
+                <TrendBadge percent={co2MoMPercent} variant="neutral" />
+                <Text fontSize="2xs" color="#A0AEC0">
+                  vs last month
+                </Text>
+              </Flex>
             </Box>
             <Box
               p={{base: 5, md: 8}}
@@ -306,6 +470,20 @@ export default function Dashboard() {
                   kg
                 </Text>
               </Heading>
+              <Flex align="center" gap={2} mt={3}>
+                {paceVsTargetPercent !== null ? (
+                  <>
+                    <TrendBadge percent={paceVsTargetPercent} variant="good-down" />
+                    <Text fontSize="2xs" color="#A0AEC0">
+                      current pace vs target
+                    </Text>
+                  </>
+                ) : (
+                  <Text fontSize="2xs" color="#A0AEC0">
+                    Not enough data yet
+                  </Text>
+                )}
+              </Flex>
             </Box>
           </Grid>
 
@@ -315,63 +493,79 @@ export default function Dashboard() {
               Platform Trends
             </Text>
             <Grid templateColumns={{base: '1fr', lg: 'repeat(2, 1fr)'}} gap={{base: 6, md: 8}}>
-              {/* Cumulative Users LineChart */}
+              {/* Cumulative Users AreaChart (upgraded from a plain line) */}
               <Box
                 p={{base: 4, md: 6}}
                 bg="rgba(255, 255, 255, 0.9)"
                 backdropFilter="blur(10px)"
                 border="1px solid rgba(72, 187, 120, 0.2)"
                 borderRadius="2xl"
-                h={{base: '280px', md: '350px'}}
+                h={{base: '300px', md: '370px'}}
                 boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)"
               >
-                <Heading size="sm" color="#1C4532" mb={4}>
-                  Cumulative Users (Monthly)
-                </Heading>
-                <ResponsiveContainer width="100%" height="80%">
-                  <LineChart data={stats.monthlyUsers} margin={{top: 10, right: 10, left: -20, bottom: 0}}>
+                <Flex justify="space-between" align="flex-start" mb={4}>
+                  <Box>
+                    <Heading size="sm" color="#1C4532">
+                      Cumulative Users (Monthly)
+                    </Heading>
+                    <Text fontSize="2xs" color="#A0AEC0" mt={1}>
+                      Total signed-up users over time
+                    </Text>
+                  </Box>
+                  <TrendBadge percent={usersMoMPercent} variant="good-up" size="md" />
+                </Flex>
+                <ResponsiveContainer width="100%" height="82%">
+                  <AreaChart data={enrichedUsers} margin={{top: 10, right: 10, left: -20, bottom: 0}}>
+                    <defs>
+                      <linearGradient id="colorUsersGlobal" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#319795" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="#319795" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(72, 187, 120, 0.15)" />
                     <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#4A5568', fontSize: 11}} dy={10} />
                     <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{fill: '#4A5568', fontSize: 11}} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: '#1C4532',
-                        color: 'white',
-                        borderRadius: '12px',
-                        border: 'none',
-                        boxShadow: '0 10px 25px rgba(28, 69, 50, 0.2)'
-                      }}
-                    />
-                    <Line
+                    <Tooltip content={<UsersTooltip />} cursor={{stroke: '#319795', strokeWidth: 1, strokeDasharray: '4 4'}} />
+                    <Area
                       isAnimationActive={true}
                       animationDuration={1200}
                       animationEasing="ease-out"
                       type="monotone"
                       dataKey="users"
                       stroke="#319795"
-                      strokeWidth={4}
-                      dot={{r: 4, fill: '#319795'}}
+                      strokeWidth={3}
+                      fillOpacity={1}
+                      fill="url(#colorUsersGlobal)"
+                      dot={{r: 3, fill: '#319795', strokeWidth: 0}}
                       activeDot={{r: 6, fill: '#319795', stroke: 'white', strokeWidth: 2}}
                     />
-                  </LineChart>
+                  </AreaChart>
                 </ResponsiveContainer>
               </Box>
 
-              {/* Carbon Tracked AreaChart */}
+              {/* Carbon Tracked AreaChart, now with an average reference line */}
               <Box
                 p={{base: 4, md: 6}}
                 bg="rgba(255, 255, 255, 0.9)"
                 backdropFilter="blur(10px)"
                 border="1px solid rgba(72, 187, 120, 0.2)"
                 borderRadius="2xl"
-                h={{base: '280px', md: '350px'}}
+                h={{base: '300px', md: '370px'}}
                 boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)"
               >
-                <Heading size="sm" color="#1C4532" mb={4}>
-                  Carbon Tracked per Month (kg)
-                </Heading>
-                <ResponsiveContainer width="100%" height="80%">
-                  <AreaChart data={stats.monthlyEmissions} margin={{top: 10, right: 10, left: -20, bottom: 0}}>
+                <Flex justify="space-between" align="flex-start" mb={4}>
+                  <Box>
+                    <Heading size="sm" color="#1C4532">
+                      Carbon Tracked per Month (kg)
+                    </Heading>
+                    <Text fontSize="2xs" color="#A0AEC0" mt={1}>
+                      Dashed line marks the {enrichedEmissions.length}-month average
+                    </Text>
+                  </Box>
+                  <TrendBadge percent={co2MoMPercent} variant="neutral" size="md" />
+                </Flex>
+                <ResponsiveContainer width="100%" height="82%">
+                  <AreaChart data={enrichedEmissions} margin={{top: 10, right: 10, left: -20, bottom: 0}}>
                     <defs>
                       <linearGradient id="colorCO2Global" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#38A169" stopOpacity={0.3} />
@@ -381,15 +575,10 @@ export default function Dashboard() {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(72, 187, 120, 0.15)" />
                     <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#4A5568', fontSize: 11}} dy={10} />
                     <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{fill: '#4A5568', fontSize: 11}} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: '#1C4532',
-                        color: 'white',
-                        borderRadius: '12px',
-                        border: 'none',
-                        boxShadow: '0 10px 25px rgba(28, 69, 50, 0.2)'
-                      }}
-                    />
+                    <Tooltip content={<CarbonTooltip />} cursor={{stroke: '#38A169', strokeWidth: 1, strokeDasharray: '4 4'}} />
+                    {avgEmissionsValue > 0 && (
+                      <ReferenceLine y={avgEmissionsValue} stroke="#D69E2E" strokeDasharray="5 5" strokeWidth={1.5} label={{value: 'Avg', position: 'insideTopRight', fill: '#D69E2E', fontSize: 10, fontWeight: 'bold'}} />
+                    )}
                     <Area
                       isAnimationActive={true}
                       animationDuration={1200}
@@ -400,13 +589,14 @@ export default function Dashboard() {
                       strokeWidth={3}
                       fillOpacity={1}
                       fill="url(#colorCO2Global)"
+                      dot={{r: 3, fill: '#38A169', strokeWidth: 0}}
                       activeDot={{r: 6, fill: '#38A169', stroke: 'white', strokeWidth: 2}}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
               </Box>
 
-              {/* Emissions by Category PieChart */}
+              {/* Emissions by Category — now a donut with a live, hoverable legend */}
               <Box
                 gridColumn={{base: '1 / -1', lg: '1 / -1'}}
                 p={{base: 4, md: 6}}
@@ -414,45 +604,100 @@ export default function Dashboard() {
                 backdropFilter="blur(10px)"
                 border="1px solid rgba(72, 187, 120, 0.2)"
                 borderRadius="2xl"
-                h={{base: '320px', md: '400px'}}
                 boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)"
               >
-                <Heading size="sm" color="#1C4532" mb={2}>
+                <Heading size="sm" color="#1C4532" mb={4}>
                   Emissions by Category
                 </Heading>
                 {stats.categoryData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="90%">
-                    <PieChart>
-                      <Pie
-                        isAnimationActive={true}
-                        animationDuration={1000}
-                        animationEasing="ease-out"
-                        data={stats.categoryData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={innerRadius}
-                        outerRadius={outerRadius}
-                        paddingAngle={5}
-                        dataKey="value"
-                        label={isMobile ? false : ({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      >
-                        {stats.categoryData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: '#1C4532',
-                          color: 'white',
-                          borderRadius: '12px',
-                          border: 'none',
-                          boxShadow: '0 10px 25px rgba(28, 69, 50, 0.2)'
-                        }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  <Grid templateColumns={{base: '1fr', md: '1.1fr 1fr'}} gap={{base: 4, md: 8}} alignItems="center">
+                    <Box position="relative" h={{base: '260px', md: '320px'}}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            isAnimationActive={true}
+                            animationDuration={1000}
+                            animationEasing="ease-out"
+                            data={stats.categoryData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={innerRadius}
+                            outerRadius={outerRadius}
+                            paddingAngle={4}
+                            dataKey="value"
+                            onMouseEnter={(_, index) => setActiveCategory(index)}
+                            onMouseLeave={() => setActiveCategory(null)}
+                          >
+                            {stats.categoryData.map((entry, index) => (
+                              <Cell
+                                key={`cell-${index}`}
+                                fill={COLORS[index % COLORS.length]}
+                                stroke="white"
+                                strokeWidth={2}
+                                opacity={activeCategory === null || activeCategory === index ? 1 : 0.3}
+                                style={{transition: 'opacity 0.2s ease'}}
+                              />
+                            ))}
+                          </Pie>
+                          <Tooltip content={<CategoryTooltip total={categoryTotal} />} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      {/* Center readout for the donut */}
+                      <Center position="absolute" top="50%" left="50%" transform="translate(-50%, -50%)" flexDirection="column" pointerEvents="none">
+                        <Text fontSize="2xs" color="#A0AEC0" fontWeight="bold" textTransform="uppercase" letterSpacing="wide">
+                          {activeCategory !== null ? stats.categoryData[activeCategory]?.name : 'Total'}
+                        </Text>
+                        <Text fontSize={{base: 'xl', md: '2xl'}} fontWeight="black" color="#1C4532">
+                          {activeCategory !== null ? `${categoryTotal > 0 ? ((stats.categoryData[activeCategory].value / categoryTotal) * 100).toFixed(0) : 0}%` : categoryTotal.toLocaleString()}
+                        </Text>
+                        {activeCategory === null && (
+                          <Text fontSize="2xs" color="#A0AEC0">
+                            kg CO₂
+                          </Text>
+                        )}
+                      </Center>
+                    </Box>
+
+                    {/* Live legend — hover a row to highlight its slice */}
+                    <VStack align="stretch" spacing={3}>
+                      {stats.categoryData
+                        .slice()
+                        .map((entry, index) => ({entry, index}))
+                        .sort((a, b) => b.entry.value - a.entry.value)
+                        .map(({entry, index}) => {
+                          const pct = categoryTotal > 0 ? (entry.value / categoryTotal) * 100 : 0
+                          const isActive = activeCategory === index
+                          return (
+                            <Flex
+                              key={entry.name}
+                              align="center"
+                              gap={3}
+                              p={2}
+                              borderRadius="lg"
+                              cursor="pointer"
+                              bg={isActive ? 'rgba(72, 187, 120, 0.08)' : 'transparent'}
+                              transition="background 0.2s ease"
+                              onMouseEnter={() => setActiveCategory(index)}
+                              onMouseLeave={() => setActiveCategory(null)}
+                            >
+                              <Box flexShrink={0} w="10px" h="10px" borderRadius="full" bg={COLORS[index % COLORS.length]} />
+                              <Text fontSize="sm" fontWeight="bold" color="#2D3748" flex={1} noOfLines={1}>
+                                {entry.name}
+                              </Text>
+                              <Text fontSize="xs" color="#718096" fontWeight="bold">
+                                {entry.value.toLocaleString()} kg
+                              </Text>
+                              <Text fontSize="xs" color="#1C4532" fontWeight="black" w="42px" textAlign="right">
+                                {pct.toFixed(0)}%
+                              </Text>
+                            </Flex>
+                          )
+                        })}
+                    </VStack>
+                  </Grid>
                 ) : (
-                  <Center h="80%">
+                  <Center h="240px" flexDirection="column" gap={2}>
+                    <Text fontSize="2xl">🌱</Text>
                     <Text color="#4A5568" fontStyle="italic">
                       No activities logged yet.
                     </Text>
@@ -472,12 +717,17 @@ export default function Dashboard() {
           {/* Demographic Data Progress Listings */}
           <Grid templateColumns={{base: '1fr', lg: 'repeat(3, 1fr)'}} gap={{base: 6, md: 8}} animation={`${slideUp} 0.5s ease-out 0.3s both`}>
             <Box p={{base: 5, md: 8}} bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" border="1px solid rgba(72, 187, 120, 0.2)" borderRadius="2xl" boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)">
-              <Heading size="sm" color="#1C4532" mb={6}>
-                Diet Profiles
-              </Heading>
+              <Flex justify="space-between" align="baseline" mb={6}>
+                <Heading size="sm" color="#1C4532">
+                  Diet Profiles
+                </Heading>
+                <Text fontSize="2xs" color="#A0AEC0">
+                  Top 5 of {Object.keys(stats.diets).length || 0}
+                </Text>
+              </Flex>
               <VStack align="stretch" spacing={5}>
                 {Object.keys(stats.diets).length > 0 ? (
-                  getTop5(stats.diets).map(([d, c]) => renderCountBar(d, c, stats.totalUsers))
+                  getTop5(stats.diets).map(([d, c], i) => renderCountBar(d, c, stats.totalUsers, i))
                 ) : (
                   <Text color="#4A5568" fontSize="sm">
                     No data yet.
@@ -487,12 +737,17 @@ export default function Dashboard() {
             </Box>
 
             <Box p={{base: 5, md: 8}} bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" border="1px solid rgba(72, 187, 120, 0.2)" borderRadius="2xl" boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)">
-              <Heading size="sm" color="#1C4532" mb={6}>
-                Primary Commute
-              </Heading>
+              <Flex justify="space-between" align="baseline" mb={6}>
+                <Heading size="sm" color="#1C4532">
+                  Primary Commute
+                </Heading>
+                <Text fontSize="2xs" color="#A0AEC0">
+                  Top 5 of {Object.keys(stats.commutes).length || 0}
+                </Text>
+              </Flex>
               <VStack align="stretch" spacing={5}>
                 {Object.keys(stats.commutes).length > 0 ? (
-                  getTop5(stats.commutes).map(([c, count]) => renderCountBar(c, count, stats.totalUsers))
+                  getTop5(stats.commutes).map(([c, count], i) => renderCountBar(c, count, stats.totalUsers, i))
                 ) : (
                   <Text color="#4A5568" fontSize="sm">
                     No data yet.
@@ -502,12 +757,17 @@ export default function Dashboard() {
             </Box>
 
             <Box p={{base: 5, md: 8}} bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" border="1px solid rgba(72, 187, 120, 0.2)" borderRadius="2xl" boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)">
-              <Heading size="sm" color="#1C4532" mb={6}>
-                Top Locations
-              </Heading>
+              <Flex justify="space-between" align="baseline" mb={6}>
+                <Heading size="sm" color="#1C4532">
+                  Top Locations
+                </Heading>
+                <Text fontSize="2xs" color="#A0AEC0">
+                  Top 5 of {Object.keys(stats.locations).length || 0}
+                </Text>
+              </Flex>
               <VStack align="stretch" spacing={5}>
                 {Object.keys(stats.locations).length > 0 ? (
-                  getTop5(stats.locations).map(([l, c]) => renderCountBar(l, c, stats.totalUsers))
+                  getTop5(stats.locations).map(([l, c], i) => renderCountBar(l, c, stats.totalUsers, i))
                 ) : (
                   <Text color="#4A5568" fontSize="sm">
                     No data yet.
