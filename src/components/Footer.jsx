@@ -22,8 +22,7 @@ export default function Footer() {
             About Carbonsense
           </Heading>
           <Text color="#4A5568" fontSize="md" lineHeight="tall" textAlign={{base: 'center', md: 'left'}}>
-            Carbonsense helps users track their carbon footprint based on their daily lifestyle. Check out our live community statistics
-            above to see the collective impact we are making, and join us to start tracking your own.
+            Carbonsense helps users track their carbon footprint based on their daily lifestyle. Check out our live community statistics above to see the collective impact we are making, and join us to start tracking your own.
           </Text>
         </VStack>
 
@@ -78,6 +77,9 @@ export default function Footer() {
           <Text>© {new Date().getFullYear()} Carbonsense. All rights reserved.</Text>
 
           <HStack spacing={8} mt={{base: 4, md: 0}}>
+            <ChakraLink as={Link} to="/faq" _hover={{color: '#1C4532', transform: 'translateY(-1px)'}} transition="all 0.2s">
+              FAQ
+            </ChakraLink>
             <ChakraLink href="/privacy" _hover={{color: '#1C4532', transform: 'translateY(-1px)'}} transition="all 0.2s">
               Privacy Policy
             </ChakraLink>

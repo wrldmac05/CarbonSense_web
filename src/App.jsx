@@ -15,6 +15,7 @@ import GetApp from './pages/GetApp'
 import UpdatePassword from './pages/UpdatePassword'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import TermsOfService from './pages/TermsOfService'
+import FAQ from './pages/FAQ'
 import AdminDashboard from './pages/AdminDashboard'
 import AdminRegister from './pages/AdminRegister'
 import AdminRoute from './components/AdminRoute'
@@ -221,6 +222,7 @@ export default function App() {
           <Route path="/get-app" element={isAdmin ? <Navigate to="/admin" replace /> : <GetApp />} />
           <Route path="/privacy" element={isAdmin ? <Navigate to="/admin" replace /> : <PrivacyPolicy />} />
           <Route path="/terms" element={isAdmin ? <Navigate to="/admin" replace /> : <TermsOfService />} />
+          <Route path="/FAQ" element={isAdmin ? <Navigate to="/admin" replace /> : <FAQ />} />
 
           <Route
             path="/admin"
