@@ -5,7 +5,6 @@ import {useNavigate} from 'react-router-dom'
 import {supabase} from '../supabase'
 import {keyframes} from '@emotion/react'
 
-// Ambient & Entry Animation Definitions
 const fadeIn = keyframes`
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
@@ -29,9 +28,11 @@ export default function UpdatePassword() {
 
   const navigate = useNavigate()
 
-  // Component-Level Guard: Verify active session on direct mount
   useEffect(() => {
     let isMounted = true
+
+    // Ensure recovery flag is pinned in storage for this origin
+    localStorage.setItem('sb_recovery_mode', 'true')
 
     const verifySession = async () => {
       const {
@@ -41,6 +42,7 @@ export default function UpdatePassword() {
       if (!isMounted) return
 
       if (!session) {
+        localStorage.removeItem('sb_recovery_mode')
         navigate('/login', {replace: true})
       }
     }
@@ -52,7 +54,6 @@ export default function UpdatePassword() {
     }
   }, [navigate])
 
-  // Real-time Password Validation Checks
   const hasMinLen = newPassword.length >= 6
   const hasUpper = /[A-Z]/.test(newPassword)
   const hasLower = /[a-z]/.test(newPassword)
@@ -91,17 +92,25 @@ export default function UpdatePassword() {
       const {error} = await supabase.auth.updateUser({password: newPassword})
       if (error) throw error
 
+      // 🧹 Remove the recovery barrier and kill the temporary session
+      localStorage.removeItem('sb_recovery_mode')
       await supabase.auth.signOut()
 
       setSuccessMsg('Password updated successfully. Redirecting to login...')
 
       setTimeout(() => {
-        navigate('/login')
-      }, 3000)
+        navigate('/login', {replace: true})
+      }, 2000)
     } catch (error) {
       setErrorMsg(error.message)
       setLoading(false)
     }
+  }
+
+  const handleCancel = async () => {
+    localStorage.removeItem('sb_recovery_mode')
+    await supabase.auth.signOut()
+    navigate('/login', {replace: true})
   }
 
   return (
@@ -166,7 +175,6 @@ export default function UpdatePassword() {
           </Text>
         </VStack>
 
-        {/* Text-Only Alert Messages */}
         {errorMsg && (
           <Text color="#E53E3E" fontSize="xs" fontWeight="medium" textAlign="center" mb={4} animation={`${fadeIn} 0.3s ease-out both`}>
             {errorMsg}
@@ -308,6 +316,10 @@ export default function UpdatePassword() {
               ) : (
                 'Save New Password'
               )}
+            </Button>
+
+            <Button variant="ghost" size="sm" color="gray.500" _hover={{color: 'gray.700', bg: 'gray.100'}} onClick={handleCancel} isDisabled={loading}>
+              Cancel & Return to Login
             </Button>
           </VStack>
         </form>

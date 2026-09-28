@@ -27,8 +27,7 @@ export default function App() {
   const [userRole, setUserRole] = useState(null)
   const [isAuthLoading, setIsAuthLoading] = useState(true)
 
-  // Custom Ban/Restriction Modal State
-  const [banNotice, setBanNotice] = useState(null) // { title, message }
+  const [banNotice, setBanNotice] = useState(null)
 
   const location = useLocation()
   const navigate = useNavigate()
@@ -40,8 +39,15 @@ export default function App() {
     let isMounted = true
     let profileSubscription = null
 
-    // Helper to purge session and redirect safely with notice modal
+    // 🔒 Flag recovery mode if arriving from an email reset link
+    const isRecoveryUrl = window.location.hash.includes('type=recovery') || window.location.search.includes('type=recovery') || window.location.pathname === '/update-password'
+
+    if (isRecoveryUrl) {
+      localStorage.setItem('sb_recovery_mode', 'true')
+    }
+
     const handleRestrictionKick = async (title, message) => {
+      localStorage.removeItem('sb_recovery_mode')
       await supabase.auth.signOut()
       if (isMounted) {
         setIsLoggedIn(false)
@@ -51,7 +57,6 @@ export default function App() {
       }
     }
 
-    // 🟢 ENHANCED ACCESS CHECK: Checks if account is archived OR banned
     const checkAccountStatus = async userId => {
       try {
         const {data, error} = await supabase.from('user_profiles').select('role, is_archived, is_banned').eq('user_id', userId).maybeSingle()
@@ -61,18 +66,15 @@ export default function App() {
           return {isRestricted: true, role: null}
         }
 
-        if (!data) {
-          return {isRestricted: false, role: 'user'}
-        }
+        if (!data) return {isRestricted: false, role: 'user'}
 
-        // ⛔ BANNED ACCOUNT BOOT (Displays suspension modal)
         if (data.is_banned) {
-          await handleRestrictionKick('Account Suspended', 'Your account has been suspended due to violations of platform terms and conditions. If you believe this is an error, please contact support.')
+          await handleRestrictionKick('Account Suspended', 'Your account has been suspended due to violations of platform terms and conditions.')
           return {isRestricted: true, role: null}
         }
 
-        // ⛔ ARCHIVED ACCOUNT CHECK (Silently rejects session; message handled by login UI)
         if (data.is_archived) {
+          localStorage.removeItem('sb_recovery_mode')
           await supabase.auth.signOut()
           if (isMounted) {
             setIsLoggedIn(false)
@@ -88,7 +90,6 @@ export default function App() {
       }
     }
 
-    // ⚡ REALTIME LISTENER: Listens for live ban actions
     const ensureProfileSubscription = userId => {
       if (profileSubscription) return
       profileSubscription = supabase
@@ -110,9 +111,20 @@ export default function App() {
         .subscribe()
     }
 
-    // Single source of truth for session and auth state
     const applyAuthResult = async session => {
       if (!session?.user) {
+        if (isMounted) {
+          setIsLoggedIn(false)
+          setUserRole(null)
+        }
+        return
+      }
+
+      // 🛑 SECURITY QUARANTINE:
+      // If recovery mode is active, do NOT log this session in globally.
+      // This prevents any new tab from having access to the app.
+      const isRecoveryActive = localStorage.getItem('sb_recovery_mode') === 'true'
+      if (isRecoveryActive) {
         if (isMounted) {
           setIsLoggedIn(false)
           setUserRole(null)
@@ -133,7 +145,6 @@ export default function App() {
       }
     }
 
-    // 1. Reliable Boot Routine
     const bootApp = async () => {
       const hasAuthParams = window.location.search.includes('code=') || window.location.hash.includes('access_token=') || window.location.hash.includes('type=recovery')
 
@@ -149,15 +160,25 @@ export default function App() {
 
     bootApp()
 
-    // 2. Realtime Auth State Listener
     const {
       data: {subscription}
     } = supabase.auth.onAuthStateChange((event, session) => {
-      if (['SIGNED_IN', 'TOKEN_REFRESHED', 'INITIAL_SESSION', 'PASSWORD_RECOVERY'].includes(event)) {
+      if (event === 'PASSWORD_RECOVERY') {
+        localStorage.setItem('sb_recovery_mode', 'true')
+        if (isMounted) {
+          setIsLoggedIn(false)
+          setUserRole(null)
+          setIsAuthLoading(false)
+        }
+        return
+      }
+
+      if (['SIGNED_IN', 'TOKEN_REFRESHED', 'INITIAL_SESSION'].includes(event)) {
         applyAuthResult(session).then(() => {
           if (isMounted) setIsAuthLoading(false)
         })
       } else if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+        localStorage.removeItem('sb_recovery_mode')
         if (isMounted) {
           setIsLoggedIn(false)
           setUserRole(null)
@@ -166,7 +187,6 @@ export default function App() {
       }
     })
 
-    // 3. Tab Visibility Reload Check
     let sleepTimer
     const handleVisibilityChange = () => {
       if (document.hidden) {
@@ -186,9 +206,8 @@ export default function App() {
       if (profileSubscription) supabase.removeChannel(profileSubscription)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [])
+  }, [navigate])
 
-  // 🛡️ GLOBAL SESSION LOADING SHIELD
   if (isAuthLoading) {
     return (
       <Center minH="100vh" bg="#F4FAF6">
@@ -202,7 +221,6 @@ export default function App() {
     )
   }
 
-  // 🛡️ GATEKEEPER LOGIC
   const isAdmin = isLoggedIn && userRole === 'admin'
   const showPublicLayout = !isMinimalRoute && !isAdmin
 
@@ -218,7 +236,9 @@ export default function App() {
           {/* Protected Login Route */}
           <Route path="/login" element={isLoggedIn ? isAdmin ? <Navigate to="/admin" replace /> : <Navigate to="/tracker" replace /> : <Login />} />
 
-          <Route path="/tracker" element={isAdmin ? <Navigate to="/admin" replace /> : <PersonalTracker />} />
+          {/* Protected Tracker Route */}
+          <Route path="/tracker" element={isLoggedIn ? isAdmin ? <Navigate to="/admin" replace /> : <PersonalTracker /> : <Navigate to="/login" replace />} />
+
           <Route path="/get-app" element={isAdmin ? <Navigate to="/admin" replace /> : <GetApp />} />
           <Route path="/privacy" element={isAdmin ? <Navigate to="/admin" replace /> : <PrivacyPolicy />} />
           <Route path="/terms" element={isAdmin ? <Navigate to="/admin" replace /> : <TermsOfService />} />
@@ -238,29 +258,25 @@ export default function App() {
           {/* Protected Consumer Route */}
           <Route path="/profile" element={isLoggedIn ? isAdmin ? <Navigate to="/admin" replace /> : <Profile /> : <Navigate to="/login" replace />} />
 
-          {/* 🟢 Protected Password Reset Route */}
-          <Route path="/update-password" element={isLoggedIn ? <UpdatePassword /> : <Navigate to="/login" replace />} />
+          {/* 🟢 Standalone Password Reset Route */}
+          <Route path="/update-password" element={<UpdatePassword />} />
         </Routes>
       </Box>
 
       {showPublicLayout && <Footer />}
 
-      {/* 🚫 CUSTOM BAN & RESTRICTION NOTIFICATION MODAL */}
       {banNotice && (
         <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.7)" backdropFilter="blur(8px)" zIndex={99999} align="center" justify="center" px={4} onClick={() => setBanNotice(null)}>
           <Box bg="white" p={8} borderRadius="3xl" maxW="420px" w="100%" boxShadow="0 25px 50px -12px rgba(229, 62, 62, 0.3)" onClick={e => e.stopPropagation()} textAlign="center">
             <Flex w="16" h="16" bg="#FFF5F5" border="4px solid white" outline="1px solid #FED7D7" borderRadius="full" align="center" justify="center" mx="auto" mb={5} boxShadow="lg">
               <Text fontSize="2xl">🚫</Text>
             </Flex>
-
             <Heading size="md" color="#1A202C" mb={3} letterSpacing="tight">
               {banNotice.title}
             </Heading>
-
             <Text color="#718096" fontSize="sm" mb={6} lineHeight="tall">
               {banNotice.message}
             </Text>
-
             <Button w="100%" size="lg" bg="#E53E3E" color="white" borderRadius="xl" _hover={{bg: '#C53030'}} onClick={() => setBanNotice(null)}>
               Acknowledge & Continue
             </Button>
