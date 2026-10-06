@@ -5,6 +5,7 @@ import {Flex, Box} from '@chakra-ui/react'
 import {Link, useNavigate} from 'react-router-dom'
 import {supabase} from '../supabase'
 import {keyframes} from '@emotion/react'
+import {useTheme} from '../App'
 
 // Custom Authentication Keyframes
 const cardPop = keyframes`
@@ -13,8 +14,8 @@ const cardPop = keyframes`
 `
 
 const fieldFadeIn = keyframes`
-  from { opacity: 0; transform: translateY(-8px); max-height: 0px; margin-bottom: 0px; }
-  to { opacity: 1; transform: translateY(0); max-height: 100px; margin-bottom: 16px; }
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
 `
 
 const alertSlide = keyframes`
@@ -23,15 +24,20 @@ const alertSlide = keyframes`
 `
 
 export default function Login() {
+  const {isDarkMode} = useTheme()
+
   const [isSignUp, setIsSignUp] = useState(false)
   const [isResetting, setIsResetting] = useState(false)
   const [isRegistrationSuccess, setIsRegistrationSuccess] = useState(false)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [fullName, setFullName] = useState('')
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
 
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
@@ -43,6 +49,7 @@ export default function Login() {
   const hasUpper = /[A-Z]/.test(password)
   const hasLower = /[a-z]/.test(password)
   const hasSpecialChar = /[^A-Za-z0-9]/.test(password)
+  const passwordsMatch = password.length > 0 && password === confirmPassword
   const isValidEmail = emailStr => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailStr)
 
   const handleAuth = async e => {
@@ -78,6 +85,15 @@ export default function Login() {
         if (!password) throw new Error('Please enter a password.')
         if (!hasMinLen || !hasUpper || !hasLower || !hasSpecialChar) {
           throw new Error('Please ensure your password meets all requirements.')
+        }
+        if (!confirmPassword) {
+          throw new Error('Please confirm your password.')
+        }
+        if (password !== confirmPassword) {
+          throw new Error('Passwords do not match.')
+        }
+        if (!agreedToTerms) {
+          throw new Error('You must agree to the Privacy Policy and Terms of Use to create an account.')
         }
 
         const {error} = await supabase.auth.signUp({
@@ -134,44 +150,48 @@ export default function Login() {
 
   if (isRegistrationSuccess) {
     return (
-      <Box minH="100vh" w="100%" display="flex" alignItems="center" justifyContent="center" position="relative" overflow="hidden" bgGradient="linear(to-br, #E6FFFA, #C6F6D5, #81E6D9)" p={4}>
-        <Box position="absolute" top="-10%" left="-10%" w="500px" h="500px" bg="#38A169" opacity="0.15" filter="blur(80px)" borderRadius="full" />
-        <Box position="absolute" bottom="-20%" right="-10%" w="600px" h="600px" bg="#319795" opacity="0.15" filter="blur(100px)" borderRadius="full" />
+      <Box minH="100vh" w="100%" display="flex" alignItems="center" justifyContent="center" position="relative" overflow="hidden" bg={isDarkMode ? '#0B1120' : '#F4F9F5'} p={4} transition="background-color 0.3s ease">
+        <Box position="absolute" top="-10%" left="-10%" w="500px" h="500px" bg="#38A169" opacity={isDarkMode ? '0.2' : '0.15'} filter="blur(80px)" borderRadius="full" />
+        <Box position="absolute" bottom="-20%" right="-10%" w="600px" h="600px" bg="#319795" opacity={isDarkMode ? '0.2' : '0.15'} filter="blur(100px)" borderRadius="full" />
 
         <Box
           w="100%"
           maxW="450px"
-          bg="white"
+          bg={isDarkMode ? 'rgba(30, 41, 59, 0.95)' : 'white'}
           p={{base: 6, sm: 8, md: 10}}
           borderRadius="3xl"
-          boxShadow="0 25px 50px -12px rgba(49, 151, 149, 0.25)"
+          border={isDarkMode ? '1px solid #334155' : 'none'}
+          boxShadow={isDarkMode ? '0 25px 50px -12px rgba(0, 0, 0, 0.5)' : '0 25px 50px -12px rgba(49, 151, 149, 0.25)'}
           position="relative"
           zIndex={1}
           textAlign="center"
           animation={`${cardPop} 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both`}
         >
-          <Heading size="lg" color="#1A202C" letterSpacing="tight" mb={3} mt={2}>
+          <Heading size="lg" color={isDarkMode ? '#F8FAFC' : '#1A202C'} letterSpacing="tight" mb={3} mt={2}>
             Check your inbox
           </Heading>
-          <Text color="#718096" fontSize={{base: 'sm', md: 'md'}} mb={8} lineHeight="tall">
+          <Text color={isDarkMode ? '#94A3B8' : '#718096'} fontSize={{base: 'sm', md: 'md'}} mb={8} lineHeight="tall">
             We sent a verification link to <b>{email}</b>. Please click the link in that email to activate your account.
           </Text>
           <Button
+            type="button"
             w="100%"
-            bg="#1A202C"
+            bg={isDarkMode ? '#38A169' : '#1A202C'}
             color="white"
             borderRadius="xl"
             py={6}
             fontWeight="bold"
             transition="all 0.2s"
-            _hover={{bg: '#2D3748', transform: 'translateY(-2px)'}}
+            _hover={{bg: isDarkMode ? '#2F855A' : '#2D3748', transform: 'translateY(-2px)'}}
             _active={{transform: 'translateY(0)'}}
             onClick={() => {
               setIsRegistrationSuccess(false)
               setIsSignUp(false)
               setEmail('')
               setPassword('')
+              setConfirmPassword('')
               setFullName('')
+              setAgreedToTerms(false)
             }}
           >
             Return to Login
@@ -190,44 +210,76 @@ export default function Login() {
       justifyContent="center"
       position="relative"
       overflow="hidden"
-      bg="#F4F9F5"
+      bg={isDarkMode ? '#0B1120' : '#F4F9F5'}
       backgroundImage="url('https://www.transparenttextures.com/patterns/cubes.png')"
-      backgroundBlendMode="multiply"
+      backgroundBlendMode={isDarkMode ? 'soft-light' : 'multiply'}
       py={{base: 10, md: 16}}
       px={4}
+      transition="background-color 0.3s ease"
     >
-      <Box position="absolute" top="-10%" left="-10%" w={{base: '350px', md: '700px'}} h={{base: '350px', md: '700px'}} bgGradient="radial(#48BB78 0%, transparent 65%)" opacity="0.18" borderRadius="full" pointerEvents="none" />
-      <Box position="absolute" bottom="-20%" right="-10%" w={{base: '350px', md: '700px'}} h={{base: '350px', md: '700px'}} bgGradient="radial(#319795 0%, transparent 65%)" opacity="0.15" borderRadius="full" pointerEvents="none" />
+      <Box
+        position="absolute"
+        top="-10%"
+        left="-10%"
+        w={{base: '350px', md: '700px'}}
+        h={{base: '350px', md: '700px'}}
+        bgGradient={isDarkMode ? 'radial(rgba(72, 187, 120, 0.25) 0%, transparent 65%)' : 'radial(#48BB78 0%, transparent 65%)'}
+        opacity={isDarkMode ? '0.22' : '0.18'}
+        borderRadius="full"
+        pointerEvents="none"
+      />
+      <Box
+        position="absolute"
+        bottom="-20%"
+        right="-10%"
+        w={{base: '350px', md: '700px'}}
+        h={{base: '350px', md: '700px'}}
+        bgGradient={isDarkMode ? 'radial(rgba(49, 151, 149, 0.25) 0%, transparent 65%)' : 'radial(#319795 0%, transparent 65%)'}
+        opacity={isDarkMode ? '0.2' : '0.15'}
+        borderRadius="full"
+        pointerEvents="none"
+      />
 
       {/* Back Link */}
       <Box position="absolute" top={{base: 4, md: 8}} left={{base: 4, md: 10}} zIndex={10}>
         <Flex align="center" gap={2} as={Link} to="/" transition="all 0.2s" _hover={{opacity: 0.7, transform: 'translateX(-4px)'}}>
-          <Text fontSize="lg" color="#1C4532">
+          <Text fontSize="lg" color={isDarkMode ? '#9AE6B4' : '#1C4532'}>
             ←
           </Text>
-          <Text fontWeight="bold" color="#1C4532" fontSize="xs">
+          <Text fontWeight="bold" color={isDarkMode ? '#9AE6B4' : '#1C4532'} fontSize="xs">
             Back to Home
           </Text>
         </Flex>
       </Box>
 
-      {/* Login Card */}
+      {/* Auth Card */}
       <Box
         w="100%"
         maxW="450px"
-        bg="rgba(255, 255, 255, 0.9)"
+        bg={isDarkMode ? 'rgba(30, 41, 59, 0.9)' : 'rgba(255, 255, 255, 0.9)'}
         backdropFilter="blur(16px)"
         p={{base: 6, sm: 8, md: 10}}
         mt={{base: 8, md: 0}}
         borderRadius="3xl"
-        border="1px solid rgba(72, 187, 120, 0.25)"
-        boxShadow="0 25px 50px -12px rgba(28, 69, 50, 0.15)"
+        border={`1px solid ${isDarkMode ? 'rgba(51, 65, 85, 0.8)' : 'rgba(72, 187, 120, 0.25)'}`}
+        boxShadow={isDarkMode ? '0 25px 50px -12px rgba(0, 0, 0, 0.5)' : '0 25px 50px -12px rgba(28, 69, 50, 0.15)'}
         position="relative"
         zIndex={1}
         animation={`${cardPop} 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both`}
       >
         <VStack spacing={2} mb={{base: 6, md: 8}} align="center" textAlign="center">
-          <Flex w="48px" h="48px" bg="#F0FFF4" border="1px solid #C6F6D5" borderRadius="xl" align="center" justify="center" mb={1} transition="all 0.3s" _hover={{transform: 'rotate(10deg)'}}>
+          <Flex
+            w="48px"
+            h="48px"
+            bg={isDarkMode ? '#1E3A2F' : '#F0FFF4'}
+            border={`1px solid ${isDarkMode ? '#276749' : '#C6F6D5'}`}
+            borderRadius="xl"
+            align="center"
+            justify="center"
+            mb={1}
+            transition="all 0.3s"
+            _hover={{transform: 'rotate(10deg)'}}
+          >
             <img
               src="/Logo.png"
               alt="CarbonSense Logo"
@@ -239,23 +291,23 @@ export default function Login() {
               }}
             />
           </Flex>
-          <Heading size={{base: 'lg', sm: 'xl'}} color="#1C4532" letterSpacing="tight" fontWeight="black">
+          <Heading size={{base: 'lg', sm: 'xl'}} color={isDarkMode ? '#F8FAFC' : '#1C4532'} letterSpacing="tight" fontWeight="black">
             {isResetting ? 'Reset Password' : isSignUp ? 'Join CarbonSense' : 'Welcome Back'}
           </Heading>
-          <Text color="#4A5568" fontSize="xs" px={2}>
+          <Text color={isDarkMode ? '#94A3B8' : '#4A5568'} fontSize="xs" px={2}>
             {isResetting ? "Enter your email and we'll send you a recovery link." : isSignUp ? 'Start tracking your footprint and changing the world today.' : 'Log in to your dashboard to log your daily activities.'}
           </Text>
         </VStack>
 
         {/* Text-Only Alert Messages */}
         {errorMsg && (
-          <Text color="#E53E3E" fontSize="xs" fontWeight="medium" textAlign="center" mb={4} animation={`${alertSlide} 0.3s ease-out both`}>
+          <Text color="#FC8181" fontSize="xs" fontWeight="medium" textAlign="center" mb={4} animation={`${alertSlide} 0.3s ease-out both`}>
             {errorMsg}
           </Text>
         )}
 
         {successMsg && (
-          <Text color="#2F855A" fontSize="xs" fontWeight="medium" textAlign="center" mb={4} animation={`${alertSlide} 0.3s ease-out both`}>
+          <Text color={isDarkMode ? '#68D391' : '#2F855A'} fontSize="xs" fontWeight="medium" textAlign="center" mb={4} animation={`${alertSlide} 0.3s ease-out both`}>
             {successMsg}
           </Text>
         )}
@@ -263,8 +315,8 @@ export default function Login() {
         <form onSubmit={handleAuth} noValidate>
           <VStack spacing={4} align="stretch">
             {isSignUp && !isResetting && (
-              <Box animation={`${fieldFadeIn} 0.35s ease-out both`} overflow="hidden">
-                <Text fontSize="xs" fontWeight="bold" color="#1C4532" textTransform="uppercase" mb={2} ml={1}>
+              <Box animation={`${fieldFadeIn} 0.35s ease-out both`}>
+                <Text fontSize="xs" fontWeight="bold" color={isDarkMode ? '#9AE6B4' : '#1C4532'} textTransform="uppercase" mb={2} ml={1}>
                   Full Name
                 </Text>
                 <Input
@@ -282,14 +334,15 @@ export default function Login() {
                   maxLength={100}
                   spellCheck={false}
                   placeholder="Juan Dela Cruz"
-                  bg="#F4F9F5"
-                  border="1px solid rgba(72, 187, 120, 0.2)"
+                  bg={isDarkMode ? '#0F172A' : '#F4F9F5'}
+                  color={isDarkMode ? '#F8FAFC' : '#1A202C'}
+                  border={`1px solid ${isDarkMode ? '#334155' : 'rgba(72, 187, 120, 0.2)'}`}
                   _focus={{
-                    bg: 'white',
+                    bg: isDarkMode ? '#0F172A' : 'white',
                     borderColor: '#38A169',
                     boxShadow: '0 0 0 1px #38A169'
                   }}
-                  _hover={{bg: '#E6FFFA'}}
+                  _hover={{bg: isDarkMode ? '#1E293B' : '#E6FFFA'}}
                   py={5}
                   borderRadius="xl"
                   fontSize="sm"
@@ -300,7 +353,7 @@ export default function Login() {
             )}
 
             <Box>
-              <Text fontSize="xs" fontWeight="bold" color="#1C4532" textTransform="uppercase" mb={2} ml={1}>
+              <Text fontSize="xs" fontWeight="bold" color={isDarkMode ? '#9AE6B4' : '#1C4532'} textTransform="uppercase" mb={2} ml={1}>
                 Email Address
               </Text>
               <Input
@@ -308,10 +361,11 @@ export default function Login() {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                bg="#F4F9F5"
-                border="1px solid rgba(72, 187, 120, 0.2)"
-                _focus={{bg: 'white', borderColor: '#38A169', boxShadow: '0 0 0 1px #38A169'}}
-                _hover={{bg: '#E6FFFA'}}
+                bg={isDarkMode ? '#0F172A' : '#F4F9F5'}
+                color={isDarkMode ? '#F8FAFC' : '#1A202C'}
+                border={`1px solid ${isDarkMode ? '#334155' : 'rgba(72, 187, 120, 0.2)'}`}
+                _focus={{bg: isDarkMode ? '#0F172A' : 'white', borderColor: '#38A169', boxShadow: '0 0 0 1px #38A169'}}
+                _hover={{bg: isDarkMode ? '#1E293B' : '#E6FFFA'}}
                 py={5}
                 borderRadius="xl"
                 fontSize="sm"
@@ -323,18 +377,21 @@ export default function Login() {
             {!isResetting && (
               <Box>
                 <Flex justify="space-between" align="center" mb={2} px={1}>
-                  <Text fontSize="xs" fontWeight="bold" color="#1C4532" textTransform="uppercase">
+                  <Text fontSize="xs" fontWeight="bold" color={isDarkMode ? '#9AE6B4' : '#1C4532'} textTransform="uppercase">
                     Password
                   </Text>
                   {!isSignUp && (
                     <Text
                       as="span"
                       fontSize="xs"
-                      color={loading ? '#A0AEC0' : '#276749'}
+                      color={loading ? (isDarkMode ? '#64748B' : '#A0AEC0') : isDarkMode ? '#68D391' : '#276749'}
                       fontWeight="bold"
                       cursor={loading ? 'not-allowed' : 'pointer'}
                       transition="color 0.15s"
-                      _hover={{textDecoration: loading ? 'none' : 'underline', color: loading ? '#A0AEC0' : '#1C4532'}}
+                      _hover={{
+                        textDecoration: loading ? 'none' : 'underline',
+                        color: loading ? (isDarkMode ? '#64748B' : '#A0AEC0') : isDarkMode ? '#9AE6B4' : '#1C4532'
+                      }}
                       onClick={() => {
                         if (loading) return
                         setIsResetting(true)
@@ -353,10 +410,11 @@ export default function Login() {
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    bg="#F4F9F5"
-                    border="1px solid rgba(72, 187, 120, 0.2)"
-                    _focus={{bg: 'white', borderColor: '#38A169', boxShadow: '0 0 0 1px #38A169'}}
-                    _hover={{bg: '#E6FFFA'}}
+                    bg={isDarkMode ? '#0F172A' : '#F4F9F5'}
+                    color={isDarkMode ? '#F8FAFC' : '#1A202C'}
+                    border={`1px solid ${isDarkMode ? '#334155' : 'rgba(72, 187, 120, 0.2)'}`}
+                    _focus={{bg: isDarkMode ? '#0F172A' : 'white', borderColor: '#38A169', boxShadow: '0 0 0 1px #38A169'}}
+                    _hover={{bg: isDarkMode ? '#1E293B' : '#E6FFFA'}}
                     py={5}
                     pr="4.5rem"
                     borderRadius="xl"
@@ -365,6 +423,7 @@ export default function Login() {
                     isDisabled={loading}
                   />
                   <Button
+                    type="button"
                     position="absolute"
                     right="0.5rem"
                     top="50%"
@@ -373,9 +432,9 @@ export default function Login() {
                     size="xs"
                     onClick={() => setShowPassword(!showPassword)}
                     bg="transparent"
-                    color="#4A5568"
+                    color={isDarkMode ? '#94A3B8' : '#4A5568'}
                     fontWeight="bold"
-                    _hover={{bg: 'transparent', color: '#276749'}}
+                    _hover={{bg: 'transparent', color: isDarkMode ? '#68D391' : '#276749'}}
                     _active={{bg: 'transparent'}}
                     zIndex={2}
                     isDisabled={loading}
@@ -383,120 +442,247 @@ export default function Login() {
                     {showPassword ? 'Hide' : 'Show'}
                   </Button>
                 </Box>
-
-                {isSignUp && (
-                  <Box mt={3} px={1} animation={`${fieldFadeIn} 0.3s ease-out both`}>
-                    <Text fontSize="xs" fontWeight="bold" color="#4A5568" mb={2}>
-                      Password Requirements:
-                    </Text>
-                    <VStack align="start" spacing={1.5}>
-                      <Flex align="center" gap={2}>
-                        <Flex
-                          minW="14px"
-                          w="14px"
-                          h="14px"
-                          borderRadius="full"
-                          align="center"
-                          justify="center"
-                          bg={hasMinLen ? '#F0FFF4' : 'transparent'}
-                          border={hasMinLen ? '1px solid #9AE6B4' : '1.5px solid #CBD5E0'}
-                          color="#38A169"
-                          fontSize="9px"
-                          fontWeight="700"
-                          flexShrink={0}
-                        >
-                          {hasMinLen ? '✓' : null}
-                        </Flex>
-                        <Text fontSize="2xs" color={hasMinLen ? '#1C4532' : '#718096'} fontWeight={hasMinLen ? '600' : '400'}>
-                          At least 6 characters
-                        </Text>
-                      </Flex>
-
-                      <Flex align="center" gap={2}>
-                        <Flex
-                          minW="14px"
-                          w="14px"
-                          h="14px"
-                          borderRadius="full"
-                          align="center"
-                          justify="center"
-                          bg={hasUpper ? '#F0FFF4' : 'transparent'}
-                          border={hasUpper ? '1px solid #9AE6B4' : '1.5px solid #CBD5E0'}
-                          color="#38A169"
-                          fontSize="9px"
-                          fontWeight="700"
-                          flexShrink={0}
-                        >
-                          {hasUpper ? '✓' : null}
-                        </Flex>
-                        <Text fontSize="2xs" color={hasUpper ? '#1C4532' : '#718096'} fontWeight={hasUpper ? '600' : '400'}>
-                          One uppercase letter
-                        </Text>
-                      </Flex>
-
-                      <Flex align="center" gap={2}>
-                        <Flex
-                          minW="14px"
-                          w="14px"
-                          h="14px"
-                          borderRadius="full"
-                          align="center"
-                          justify="center"
-                          bg={hasLower ? '#F0FFF4' : 'transparent'}
-                          border={hasLower ? '1px solid #9AE6B4' : '1.5px solid #CBD5E0'}
-                          color="#38A169"
-                          fontSize="9px"
-                          fontWeight="700"
-                          flexShrink={0}
-                        >
-                          {hasLower ? '✓' : null}
-                        </Flex>
-                        <Text fontSize="2xs" color={hasLower ? '#1C4532' : '#718096'} fontWeight={hasLower ? '600' : '400'}>
-                          One lowercase letter
-                        </Text>
-                      </Flex>
-
-                      <Flex align="center" gap={2}>
-                        <Flex
-                          minW="14px"
-                          w="14px"
-                          h="14px"
-                          borderRadius="full"
-                          align="center"
-                          justify="center"
-                          bg={hasSpecialChar ? '#F0FFF4' : 'transparent'}
-                          border={hasSpecialChar ? '1px solid #9AE6B4' : '1.5px solid #CBD5E0'}
-                          color="#38A169"
-                          fontSize="9px"
-                          fontWeight="700"
-                          flexShrink={0}
-                        >
-                          {hasSpecialChar ? '✓' : null}
-                        </Flex>
-                        <Text fontSize="2xs" color={hasSpecialChar ? '#1C4532' : '#718096'} fontWeight={hasSpecialChar ? '600' : '400'}>
-                          One special character (!@#$%...)
-                        </Text>
-                      </Flex>
-                    </VStack>
-                  </Box>
-                )}
               </Box>
+            )}
+
+            {/* Confirm Password Field */}
+            {isSignUp && !isResetting && (
+              <Box animation={`${fieldFadeIn} 0.35s ease-out both`}>
+                <Text fontSize="xs" fontWeight="bold" color={isDarkMode ? '#9AE6B4' : '#1C4532'} textTransform="uppercase" mb={2} ml={1}>
+                  Confirm Password
+                </Text>
+                <Box position="relative">
+                  <Input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)}
+                    placeholder="••••••••"
+                    bg={isDarkMode ? '#0F172A' : '#F4F9F5'}
+                    color={isDarkMode ? '#F8FAFC' : '#1A202C'}
+                    border={`1px solid ${isDarkMode ? '#334155' : 'rgba(72, 187, 120, 0.2)'}`}
+                    _focus={{bg: isDarkMode ? '#0F172A' : 'white', borderColor: '#38A169', boxShadow: '0 0 0 1px #38A169'}}
+                    _hover={{bg: isDarkMode ? '#1E293B' : '#E6FFFA'}}
+                    py={5}
+                    pr="4.5rem"
+                    borderRadius="xl"
+                    fontSize="sm"
+                    transition="all 0.2s"
+                    isDisabled={loading}
+                  />
+                  <Button
+                    type="button"
+                    position="absolute"
+                    right="0.5rem"
+                    top="50%"
+                    transform="translateY(-50%)"
+                    h="1.75rem"
+                    size="xs"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    bg="transparent"
+                    color={isDarkMode ? '#94A3B8' : '#4A5568'}
+                    fontWeight="bold"
+                    _hover={{bg: 'transparent', color: isDarkMode ? '#68D391' : '#276749'}}
+                    _active={{bg: 'transparent'}}
+                    zIndex={2}
+                    isDisabled={loading}
+                  >
+                    {showConfirmPassword ? 'Hide' : 'Show'}
+                  </Button>
+                </Box>
+              </Box>
+            )}
+
+            {/* Password Validation Requirements */}
+            {isSignUp && !isResetting && (
+              <Box px={1} animation={`${fieldFadeIn} 0.3s ease-out both`}>
+                <Text fontSize="xs" fontWeight="bold" color={isDarkMode ? '#94A3B8' : '#4A5568'} mb={2}>
+                  Password Requirements:
+                </Text>
+                <VStack align="start" spacing={1.5}>
+                  <Flex align="center" gap={2}>
+                    <Flex
+                      minW="14px"
+                      w="14px"
+                      h="14px"
+                      borderRadius="full"
+                      align="center"
+                      justify="center"
+                      bg={hasMinLen ? (isDarkMode ? '#1E3A2F' : '#F0FFF4') : 'transparent'}
+                      border={hasMinLen ? `1px solid ${isDarkMode ? '#276749' : '#9AE6B4'}` : `1.5px solid ${isDarkMode ? '#475569' : '#CBD5E0'}`}
+                      color="#38A169"
+                      fontSize="9px"
+                      fontWeight="700"
+                      flexShrink={0}
+                    >
+                      {hasMinLen ? '✓' : null}
+                    </Flex>
+                    <Text fontSize="2xs" color={hasMinLen ? (isDarkMode ? '#9AE6B4' : '#1C4532') : isDarkMode ? '#64748B' : '#718096'} fontWeight={hasMinLen ? '600' : '400'}>
+                      At least 6 characters
+                    </Text>
+                  </Flex>
+
+                  <Flex align="center" gap={2}>
+                    <Flex
+                      minW="14px"
+                      w="14px"
+                      h="14px"
+                      borderRadius="full"
+                      align="center"
+                      justify="center"
+                      bg={hasUpper ? (isDarkMode ? '#1E3A2F' : '#F0FFF4') : 'transparent'}
+                      border={hasUpper ? `1px solid ${isDarkMode ? '#276749' : '#9AE6B4'}` : `1.5px solid ${isDarkMode ? '#475569' : '#CBD5E0'}`}
+                      color="#38A169"
+                      fontSize="9px"
+                      fontWeight="700"
+                      flexShrink={0}
+                    >
+                      {hasUpper ? '✓' : null}
+                    </Flex>
+                    <Text fontSize="2xs" color={hasUpper ? (isDarkMode ? '#9AE6B4' : '#1C4532') : isDarkMode ? '#64748B' : '#718096'} fontWeight={hasUpper ? '600' : '400'}>
+                      One uppercase letter
+                    </Text>
+                  </Flex>
+
+                  <Flex align="center" gap={2}>
+                    <Flex
+                      minW="14px"
+                      w="14px"
+                      h="14px"
+                      borderRadius="full"
+                      align="center"
+                      justify="center"
+                      bg={hasLower ? (isDarkMode ? '#1E3A2F' : '#F0FFF4') : 'transparent'}
+                      border={hasLower ? `1px solid ${isDarkMode ? '#276749' : '#9AE6B4'}` : `1.5px solid ${isDarkMode ? '#475569' : '#CBD5E0'}`}
+                      color="#38A169"
+                      fontSize="9px"
+                      fontWeight="700"
+                      flexShrink={0}
+                    >
+                      {hasLower ? '✓' : null}
+                    </Flex>
+                    <Text fontSize="2xs" color={hasLower ? (isDarkMode ? '#9AE6B4' : '#1C4532') : isDarkMode ? '#64748B' : '#718096'} fontWeight={hasLower ? '600' : '400'}>
+                      One lowercase letter
+                    </Text>
+                  </Flex>
+
+                  <Flex align="center" gap={2}>
+                    <Flex
+                      minW="14px"
+                      w="14px"
+                      h="14px"
+                      borderRadius="full"
+                      align="center"
+                      justify="center"
+                      bg={hasSpecialChar ? (isDarkMode ? '#1E3A2F' : '#F0FFF4') : 'transparent'}
+                      border={hasSpecialChar ? `1px solid ${isDarkMode ? '#276749' : '#9AE6B4'}` : `1.5px solid ${isDarkMode ? '#475569' : '#CBD5E0'}`}
+                      color="#38A169"
+                      fontSize="9px"
+                      fontWeight="700"
+                      flexShrink={0}
+                    >
+                      {hasSpecialChar ? '✓' : null}
+                    </Flex>
+                    <Text fontSize="2xs" color={hasSpecialChar ? (isDarkMode ? '#9AE6B4' : '#1C4532') : isDarkMode ? '#64748B' : '#718096'} fontWeight={hasSpecialChar ? '600' : '400'}>
+                      One special character (!@#$%...)
+                    </Text>
+                  </Flex>
+
+                  <Flex align="center" gap={2}>
+                    <Flex
+                      minW="14px"
+                      w="14px"
+                      h="14px"
+                      borderRadius="full"
+                      align="center"
+                      justify="center"
+                      bg={passwordsMatch ? (isDarkMode ? '#1E3A2F' : '#F0FFF4') : 'transparent'}
+                      border={passwordsMatch ? `1px solid ${isDarkMode ? '#276749' : '#9AE6B4'}` : `1.5px solid ${isDarkMode ? '#475569' : '#CBD5E0'}`}
+                      color="#38A169"
+                      fontSize="9px"
+                      fontWeight="700"
+                      flexShrink={0}
+                    >
+                      {passwordsMatch ? '✓' : null}
+                    </Flex>
+                    <Text fontSize="2xs" color={passwordsMatch ? (isDarkMode ? '#9AE6B4' : '#1C4532') : isDarkMode ? '#64748B' : '#718096'} fontWeight={passwordsMatch ? '600' : '400'}>
+                      Passwords must match
+                    </Text>
+                  </Flex>
+                </VStack>
+              </Box>
+            )}
+
+            {/* Terms and Conditions Checkbox */}
+            {isSignUp && !isResetting && (
+              <Flex align="flex-start" gap={2.5} px={1} pt={2}>
+                <input
+                  type="checkbox"
+                  id="terms-checkbox"
+                  checked={agreedToTerms}
+                  onChange={e => setAgreedToTerms(e.target.checked)}
+                  disabled={loading}
+                  style={{
+                    marginTop: '2px',
+                    cursor: 'pointer',
+                    width: '16px',
+                    height: '16px',
+                    flexShrink: 0,
+                    accentColor: '#2F855A'
+                  }}
+                />
+                <label
+                  htmlFor="terms-checkbox"
+                  style={{
+                    fontSize: '11px',
+                    lineHeight: '1.5',
+                    color: isDarkMode ? '#94A3B8' : '#4A5568',
+                    cursor: 'pointer',
+                    userSelect: 'none'
+                  }}
+                >
+                  I have read and agree to the{' '}
+                  <Link
+                    to="/privacy"
+                    target="_blank"
+                    style={{
+                      color: isDarkMode ? '#68D391' : '#276749',
+                      fontWeight: 'bold',
+                      textDecoration: 'underline'
+                    }}
+                  >
+                    Privacy Policy
+                  </Link>{' '}
+                  and{' '}
+                  <Link
+                    to="/terms"
+                    target="_blank"
+                    style={{
+                      color: isDarkMode ? '#68D391' : '#276749',
+                      fontWeight: 'bold',
+                      textDecoration: 'underline'
+                    }}
+                  >
+                    Terms of Use
+                  </Link>
+                  .
+                </label>
+              </Flex>
             )}
 
             <Button
               type="submit"
               isDisabled={loading}
-              bg="#22543D"
+              bg={isDarkMode ? '#2F855A' : '#22543D'}
               color="white"
               borderRadius="xl"
               py={6}
               mt={2}
               fontSize="sm"
               fontWeight="black"
-              boxShadow={loading ? 'none' : '0 8px 20px rgba(34, 84, 61, 0.2)'}
+              boxShadow={loading ? 'none' : isDarkMode ? '0 8px 20px rgba(47, 133, 90, 0.3)' : '0 8px 20px rgba(34, 84, 61, 0.2)'}
               transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
               _hover={{
-                bg: loading ? '#22543D' : '#1C4532',
+                bg: loading ? (isDarkMode ? '#2F855A' : '#22543D') : isDarkMode ? '#38A169' : '#1C4532',
                 transform: loading ? 'none' : 'translateY(-2px)'
               }}
               _active={{transform: 'translateY(0)'}}
@@ -514,19 +700,53 @@ export default function Login() {
                 'Sign In'
               )}
             </Button>
+
+            {/* Login Notice */}
+            {!isSignUp && !isResetting && (
+              <Text textAlign="center" fontSize="11px" color={isDarkMode ? '#64748B' : '#718096'} px={2} mt={1} lineHeight="tall">
+                By logging in, you agree to our{' '}
+                <Link
+                  to="/privacy"
+                  target="_blank"
+                  style={{
+                    color: isDarkMode ? '#68D391' : '#276749',
+                    fontWeight: 'bold',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Privacy Policy
+                </Link>{' '}
+                and{' '}
+                <Link
+                  to="/terms"
+                  target="_blank"
+                  style={{
+                    color: isDarkMode ? '#68D391' : '#276749',
+                    fontWeight: 'bold',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Terms of Use
+                </Link>
+                .
+              </Text>
+            )}
           </VStack>
         </form>
 
-        <Text textAlign="center" mt={6} fontSize="xs" color="#4A5568">
+        <Text textAlign="center" mt={6} fontSize="xs" color={isDarkMode ? '#94A3B8' : '#4A5568'}>
           {isResetting ? 'Remembered your password? ' : isSignUp ? 'Already have an account? ' : "Don't have an account? "}
 
           <Text
             as="span"
-            color={loading ? '#A0AEC0' : '#276749'}
+            color={loading ? (isDarkMode ? '#64748B' : '#A0AEC0') : isDarkMode ? '#68D391' : '#276749'}
             fontWeight="black"
             cursor={loading ? 'not-allowed' : 'pointer'}
             transition="color 0.15s"
-            _hover={{textDecoration: loading ? 'none' : 'underline', color: loading ? '#A0AEC0' : '#1C4532'}}
+            _hover={{
+              textDecoration: loading ? 'none' : 'underline',
+              color: loading ? (isDarkMode ? '#64748B' : '#A0AEC0') : isDarkMode ? '#9AE6B4' : '#1C4532'
+            }}
             onClick={() => {
               if (loading) return
               if (isResetting) {
@@ -538,7 +758,10 @@ export default function Login() {
               setErrorMsg('')
               setSuccessMsg('')
               setPassword('')
+              setConfirmPassword('')
               setShowPassword(false)
+              setShowConfirmPassword(false)
+              setAgreedToTerms(false)
             }}
           >
             {isResetting ? 'Log In' : isSignUp ? 'Log In' : 'Sign Up'}

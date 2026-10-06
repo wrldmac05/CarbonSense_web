@@ -1,9 +1,9 @@
-/* eslint-disable no-unused-vars */
 // pages/Profile.jsx
 import {useState, useEffect, useRef} from 'react'
 import {Box, Heading, Text, Flex, Input, Button, Center, Spinner, Icon, IconButton, Badge, DialogRoot, DialogContent, DialogHeader, DialogBody, DialogFooter, DialogCloseTrigger, DialogBackdrop} from '@chakra-ui/react'
 import {useNavigate} from 'react-router-dom'
 import {supabase} from '../supabase'
+import {useTheme} from '../App'
 import {
   MdPerson,
   MdLocationOn,
@@ -31,6 +31,7 @@ import {
 export default function Profile() {
   const navigate = useNavigate()
   const fileInputRef = useRef(null)
+  const {isDarkMode} = useTheme()
 
   // Core States
   const [isLoading, setIsLoading] = useState(true)
@@ -107,7 +108,6 @@ export default function Profile() {
       if (!user) return
 
       const {data: userProfile} = await supabase.from('user_profiles').select('*').eq('user_id', user.id).maybeSingle()
-
       const {data: lifestyleProfile} = await supabase.from('lifestyle_profiles').select('*').eq('user_id', user.id).maybeSingle()
 
       if (userProfile) {
@@ -309,7 +309,6 @@ export default function Profile() {
     }
   }
 
-  // Archive under the hood, presented as account deletion to user
   const handleDeleteAccount = async () => {
     if (confirmDeleteText.trim().toUpperCase() !== 'DELETE') return
     try {
@@ -321,7 +320,6 @@ export default function Profile() {
       if (userError || !user) throw new Error('User session not found.')
 
       const {error: archiveError} = await supabase.from('user_profiles').update({is_archived: true}).eq('user_id', user.id)
-
       if (archiveError) throw archiveError
 
       await supabase.auth.signOut()
@@ -343,10 +341,10 @@ export default function Profile() {
 
   if (isLoading) {
     return (
-      <Center minH="100vh" bg="#F4FAF6">
+      <Center minH="100vh" bg={isDarkMode ? '#0B1120' : '#F4FAF6'}>
         <Flex direction="column" align="center" gap={4}>
           <Spinner size="xl" color="#2F855A" thickness="4px" />
-          <Text fontWeight="600" color="gray.600">
+          <Text fontWeight="600" color={isDarkMode ? '#94A3B8' : 'gray.600'}>
             Loading CarbonSense profile...
           </Text>
         </Flex>
@@ -357,34 +355,72 @@ export default function Profile() {
   const displayImage = isEditing ? avatarPreview || profileData.avatarUrl : profileData.avatarUrl
 
   return (
-    <Box minH="100vh" bg="#F4F9F5" backgroundImage="url('https://www.transparenttextures.com/patterns/cubes.png')" backgroundBlendMode="multiply" pb={{base: 12, md: 20}} position="relative" overflow="hidden">
+    <Box
+      minH="100vh"
+      bg={isDarkMode ? '#0B1120' : '#F4F9F5'}
+      backgroundImage="url('https://www.transparenttextures.com/patterns/cubes.png')"
+      backgroundBlendMode={isDarkMode ? 'soft-light' : 'multiply'}
+      pb={{base: 12, md: 20}}
+      position="relative"
+      overflow="hidden"
+      transition="background-color 0.3s ease"
+    >
       {/* Background Aurora Glows */}
-      <Box position="absolute" top="-10%" left="-5%" w={{base: '350px', md: '700px'}} h={{base: '350px', md: '700px'}} bgGradient="radial(#48BB78 0%, transparent 65%)" opacity="0.15" borderRadius="full" pointerEvents="none" zIndex={0} />
+      <Box
+        position="absolute"
+        top="-10%"
+        left="-5%"
+        w={{base: '350px', md: '700px'}}
+        h={{base: '350px', md: '700px'}}
+        bgGradient={isDarkMode ? 'radial(rgba(72, 187, 120, 0.25) 0%, transparent 65%)' : 'radial(#48BB78 0%, transparent 65%)'}
+        opacity={isDarkMode ? '0.22' : '0.15'}
+        borderRadius="full"
+        pointerEvents="none"
+        zIndex={0}
+      />
       <Box
         position="absolute"
         bottom="-10%"
         right="-5%"
         w={{base: '350px', md: '700px'}}
         h={{base: '350px', md: '700px'}}
-        bgGradient="radial(#319795 0%, transparent 65%)"
-        opacity="0.12"
+        bgGradient={isDarkMode ? 'radial(rgba(49, 151, 149, 0.25) 0%, transparent 65%)' : 'radial(#319795 0%, transparent 65%)'}
+        opacity={isDarkMode ? '0.2' : '0.12'}
         borderRadius="full"
         pointerEvents="none"
         zIndex={0}
       />
 
       {/* Top Header Bar */}
-      <Box borderBottom="1px solid" borderColor="rgba(72, 187, 120, 0.2)" bg="rgba(244, 249, 245, 0.6)" backdropFilter="blur(12px)" position="sticky" top="0" zIndex="10">
+      <Box
+        borderBottom="1px solid"
+        borderColor={isDarkMode ? 'rgba(51, 65, 85, 0.6)' : 'rgba(72, 187, 120, 0.2)'}
+        bg={isDarkMode ? 'rgba(15, 23, 42, 0.75)' : 'rgba(244, 249, 245, 0.6)'}
+        backdropFilter="blur(12px)"
+        position="sticky"
+        top="0"
+        zIndex="10"
+        transition="background-color 0.3s ease, border-color 0.3s ease"
+      >
         <Flex maxW="1200px" mx="auto" px={{base: 4, sm: 6, md: 8}} py={4} align="center" justify="space-between" gap={2}>
           <Flex align="center" gap={{base: 2, sm: 4}} overflow="hidden">
-            <IconButton aria-label="Back" variant="ghost" borderRadius="full" color="#1C4532" size="sm" _hover={{bg: 'rgba(72, 187, 120, 0.1)'}} onClick={() => (isEditing ? handleCancelEdit() : navigate(-1))}>
+            <IconButton
+              type="button"
+              aria-label="Back"
+              variant="ghost"
+              borderRadius="full"
+              color={isDarkMode ? '#9AE6B4' : '#1C4532'}
+              size="sm"
+              _hover={{bg: isDarkMode ? 'rgba(72, 187, 120, 0.2)' : 'rgba(72, 187, 120, 0.1)'}}
+              onClick={() => (isEditing ? handleCancelEdit() : navigate(-1))}
+            >
               <MdArrowBack size="20px" />
             </IconButton>
             <Box overflow="hidden">
-              <Heading size={{base: 'sm', md: 'md'}} color="#1C4532" fontWeight="800" noOfLines={1}>
+              <Heading size={{base: 'sm', md: 'md'}} color={isDarkMode ? '#F8FAFC' : '#1C4532'} fontWeight="800" noOfLines={1}>
                 {isEditing ? 'Edit Profile' : 'Profile & Sustainability Hub'}
               </Heading>
-              <Text fontSize="xs" color="#4A5568" display={{base: 'none', sm: 'block'}}>
+              <Text fontSize="xs" color={isDarkMode ? '#94A3B8' : '#4A5568'} display={{base: 'none', sm: 'block'}}>
                 CarbonSense Account Management
               </Text>
             </Box>
@@ -392,10 +428,15 @@ export default function Profile() {
 
           {!isEditing ? (
             <Button
-              bg="#22543D"
+              type="button"
+              bg={isDarkMode ? '#2F855A' : '#22543D'}
               color="white"
               size={{base: 'sm', md: 'md'}}
-              _hover={{bg: '#1C4532', transform: 'translateY(-2px)', boxShadow: '0 8px 20px rgba(34, 84, 61, 0.2)'}}
+              _hover={{
+                bg: isDarkMode ? '#38A169' : '#1C4532',
+                transform: 'translateY(-2px)',
+                boxShadow: isDarkMode ? '0 8px 20px rgba(47, 133, 90, 0.4)' : '0 8px 20px rgba(34, 84, 61, 0.2)'
+              }}
               transition="all 0.2s"
               boxShadow="0 4px 12px rgba(34, 84, 61, 0.15)"
               borderRadius="xl"
@@ -409,7 +450,16 @@ export default function Profile() {
               </Flex>
             </Button>
           ) : (
-            <Button variant="ghost" size={{base: 'sm', md: 'md'}} color="#4A5568" _hover={{bg: 'rgba(226, 232, 240, 0.8)', color: '#1C4532'}} borderRadius="xl" onClick={handleCancelEdit} flexShrink={0}>
+            <Button
+              type="button"
+              variant="ghost"
+              size={{base: 'sm', md: 'md'}}
+              color={isDarkMode ? '#94A3B8' : '#4A5568'}
+              _hover={{bg: isDarkMode ? '#334155' : 'rgba(226, 232, 240, 0.8)', color: isDarkMode ? '#F8FAFC' : '#1C4532'}}
+              borderRadius="xl"
+              onClick={handleCancelEdit}
+              flexShrink={0}
+            >
               Cancel
             </Button>
           )}
@@ -424,11 +474,11 @@ export default function Profile() {
             gap={3}
             borderRadius="xl"
             p={4}
-            bg={profileAlert.status === 'success' ? '#F0FFF4' : '#FFF5F5'}
-            color={profileAlert.status === 'success' ? '#276749' : '#C53030'}
+            bg={profileAlert.status === 'success' ? (isDarkMode ? '#143124' : '#F0FFF4') : isDarkMode ? '#3B1E22' : '#FFF5F5'}
+            color={profileAlert.status === 'success' ? (isDarkMode ? '#68D391' : '#276749') : isDarkMode ? '#FC8181' : '#C53030'}
             border="1px solid"
-            borderColor={profileAlert.status === 'success' ? '#9AE6B4' : '#FEB2B2'}
-            boxShadow="0 4px 12px rgba(28, 69, 50, 0.05)"
+            borderColor={profileAlert.status === 'success' ? (isDarkMode ? '#276749' : '#9AE6B4') : isDarkMode ? '#9B2C2C' : '#FEB2B2'}
+            boxShadow="0 4px 12px rgba(0, 0, 0, 0.15)"
           >
             <Text fontSize="lg">{profileAlert.status === 'success' ? '✅' : '⚠️'}</Text>
             <Text fontSize="sm" fontWeight="bold">
@@ -442,18 +492,18 @@ export default function Profile() {
       <Box maxW="1200px" mx="auto" px={{base: 4, sm: 6, md: 8}} pt={{base: 6, md: 8}} position="relative" zIndex={1}>
         {/* User Card */}
         <Box
-          bg="rgba(255, 255, 255, 0.9)"
+          bg={isDarkMode ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.9)'}
           backdropFilter="blur(10px)"
           borderRadius="2xl"
           p={{base: 5, md: 8}}
-          boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)"
+          boxShadow={isDarkMode ? '0 10px 30px -5px rgba(0, 0, 0, 0.4)' : '0 10px 30px -5px rgba(28, 69, 50, 0.05)'}
           border="1px solid"
-          borderColor="rgba(72, 187, 120, 0.2)"
+          borderColor={isDarkMode ? 'rgba(51, 65, 85, 0.8)' : 'rgba(72, 187, 120, 0.2)'}
           mb={{base: 6, md: 8}}
         >
           <Flex direction={{base: 'column', sm: 'row'}} align="center" gap={{base: 4, sm: 6}}>
             <Box position="relative">
-              <Center w={{base: '90px', md: '110px'}} h={{base: '90px', md: '110px'}} borderRadius="full" bg="#F0FFF4" border="3px solid #38A169" overflow="hidden">
+              <Center w={{base: '90px', md: '110px'}} h={{base: '90px', md: '110px'}} borderRadius="full" bg={isDarkMode ? '#1E3A2F' : '#F0FFF4'} border="3px solid #38A169" overflow="hidden">
                 {displayImage ? <img src={`${displayImage}?t=${Date.now()}`} alt="Avatar" style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : <Icon as={MdPerson} boxSize={{base: '40px', md: '50px'}} color="#38A169" />}
               </Center>
 
@@ -462,13 +512,13 @@ export default function Profile() {
                   position="absolute"
                   bottom="0"
                   right="0"
-                  bg="#22543D"
+                  bg={isDarkMode ? '#2F855A' : '#22543D'}
                   p={2}
                   borderRadius="full"
-                  border="2px solid white"
+                  border={`2px solid ${isDarkMode ? '#1E293B' : 'white'}`}
                   cursor="pointer"
                   transition="all 0.2s"
-                  _hover={{transform: 'scale(1.1)', bg: '#1C4532'}}
+                  _hover={{transform: 'scale(1.1)', bg: isDarkMode ? '#38A169' : '#1C4532'}}
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <MdCameraAlt color="white" size="16px" />
@@ -479,14 +529,22 @@ export default function Profile() {
 
             <Flex direction="column" align={{base: 'center', sm: 'flex-start'}} textAlign={{base: 'center', sm: 'left'}} gap={1} flex="1">
               <Flex align="center" gap={2} wrap="wrap" justify={{base: 'center', sm: 'flex-start'}}>
-                <Heading size={{base: 'md', md: 'lg'}} color="#1C4532">
+                <Heading size={{base: 'md', md: 'lg'}} color={isDarkMode ? '#F8FAFC' : '#1C4532'}>
                   {profileData.displayName}
                 </Heading>
-                <Badge bg="#E6FFFA" color="#234E52" border="1px solid #9AE6B4" borderRadius="md" px={2} py={0.5} fontSize="2xs">
+                <Badge
+                  bg={isDarkMode ? 'rgba(49, 151, 149, 0.2)' : '#E6FFFA'}
+                  color={isDarkMode ? '#81E6D9' : '#234E52'}
+                  border={`1px solid ${isDarkMode ? 'rgba(49, 151, 149, 0.45)' : '#9AE6B4'}`}
+                  borderRadius="md"
+                  px={2}
+                  py={0.5}
+                  fontSize="2xs"
+                >
                   Verified Member
                 </Badge>
               </Flex>
-              <Flex align="center" gap={1} color="#4A5568" fontSize="sm" mt={1}>
+              <Flex align="center" gap={1} color={isDarkMode ? '#94A3B8' : '#4A5568'} fontSize="sm" mt={1}>
                 <Icon as={MdLocationOn} color="#38A169" />
                 <Text fontSize="xs">{profileData.location}</Text>
               </Flex>
@@ -498,12 +556,20 @@ export default function Profile() {
           /* ================= VIEW MODE ================= */
           <Flex direction="column" gap={{base: 6, md: 8}}>
             {/* System Telemetry */}
-            <Box p={{base: 5, md: 8}} bg="#1C4532" borderRadius="2xl" border="1px solid rgba(154, 230, 180, 0.3)" boxShadow="0 15px 35px -10px rgba(28, 69, 50, 0.3)" position="relative" overflow="hidden">
+            <Box
+              p={{base: 5, md: 8}}
+              bg={isDarkMode ? '#1E293B' : '#1C4532'}
+              borderRadius="2xl"
+              border={`1px solid ${isDarkMode ? '#334155' : 'rgba(154, 230, 180, 0.3)'}`}
+              boxShadow={isDarkMode ? '0 15px 35px -10px rgba(0, 0, 0, 0.5)' : '0 15px 35px -10px rgba(28, 69, 50, 0.3)'}
+              position="relative"
+              overflow="hidden"
+            >
               <Box position="absolute" top="-50%" right="-10%" w="300px" h="300px" bgGradient="radial(#48BB78 0%, transparent 70%)" opacity="0.3" filter="blur(35px)" borderRadius="full" pointerEvents="none" />
 
               <Flex justify="space-between" align="flex-start" wrap="wrap" gap={4} position="relative" zIndex={1}>
                 <Box>
-                  <Flex align="center" gap={2} mb={2} color="#9AE6B4">
+                  <Flex align="center" gap={2} mb={2} color={isDarkMode ? '#68D391' : '#9AE6B4'}>
                     <Icon as={MdTrackChanges} boxSize={5} />
                     <Text fontSize="xs" fontWeight="bold" letterSpacing="1px" textTransform="uppercase">
                       System Telemetry
@@ -512,7 +578,7 @@ export default function Profile() {
                   <Heading size={{base: 'xl', sm: '2xl'}} mb={3} color="white" fontWeight="black">
                     {profileData.monthlyTarget ? `${profileData.monthlyTarget} kg CO₂e` : 'Not Set'}
                   </Heading>
-                  <Text color="#C6F6D5" maxW="600px" fontSize="xs" lineHeight="tall">
+                  <Text color={isDarkMode ? '#94A3B8' : '#C6F6D5'} maxW="600px" fontSize="xs" lineHeight="tall">
                     Your target dynamically auto-adjusts monthly based on your self-reported logs and emission factor analyses.
                   </Text>
                 </Box>
@@ -524,32 +590,32 @@ export default function Profile() {
 
             {/* Active Lifestyle Metrics */}
             <Box>
-              <Heading size="xs" color="#1C4532" mb={4} textTransform="uppercase" letterSpacing="0.5px">
+              <Heading size="xs" color={isDarkMode ? '#F8FAFC' : '#1C4532'} mb={4} textTransform="uppercase" letterSpacing="0.5px">
                 Active Lifestyle Metrics
               </Heading>
               <Flex direction={{base: 'column', md: 'row'}} gap={{base: 4, md: 6}}>
                 <Flex
                   flex="1"
                   p={{base: 5, md: 6}}
-                  bg="rgba(255, 255, 255, 0.9)"
+                  bg={isDarkMode ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.9)'}
                   backdropFilter="blur(10px)"
                   borderRadius="2xl"
                   border="1px solid"
-                  borderColor="rgba(72, 187, 120, 0.2)"
+                  borderColor={isDarkMode ? 'rgba(51, 65, 85, 0.8)' : 'rgba(72, 187, 120, 0.2)'}
                   align="center"
                   gap={4}
-                  boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)"
+                  boxShadow={isDarkMode ? '0 10px 30px -5px rgba(0, 0, 0, 0.4)' : '0 10px 30px -5px rgba(28, 69, 50, 0.05)'}
                   transition="transform 0.2s"
                   _hover={{transform: 'translateY(-2px)'}}
                 >
-                  <Center w={12} h={12} bg="#F0FFF4" border="1px solid #C6F6D5" color="#38A169" borderRadius="xl" flexShrink={0}>
+                  <Center w={12} h={12} bg={isDarkMode ? '#1E3A2F' : '#F0FFF4'} border={`1px solid ${isDarkMode ? '#276749' : '#C6F6D5'}`} color="#38A169" borderRadius="xl" flexShrink={0}>
                     <Icon as={profileData.dietType.includes('Analyzing') ? MdSync : MdRestaurant} boxSize={6} />
                   </Center>
                   <Box>
-                    <Text fontSize="10px" color="#4A5568" fontWeight="bold" textTransform="uppercase">
+                    <Text fontSize="10px" color={isDarkMode ? '#94A3B8' : '#4A5568'} fontWeight="bold" textTransform="uppercase">
                       Dietary Profile
                     </Text>
-                    <Text fontSize={{base: 'md', md: 'lg'}} fontWeight="900" color="#1C4532">
+                    <Text fontSize={{base: 'md', md: 'lg'}} fontWeight="900" color={isDarkMode ? '#F8FAFC' : '#1C4532'}>
                       {profileData.dietType}
                     </Text>
                   </Box>
@@ -558,25 +624,25 @@ export default function Profile() {
                 <Flex
                   flex="1"
                   p={{base: 5, md: 6}}
-                  bg="rgba(255, 255, 255, 0.9)"
+                  bg={isDarkMode ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.9)'}
                   backdropFilter="blur(10px)"
                   borderRadius="2xl"
                   border="1px solid"
-                  borderColor="rgba(72, 187, 120, 0.2)"
+                  borderColor={isDarkMode ? 'rgba(51, 65, 85, 0.8)' : 'rgba(72, 187, 120, 0.2)'}
                   align="center"
                   gap={4}
-                  boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)"
+                  boxShadow={isDarkMode ? '0 10px 30px -5px rgba(0, 0, 0, 0.4)' : '0 10px 30px -5px rgba(28, 69, 50, 0.05)'}
                   transition="transform 0.2s"
                   _hover={{transform: 'translateY(-2px)'}}
                 >
-                  <Center w={12} h={12} bg="#E6FFFA" border="1px solid #B2F5EA" color="#319795" borderRadius="xl" flexShrink={0}>
+                  <Center w={12} h={12} bg={isDarkMode ? '#193A3E' : '#E6FFFA'} border={`1px solid ${isDarkMode ? '#234E52' : '#B2F5EA'}`} color="#319795" borderRadius="xl" flexShrink={0}>
                     <Icon as={getIconForCommute(profileData.commuteType)} boxSize={6} />
                   </Center>
                   <Box>
-                    <Text fontSize="10px" color="#4A5568" fontWeight="bold" textTransform="uppercase">
+                    <Text fontSize="10px" color={isDarkMode ? '#94A3B8' : '#4A5568'} fontWeight="bold" textTransform="uppercase">
                       Commute Profile
                     </Text>
-                    <Text fontSize={{base: 'md', md: 'lg'}} fontWeight="900" color="#1C4532">
+                    <Text fontSize={{base: 'md', md: 'lg'}} fontWeight="900" color={isDarkMode ? '#F8FAFC' : '#1C4532'}>
                       {profileData.commuteType}
                     </Text>
                   </Box>
@@ -585,23 +651,35 @@ export default function Profile() {
             </Box>
 
             {/* Account Security & Data */}
-            <Box bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" borderRadius="2xl" p={{base: 5, md: 6}} border="1px solid" borderColor="rgba(72, 187, 120, 0.2)" boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)">
+            <Box
+              bg={isDarkMode ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.9)'}
+              backdropFilter="blur(10px)"
+              borderRadius="2xl"
+              p={{base: 5, md: 6}}
+              border="1px solid"
+              borderColor={isDarkMode ? 'rgba(51, 65, 85, 0.8)' : 'rgba(72, 187, 120, 0.2)'}
+              boxShadow={isDarkMode ? '0 10px 30px -5px rgba(0, 0, 0, 0.4)' : '0 10px 30px -5px rgba(28, 69, 50, 0.05)'}
+            >
               <Flex align="center" gap={2} mb={4}>
                 <Icon as={MdOutlineSecurity} color="#38A169" boxSize={5} />
-                <Heading size="sm" color="#1C4532">
+                <Heading size="sm" color={isDarkMode ? '#F8FAFC' : '#1C4532'}>
                   Account Security & Data
                 </Heading>
               </Flex>
               <Flex direction={{base: 'column', sm: 'row'}} gap={4}>
                 <Button
+                  type="button"
                   flex="1"
                   variant="outline"
                   justifyContent="flex-start"
                   h="50px"
                   borderRadius="xl"
-                  borderColor="rgba(72, 187, 120, 0.4)"
-                  color="#1C4532"
-                  _hover={{bg: '#F4F9F5', borderColor: '#38A169'}}
+                  borderColor={isDarkMode ? '#475569' : 'rgba(72, 187, 120, 0.4)'}
+                  color={isDarkMode ? '#F8FAFC' : '#1C4532'}
+                  _hover={{
+                    bg: isDarkMode ? '#334155' : '#F4F9F5',
+                    borderColor: '#38A169'
+                  }}
                   onClick={() => setIsPwdOpen(true)}
                 >
                   <Flex align="center" gap={2}>
@@ -610,13 +688,14 @@ export default function Profile() {
                   </Flex>
                 </Button>
                 <Button
+                  type="button"
                   flex="1"
                   variant="outline"
                   colorScheme="red"
                   justifyContent="flex-start"
                   h="50px"
                   borderRadius="xl"
-                  _hover={{bg: '#FFF5F5'}}
+                  _hover={{bg: isDarkMode ? '#3B1E22' : '#FFF5F5'}}
                   onClick={() => {
                     setConfirmDeleteText('')
                     setIsDelOpen(true)
@@ -634,14 +713,22 @@ export default function Profile() {
           /* ================= EDIT MODE ================= */
           <Flex direction="column" gap={6} maxW="800px" mx="auto">
             {/* Personal Details Form Box */}
-            <Box bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" p={{base: 5, md: 8}} borderRadius="2xl" border="1px solid" borderColor="rgba(72, 187, 120, 0.2)" boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)">
-              <Heading size="sm" color="#1C4532" mb={6}>
+            <Box
+              bg={isDarkMode ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.9)'}
+              backdropFilter="blur(10px)"
+              p={{base: 5, md: 8}}
+              borderRadius="2xl"
+              border="1px solid"
+              borderColor={isDarkMode ? 'rgba(51, 65, 85, 0.8)' : 'rgba(72, 187, 120, 0.2)'}
+              boxShadow={isDarkMode ? '0 10px 30px -5px rgba(0, 0, 0, 0.4)' : '0 10px 30px -5px rgba(28, 69, 50, 0.05)'}
+            >
+              <Heading size="sm" color={isDarkMode ? '#F8FAFC' : '#1C4532'} mb={6}>
                 Personal Details
               </Heading>
               <Flex direction="column" gap={6}>
                 {/* Display Name */}
                 <Box w="100%">
-                  <Text fontSize="xs" fontWeight="bold" color="#1C4532" textTransform="uppercase" mb={2}>
+                  <Text fontSize="xs" fontWeight="bold" color={isDarkMode ? '#9AE6B4' : '#1C4532'} textTransform="uppercase" mb={2}>
                     Display Name
                   </Text>
                   <Input
@@ -656,10 +743,11 @@ export default function Profile() {
                     }}
                     placeholder="e.g. Jane Doe"
                     h="50px"
-                    bg="#F4F9F5"
-                    border="1px solid rgba(72, 187, 120, 0.2)"
-                    _focus={{bg: 'white', borderColor: '#38A169', boxShadow: '0 0 0 1px #38A169'}}
-                    _hover={{bg: '#E6FFFA'}}
+                    bg={isDarkMode ? '#0F172A' : '#F4F9F5'}
+                    color={isDarkMode ? '#F8FAFC' : '#1A202C'}
+                    border={`1px solid ${isDarkMode ? '#334155' : 'rgba(72, 187, 120, 0.2)'}`}
+                    _focus={{bg: isDarkMode ? '#0F172A' : 'white', borderColor: '#38A169', boxShadow: '0 0 0 1px #38A169'}}
+                    _hover={{bg: isDarkMode ? '#1E293B' : '#E6FFFA'}}
                     borderRadius="xl"
                     transition="all 0.2s"
                   />
@@ -670,27 +758,39 @@ export default function Profile() {
                   <Flex direction={{base: 'column', sm: 'row'}} align={{base: 'flex-start', sm: 'center'}} justify="space-between" gap={2} mb={2}>
                     <Flex align="center" gap={2}>
                       <Icon as={MdLocationOn} color="#38A169" />
-                      <Text fontSize="xs" fontWeight="bold" color="#1C4532" textTransform="uppercase">
+                      <Text fontSize="xs" fontWeight="bold" color={isDarkMode ? '#9AE6B4' : '#1C4532'} textTransform="uppercase">
                         Location (GPS Verified)
                       </Text>
                     </Flex>
                     <Button
+                      type="button"
                       size="xs"
                       variant="outline"
                       colorScheme="green"
-                      borderColor="#38A169"
-                      color="#22543D"
+                      borderColor={isDarkMode ? '#48BB78' : '#38A169'}
+                      color={isDarkMode ? '#68D391' : '#22543D'}
                       borderRadius="lg"
                       leftIcon={<MdMyLocation />}
                       loading={isDetectingGps}
                       onClick={handleDetectLocation}
-                      _hover={{bg: '#F0FFF4'}}
+                      _hover={{bg: isDarkMode ? '#1E3A2F' : '#F0FFF4'}}
                     >
                       Detect via GPS
                     </Button>
                   </Flex>
-                  <Input value={formData.location} readOnly placeholder="Click 'Detect via GPS' above..." h="50px" bg="#E6FFFA" border="1px solid rgba(56, 161, 105, 0.3)" color="#1C4532" fontWeight="bold" borderRadius="xl" fontSize="sm" />
-                  <Text fontSize="xs" color="#4A5568" mt={1}>
+                  <Input
+                    value={formData.location}
+                    readOnly
+                    placeholder="Click 'Detect via GPS' above..."
+                    h="50px"
+                    bg={isDarkMode ? '#143124' : '#E6FFFA'}
+                    border={`1px solid ${isDarkMode ? 'rgba(72, 187, 120, 0.5)' : 'rgba(56, 161, 105, 0.3)'}`}
+                    color={isDarkMode ? '#A7F3D0' : '#1C4532'}
+                    fontWeight="bold"
+                    borderRadius="xl"
+                    fontSize="sm"
+                  />
+                  <Text fontSize="xs" color={isDarkMode ? '#94A3B8' : '#4A5568'} mt={1}>
                     Location is automatically verified and locked via browser GPS for accurate carbon tracking.
                   </Text>
                 </Box>
@@ -698,11 +798,19 @@ export default function Profile() {
             </Box>
 
             {/* Target Box */}
-            <Box bg="rgba(255, 255, 255, 0.9)" backdropFilter="blur(10px)" p={{base: 5, md: 8}} borderRadius="2xl" border="1px solid" borderColor="rgba(72, 187, 120, 0.2)" boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)">
-              <Heading size="sm" color="#1C4532" mb={2}>
+            <Box
+              bg={isDarkMode ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.9)'}
+              backdropFilter="blur(10px)"
+              p={{base: 5, md: 8}}
+              borderRadius="2xl"
+              border="1px solid"
+              borderColor={isDarkMode ? 'rgba(51, 65, 85, 0.8)' : 'rgba(72, 187, 120, 0.2)'}
+              boxShadow={isDarkMode ? '0 10px 30px -5px rgba(0, 0, 0, 0.4)' : '0 10px 30px -5px rgba(28, 69, 50, 0.05)'}
+            >
+              <Heading size="sm" color={isDarkMode ? '#F8FAFC' : '#1C4532'} mb={2}>
                 Adaptive Carbon Target
               </Heading>
-              <Text fontSize="xs" color="#4A5568" mb={6}>
+              <Text fontSize="xs" color={isDarkMode ? '#94A3B8' : '#4A5568'} mb={6}>
                 Set your monthly threshold in kilograms of CO₂ equivalents.
               </Text>
 
@@ -718,32 +826,42 @@ export default function Profile() {
                   placeholder="e.g. 150"
                   disabled={isTargetLocked}
                   h="50px"
-                  bg={isTargetLocked ? 'rgba(226, 232, 240, 0.3)' : '#F4F9F5'}
-                  border="1px solid rgba(72, 187, 120, 0.2)"
-                  _focus={{bg: 'white', borderColor: '#38A169', boxShadow: '0 0 0 1px #38A169'}}
-                  _hover={!isTargetLocked ? {bg: '#E6FFFA'} : {}}
+                  bg={isTargetLocked ? (isDarkMode ? '#1E293B' : 'rgba(226, 232, 240, 0.3)') : isDarkMode ? '#0F172A' : '#F4F9F5'}
+                  color={isDarkMode ? '#F8FAFC' : '#1A202C'}
+                  border={`1px solid ${isDarkMode ? '#334155' : 'rgba(72, 187, 120, 0.2)'}`}
+                  _focus={{bg: isDarkMode ? '#0F172A' : 'white', borderColor: '#38A169', boxShadow: '0 0 0 1px #38A169'}}
+                  _hover={!isTargetLocked ? {bg: isDarkMode ? '#1E293B' : '#E6FFFA'} : {}}
                   borderRadius="xl"
                   transition="all 0.2s"
                 />
                 {isTargetLocked && (
-                  <IconButton aria-label="Unlock Target" colorScheme="orange" h="50px" w="50px" flexShrink={0} borderRadius="xl" onClick={() => setIsOverrideOpen(true)}>
+                  <IconButton type="button" aria-label="Unlock Target" colorScheme="orange" h="50px" w="50px" flexShrink={0} borderRadius="xl" onClick={() => setIsOverrideOpen(true)}>
                     <MdLockOutline size="20px" />
                   </IconButton>
                 )}
               </Flex>
 
               {isTargetLocked && (
-                <Flex p={4} bg="orange.50" color="orange.800" border="1px solid" borderColor="orange.200" borderRadius="xl" mt={4} gap={3} align="flex-start">
-                  <Icon as={MdTimer} boxSize={5} color="orange.500" mt={0.5} flexShrink={0} />
+                <Flex p={4} bg={isDarkMode ? '#3A2E1A' : 'orange.50'} color={isDarkMode ? '#FBD38D' : 'orange.800'} border="1px solid" borderColor={isDarkMode ? '#744210' : 'orange.200'} borderRadius="xl" mt={4} gap={3} align="flex-start">
+                  <Icon as={MdTimer} boxSize={5} color={isDarkMode ? '#F6AD55' : 'orange.500'} mt={0.5} flexShrink={0} />
                   <Text fontSize="xs" fontWeight="500">
                     Goal locked for {daysRemaining} more days to preserve tracking consistency. Tap lock icon to force edit.
                   </Text>
                 </Flex>
               )}
 
-              <Flex p={4} bg="rgba(56, 161, 105, 0.05)" border="1px solid" borderColor="rgba(56, 161, 105, 0.2)" borderRadius="xl" mt={4} gap={3} align="flex-start">
+              <Flex
+                p={4}
+                bg={isDarkMode ? 'rgba(72, 187, 120, 0.1)' : 'rgba(56, 161, 105, 0.05)'}
+                border="1px solid"
+                borderColor={isDarkMode ? 'rgba(72, 187, 120, 0.3)' : 'rgba(56, 161, 105, 0.2)'}
+                borderRadius="xl"
+                mt={4}
+                gap={3}
+                align="flex-start"
+              >
                 <Icon as={MdInfoOutline} boxSize={5} color="#38A169" mt={0.5} flexShrink={0} />
-                <Text fontSize="xs" lineHeight="tall" fontWeight="medium" color="#2D3748">
+                <Text fontSize="xs" lineHeight="tall" fontWeight="medium" color={isDarkMode ? '#CBD5E1' : '#2D3748'}>
                   Set a monthly carbon emission goal that you would like to achieve. CarbonSense tracks your total emissions throughout the month and compares them with this goal, helping you monitor your progress and build more sustainable
                   habits over time. You can update this goal whenever your lifestyle or sustainability goals change.
                 </Text>
@@ -752,19 +870,34 @@ export default function Profile() {
 
             {/* Save / Cancel Buttons */}
             <Flex direction={{base: 'column-reverse', sm: 'row'}} gap={4} justify="flex-end" mt={2}>
-              <Button h="50px" w={{base: '100%', sm: 'auto'}} px={8} borderRadius="xl" variant="ghost" color="#4A5568" _hover={{bg: 'rgba(226, 232, 240, 0.8)', color: '#1C4532'}} onClick={handleCancelEdit}>
-                Cancel
-              </Button>
               <Button
+                type="button"
                 h="50px"
                 w={{base: '100%', sm: 'auto'}}
                 px={8}
                 borderRadius="xl"
-                bg="#22543D"
+                variant="ghost"
+                color={isDarkMode ? '#94A3B8' : '#4A5568'}
+                _hover={{bg: isDarkMode ? '#334155' : 'rgba(226, 232, 240, 0.8)', color: isDarkMode ? '#F8FAFC' : '#1C4532'}}
+                onClick={handleCancelEdit}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                h="50px"
+                w={{base: '100%', sm: 'auto'}}
+                px={8}
+                borderRadius="xl"
+                bg={isDarkMode ? '#2F855A' : '#22543D'}
                 color="white"
-                boxShadow="0 8px 20px rgba(34, 84, 61, 0.15)"
+                boxShadow={isDarkMode ? '0 8px 20px rgba(47, 133, 90, 0.3)' : '0 8px 20px rgba(34, 84, 61, 0.15)'}
                 transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
-                _hover={{bg: '#1C4532', transform: 'translateY(-2px)', boxShadow: '0 12px 25px rgba(34, 84, 61, 0.25)'}}
+                _hover={{
+                  bg: isDarkMode ? '#38A169' : '#1C4532',
+                  transform: 'translateY(-2px)',
+                  boxShadow: isDarkMode ? '0 12px 25px rgba(47, 133, 90, 0.4)' : '0 12px 25px rgba(34, 84, 61, 0.25)'
+                }}
                 loading={isSaving}
                 onClick={handleSaveProfile}
               >
@@ -777,17 +910,30 @@ export default function Profile() {
 
       {/* Password Dialog */}
       <DialogRoot open={isPwdOpen} onOpenChange={e => setIsPwdOpen(e.open)} placement="center">
-        <DialogBackdrop bg="rgba(28, 69, 50, 0.4)" backdropFilter="blur(6px)" />
-        <DialogContent position="fixed" top="50%" left="50%" transform="translate(-50%, -50%)" w="92%" maxW="450px" bg="white" borderRadius="3xl" p={{base: 4, sm: 6}} boxShadow="0 25px 50px -12px rgba(28, 69, 50, 0.25)" zIndex={9999}>
+        <DialogBackdrop bg="rgba(15, 23, 42, 0.7)" backdropFilter="blur(6px)" />
+        <DialogContent
+          position="fixed"
+          top="50%"
+          left="50%"
+          transform="translate(-50%, -50%)"
+          w="92%"
+          maxW="450px"
+          bg={isDarkMode ? '#1E293B' : 'white'}
+          border={`1px solid ${isDarkMode ? '#334155' : 'transparent'}`}
+          borderRadius="3xl"
+          p={{base: 4, sm: 6}}
+          boxShadow={isDarkMode ? '0 25px 50px -12px rgba(0, 0, 0, 0.6)' : '0 25px 50px -12px rgba(28, 69, 50, 0.25)'}
+          zIndex={9999}
+        >
           <DialogHeader>
             <Flex align="center" gap={2}>
               <Icon as={MdLockReset} color="#38A169" />
-              <Text color="#1C4532" fontWeight="bold">
+              <Text color={isDarkMode ? '#F8FAFC' : '#1C4532'} fontWeight="bold">
                 Change Password
               </Text>
             </Flex>
           </DialogHeader>
-          <DialogCloseTrigger color="#4A5568" _hover={{bg: '#F0FFF4', color: '#1C4532'}} />
+          <DialogCloseTrigger color={isDarkMode ? '#94A3B8' : '#4A5568'} _hover={{bg: isDarkMode ? '#334155' : '#F0FFF4', color: isDarkMode ? '#F8FAFC' : '#1C4532'}} />
           <DialogBody>
             <form onSubmit={handleUpdatePassword}>
               <Flex direction="column" gap={4}>
@@ -798,9 +944,10 @@ export default function Profile() {
                   onChange={e => setCurrentPassword(e.target.value)}
                   borderRadius="xl"
                   h="48px"
-                  bg="#F4F9F5"
-                  border="1px solid rgba(72, 187, 120, 0.2)"
-                  _focus={{bg: 'white', borderColor: '#38A169', boxShadow: '0 0 0 1px #38A169'}}
+                  bg={isDarkMode ? '#0F172A' : '#F4F9F5'}
+                  color={isDarkMode ? '#F8FAFC' : '#1A202C'}
+                  border={`1px solid ${isDarkMode ? '#334155' : 'rgba(72, 187, 120, 0.2)'}`}
+                  _focus={{bg: isDarkMode ? '#0F172A' : 'white', borderColor: '#38A169', boxShadow: '0 0 0 1px #38A169'}}
                   required
                 />
                 <Input
@@ -810,9 +957,10 @@ export default function Profile() {
                   onChange={e => setNewPassword(e.target.value)}
                   borderRadius="xl"
                   h="48px"
-                  bg="#F4F9F5"
-                  border="1px solid rgba(72, 187, 120, 0.2)"
-                  _focus={{bg: 'white', borderColor: '#38A169', boxShadow: '0 0 0 1px #38A169'}}
+                  bg={isDarkMode ? '#0F172A' : '#F4F9F5'}
+                  color={isDarkMode ? '#F8FAFC' : '#1A202C'}
+                  border={`1px solid ${isDarkMode ? '#334155' : 'rgba(72, 187, 120, 0.2)'}`}
+                  _focus={{bg: isDarkMode ? '#0F172A' : 'white', borderColor: '#38A169', boxShadow: '0 0 0 1px #38A169'}}
                   required
                 />
                 <Input
@@ -822,14 +970,15 @@ export default function Profile() {
                   onChange={e => setConfirmPassword(e.target.value)}
                   borderRadius="xl"
                   h="48px"
-                  bg="#F4F9F5"
-                  border="1px solid rgba(72, 187, 120, 0.2)"
-                  _focus={{bg: 'white', borderColor: '#38A169', boxShadow: '0 0 0 1px #38A169'}}
+                  bg={isDarkMode ? '#0F172A' : '#F4F9F5'}
+                  color={isDarkMode ? '#F8FAFC' : '#1A202C'}
+                  border={`1px solid ${isDarkMode ? '#334155' : 'rgba(72, 187, 120, 0.2)'}`}
+                  _focus={{bg: isDarkMode ? '#0F172A' : 'white', borderColor: '#38A169', boxShadow: '0 0 0 1px #38A169'}}
                   required
                 />
               </Flex>
 
-              <Box p={4} bg="#F0FFF4" border="1px solid #C6F6D5" borderRadius="xl" mt={4} fontSize="xs" color="#276749">
+              <Box p={4} bg={isDarkMode ? '#143124' : '#F0FFF4'} border={`1px solid ${isDarkMode ? '#276749' : '#C6F6D5'}`} borderRadius="xl" mt={4} fontSize="xs" color={isDarkMode ? '#9AE6B4' : '#276749'}>
                 <Text fontWeight="bold" mb={1} textTransform="uppercase" letterSpacing="wide">
                   Requirements:
                 </Text>
@@ -842,10 +991,10 @@ export default function Profile() {
                 type="submit"
                 w="100%"
                 mt={6}
-                bg="#22543D"
+                bg={isDarkMode ? '#2F855A' : '#22543D'}
                 color="white"
                 transition="all 0.2s"
-                _hover={{bg: '#1C4532', transform: 'translateY(-1px)', boxShadow: '0 8px 20px rgba(34, 84, 61, 0.15)'}}
+                _hover={{bg: isDarkMode ? '#38A169' : '#1C4532', transform: 'translateY(-1px)', boxShadow: '0 8px 20px rgba(34, 84, 61, 0.15)'}}
                 borderRadius="xl"
                 h="48px"
                 loading={isUpdatingPassword}
@@ -860,24 +1009,37 @@ export default function Profile() {
 
       {/* Delete Account Dialog */}
       <DialogRoot open={isDelOpen} onOpenChange={e => setIsDelOpen(e.open)} placement="center">
-        <DialogBackdrop bg="rgba(28, 69, 50, 0.4)" backdropFilter="blur(6px)" />
-        <DialogContent position="fixed" top="50%" left="50%" transform="translate(-50%, -50%)" w="92%" maxW="450px" bg="white" borderRadius="3xl" p={{base: 4, sm: 6}} boxShadow="0 25px 50px -12px rgba(28, 69, 50, 0.25)" zIndex={9999}>
-          <DialogHeader color="red.600">
+        <DialogBackdrop bg="rgba(15, 23, 42, 0.7)" backdropFilter="blur(6px)" />
+        <DialogContent
+          position="fixed"
+          top="50%"
+          left="50%"
+          transform="translate(-50%, -50%)"
+          w="92%"
+          maxW="450px"
+          bg={isDarkMode ? '#1E293B' : 'white'}
+          border={`1px solid ${isDarkMode ? '#334155' : 'transparent'}`}
+          borderRadius="3xl"
+          p={{base: 4, sm: 6}}
+          boxShadow={isDarkMode ? '0 25px 50px -12px rgba(0, 0, 0, 0.6)' : '0 25px 50px -12px rgba(28, 69, 50, 0.25)'}
+          zIndex={9999}
+        >
+          <DialogHeader color="red.500">
             <Flex align="center" gap={2}>
               <Icon as={MdWarningAmber} boxSize={6} />
               <Text fontWeight="bold">Delete Account</Text>
             </Flex>
           </DialogHeader>
-          <DialogCloseTrigger color="#4A5568" _hover={{bg: '#FFF5F5', color: 'red.600'}} />
+          <DialogCloseTrigger color={isDarkMode ? '#94A3B8' : '#4A5568'} _hover={{bg: isDarkMode ? '#3B1E22' : '#FFF5F5', color: 'red.500'}} />
           <DialogBody>
-            <Text fontSize="sm" color="#4A5568" mb={4}>
+            <Text fontSize="sm" color={isDarkMode ? '#94A3B8' : '#4A5568'} mb={4}>
               This action is{' '}
-              <Text as="span" fontWeight="bold" color="red.600">
+              <Text as="span" fontWeight="bold" color="red.500">
                 permanent
               </Text>{' '}
               and cannot be reversed. All active sessions will be terminated.
             </Text>
-            <Text fontSize="xs" fontWeight="bold" color="#1C4532" textTransform="uppercase" mb={2}>
+            <Text fontSize="xs" fontWeight="bold" color={isDarkMode ? '#F8FAFC' : '#1C4532'} textTransform="uppercase" mb={2}>
               Type "DELETE" to confirm:
             </Text>
             <Input
@@ -887,20 +1049,22 @@ export default function Profile() {
               borderRadius="xl"
               h="48px"
               mb={4}
-              bg="#F4F9F5"
-              border="1px solid rgba(72, 187, 120, 0.2)"
-              _focus={{bg: 'white', borderColor: 'red.400', boxShadow: '0 0 0 1px #F56565'}}
+              bg={isDarkMode ? '#0F172A' : '#F4F9F5'}
+              color={isDarkMode ? '#F8FAFC' : '#1A202C'}
+              border={`1px solid ${isDarkMode ? '#334155' : 'rgba(72, 187, 120, 0.2)'}`}
+              _focus={{bg: isDarkMode ? '#0F172A' : 'white', borderColor: 'red.400', boxShadow: '0 0 0 1px #F56565'}}
             />
           </DialogBody>
           <DialogFooter>
             <Flex gap={3} w="100%" justify="flex-end">
               <Button
+                type="button"
                 variant="ghost"
-                color="#4A5568"
+                color={isDarkMode ? '#94A3B8' : '#4A5568'}
                 borderRadius="xl"
                 h="44px"
                 px={5}
-                _hover={{bg: 'rgba(226, 232, 240, 0.8)', color: '#1C4532'}}
+                _hover={{bg: isDarkMode ? '#334155' : 'rgba(226, 232, 240, 0.8)', color: isDarkMode ? '#F8FAFC' : '#1C4532'}}
                 onClick={() => {
                   setIsDelOpen(false)
                   setConfirmDeleteText('')
@@ -909,6 +1073,7 @@ export default function Profile() {
                 Cancel
               </Button>
               <Button
+                type="button"
                 colorScheme="red"
                 borderRadius="xl"
                 h="44px"
@@ -916,7 +1081,7 @@ export default function Profile() {
                 loading={isDeleting}
                 disabled={confirmDeleteText.trim().toUpperCase() !== 'DELETE'}
                 onClick={handleDeleteAccount}
-                _hover={{transform: 'translateY(-1px)', boxShadow: '0 8px 20px rgba(229, 62, 62, 0.2)'}}
+                _hover={{transform: 'translateY(-1px)', boxShadow: '0 8px 20px rgba(229, 62, 62, 0.3)'}}
               >
                 Delete
               </Button>
@@ -927,26 +1092,47 @@ export default function Profile() {
 
       {/* Override Target Dialog */}
       <DialogRoot open={isOverrideOpen} onOpenChange={e => setIsOverrideOpen(e.open)} placement="center">
-        <DialogBackdrop bg="rgba(28, 69, 50, 0.4)" backdropFilter="blur(6px)" />
-        <DialogContent position="fixed" top="50%" left="50%" transform="translate(-50%, -50%)" w="92%" maxW="450px" bg="white" borderRadius="3xl" p={{base: 4, sm: 6}} boxShadow="0 25px 50px -12px rgba(28, 69, 50, 0.25)" zIndex={9999}>
+        <DialogBackdrop bg="rgba(15, 23, 42, 0.7)" backdropFilter="blur(6px)" />
+        <DialogContent
+          position="fixed"
+          top="50%"
+          left="50%"
+          transform="translate(-50%, -50%)"
+          w="92%"
+          maxW="450px"
+          bg={isDarkMode ? '#1E293B' : 'white'}
+          border={`1px solid ${isDarkMode ? '#334155' : 'transparent'}`}
+          borderRadius="3xl"
+          p={{base: 4, sm: 6}}
+          boxShadow={isDarkMode ? '0 25px 50px -12px rgba(0, 0, 0, 0.6)' : '0 25px 50px -12px rgba(28, 69, 50, 0.25)'}
+          zIndex={9999}
+        >
           <DialogHeader>
-            <Text color="#1C4532" fontWeight="bold">
+            <Text color={isDarkMode ? '#F8FAFC' : '#1C4532'} fontWeight="bold">
               Unlock Goal Editing
             </Text>
           </DialogHeader>
-          <DialogCloseTrigger color="#4A5568" _hover={{bg: '#F0FFF4', color: '#1C4532'}} />
-          <DialogBody fontSize="sm" color="#4A5568" mb={4}>
+          <DialogCloseTrigger color={isDarkMode ? '#94A3B8' : '#4A5568'} _hover={{bg: isDarkMode ? '#334155' : '#F0FFF4', color: isDarkMode ? '#F8FAFC' : '#1C4532'}} />
+          <DialogBody fontSize="sm" color={isDarkMode ? '#94A3B8' : '#4A5568'} mb={4}>
             Overriding your monthly target manually resets your 30-day target calculation cycle starting today.
           </DialogBody>
           <DialogFooter>
             <Flex gap={3} w="100%" justify="flex-end">
-              <Button variant="ghost" color="#4A5568" borderRadius="xl" _hover={{bg: 'rgba(226, 232, 240, 0.8)', color: '#1C4532'}} onClick={() => setIsOverrideOpen(false)}>
+              <Button
+                type="button"
+                variant="ghost"
+                color={isDarkMode ? '#94A3B8' : '#4A5568'}
+                borderRadius="xl"
+                _hover={{bg: isDarkMode ? '#334155' : 'rgba(226, 232, 240, 0.8)', color: isDarkMode ? '#F8FAFC' : '#1C4532'}}
+                onClick={() => setIsOverrideOpen(false)}
+              >
                 Cancel
               </Button>
               <Button
+                type="button"
                 colorScheme="orange"
                 borderRadius="xl"
-                _hover={{transform: 'translateY(-1px)', boxShadow: '0 8px 20px rgba(221, 107, 32, 0.2)'}}
+                _hover={{transform: 'translateY(-1px)', boxShadow: '0 8px 20px rgba(221, 107, 32, 0.3)'}}
                 onClick={() => {
                   setIsTargetLocked(false)
                   setIsOverrideOpen(false)

@@ -5,6 +5,7 @@ import {supabase} from '../supabase'
 import {Box, Heading, Text, Stack, Flex, Button, SimpleGrid, Center} from '@chakra-ui/react'
 import {Link} from 'react-router-dom'
 import {keyframes} from '@emotion/react'
+import {useTheme} from '../App'
 
 // 🟢 Entry & Ambient Animation Definitions
 const slideInLeft = keyframes`
@@ -84,6 +85,8 @@ const AnimatedNumber = ({value, suffix = ''}) => {
 }
 
 export default function Home() {
+  const {isDarkMode} = useTheme()
+
   const [totalOffset, setTotalOffset] = useState(0)
   const [isKFormat, setIsKFormat] = useState(false)
   const [monthTrend, setMonthTrend] = useState(0)
@@ -153,7 +156,16 @@ export default function Home() {
   }, [])
 
   return (
-    <Box minH="100vh" bg="#F4F9F5" backgroundImage="url('https://www.transparenttextures.com/patterns/cubes.png')" backgroundBlendMode="multiply" pb={20} overflowX="hidden" position="relative">
+    <Box
+      minH="100vh"
+      bg={isDarkMode ? '#0B1120' : '#F4F9F5'}
+      backgroundImage="url('https://www.transparenttextures.com/patterns/cubes.png')"
+      backgroundBlendMode={isDarkMode ? 'soft-light' : 'multiply'}
+      pb={20}
+      overflowX="hidden"
+      position="relative"
+      transition="background-color 0.3s ease"
+    >
       {/* 🌿 Ambient Glows */}
       <Box
         position="absolute"
@@ -161,8 +173,8 @@ export default function Home() {
         left="-10%"
         w={{base: '350px', md: '700px'}}
         h={{base: '350px', md: '700px'}}
-        bgGradient="radial(#48BB78 0%, transparent 65%)"
-        opacity="0.15"
+        bgGradient={isDarkMode ? 'radial(rgba(72, 187, 120, 0.25) 0%, transparent 65%)' : 'radial(#48BB78 0%, transparent 65%)'}
+        opacity={isDarkMode ? '0.2' : '0.15'}
         borderRadius="full"
         zIndex={0}
         pointerEvents="none"
@@ -174,8 +186,8 @@ export default function Home() {
         right="-10%"
         w={{base: '350px', md: '650px'}}
         h={{base: '350px', md: '650px'}}
-        bgGradient="radial(#319795 0%, transparent 65%)"
-        opacity="0.12"
+        bgGradient={isDarkMode ? 'radial(rgba(49, 151, 149, 0.25) 0%, transparent 65%)' : 'radial(#319795 0%, transparent 65%)'}
+        opacity={isDarkMode ? '0.2' : '0.12'}
         borderRadius="full"
         zIndex={0}
         pointerEvents="none"
@@ -187,13 +199,13 @@ export default function Home() {
         <Stack direction={{base: 'column', md: 'row'}} spacing={{base: 10, md: 16}} align="center">
           {/* Left Side: Main Typography & Call-To-Action */}
           <Box flex="1" w="100%" animation={`${slideInLeft} 0.8s cubic-bezier(0.16, 1, 0.3, 1) both`}>
-            <Heading size={{base: '2xl', md: '3xl'}} color="#1C4532" letterSpacing="tighter" lineHeight="1.1" mb={6}>
+            <Heading size={{base: '2xl', md: '3xl'}} color={isDarkMode ? '#F8FAFC' : '#1C4532'} letterSpacing="tighter" lineHeight="1.1" mb={6}>
               Track your impact. <br />
-              <Text as="span" color="#38A169">
+              <Text as="span" color="#48BB78">
                 Shape the future.
               </Text>
             </Heading>
-            <Text fontSize={{base: 'lg', md: 'xl'}} color="#4A5568" mb={8} maxW="400px" lineHeight="tall">
+            <Text fontSize={{base: 'lg', md: 'xl'}} color={isDarkMode ? '#94A3B8' : '#4A5568'} mb={8} maxW="400px" lineHeight="tall">
               A clean, data-driven approach to understanding and reducing your daily carbon footprint in real-time.
             </Text>
             <Flex gap={4} wrap="wrap">
@@ -202,13 +214,17 @@ export default function Home() {
                 to="/tracker"
                 size="lg"
                 flex={{base: '1', sm: 'initial'}}
-                bg="#22543D"
+                bg={isDarkMode ? '#2F855A' : '#22543D'}
                 color="white"
                 borderRadius="xl"
                 px={8}
-                boxShadow="0 10px 20px rgba(34, 84, 61, 0.15)"
+                boxShadow={isDarkMode ? '0 10px 20px rgba(47, 133, 90, 0.3)' : '0 10px 20px rgba(34, 84, 61, 0.15)'}
                 transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
-                _hover={{bg: '#1C4532', transform: 'translateY(-3px)', boxShadow: '0 15px 30px rgba(34, 84, 61, 0.25)'}}
+                _hover={{
+                  bg: isDarkMode ? '#38A169' : '#1C4532',
+                  transform: 'translateY(-3px)',
+                  boxShadow: isDarkMode ? '0 15px 30px rgba(47, 133, 90, 0.4)' : '0 15px 30px rgba(34, 84, 61, 0.25)'
+                }}
                 _active={{transform: 'translateY(0)'}}
               >
                 My Tracker
@@ -218,16 +234,17 @@ export default function Home() {
                 to="/dashboard"
                 size="lg"
                 flex={{base: '1', sm: 'initial'}}
-                bg="white"
-                color="#22543D"
-                border="2px solid #C6F6D5"
+                bg={isDarkMode ? 'rgba(30, 41, 59, 0.7)' : 'white'}
+                color={isDarkMode ? '#9AE6B4' : '#22543D'}
+                border={`2px solid ${isDarkMode ? 'rgba(72, 187, 120, 0.4)' : '#C6F6D5'}`}
+                backdropFilter={isDarkMode ? 'blur(10px)' : 'none'}
                 borderRadius="xl"
                 transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
                 _hover={{
-                  bg: '#F0FFF4',
-                  borderColor: '#9AE6B4',
+                  bg: isDarkMode ? '#1E293B' : '#F0FFF4',
+                  borderColor: isDarkMode ? '#68D391' : '#9AE6B4',
                   transform: 'translateY(-3px)',
-                  boxShadow: '0 10px 20px rgba(72, 187, 120, 0.1)'
+                  boxShadow: '0 10px 20px rgba(72, 187, 120, 0.15)'
                 }}
                 _active={{transform: 'translateY(0)'}}
               >
@@ -236,42 +253,53 @@ export default function Home() {
             </Flex>
           </Box>
 
-          {/* Right Side: Floating Live Stat Cards (Now Visible & Fully Responsive) */}
+          {/* Right Side: Floating Live Stat Cards */}
           <Box flex="1" w="100%" mt={{base: 6, md: 0}} position="relative" animation={`${slideInRight} 0.8s cubic-bezier(0.16, 1, 0.3, 1) both`}>
-            {/* Background Blob (Only displayed on tablet/desktop to avoid layout clashing) */}
+            {/* Background Blob */}
             <Box
               display={{base: 'none', md: 'block'}}
               w="450px"
               h="450px"
-              bg="linear-gradient(135deg, #C6F6D5 0%, #81E6D9 100%)"
+              bg={isDarkMode ? 'linear-gradient(135deg, rgba(72, 187, 120, 0.3) 0%, rgba(49, 151, 149, 0.2) 100%)' : 'linear-gradient(135deg, #C6F6D5 0%, #81E6D9 100%)'}
               borderRadius="40% 60% 70% 30% / 40% 50% 60% 50%"
               position="absolute"
               top="-30px"
               right="-20px"
               zIndex={0}
-              opacity="0.7"
+              opacity={isDarkMode ? '0.45' : '0.7'}
               animation={`${auroraDrift} 15s ease-in-out infinite alternate`}
             />
-            {/* Cards Flex Container: Disable float on base, enable on md */}
+
+            {/* Cards Flex Container */}
             <Flex direction="column" gap={{base: 4, md: 6}} position="relative" zIndex={1} animation={`${float} 6s ease-in-out infinite`}>
               {/* Monthly Trend Box */}
               <Box
-                bg="rgba(255, 255, 255, 0.9)"
-                backdropFilter="blur(10px)"
+                bg={isDarkMode ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.9)'}
+                backdropFilter="blur(12px)"
                 p={{base: 6, md: 8}}
                 borderRadius="3xl"
-                boxShadow="0 25px 50px -12px rgba(28, 69, 50, 0.12)"
-                border="1px solid rgba(72, 187, 120, 0.2)"
+                boxShadow={isDarkMode ? '0 25px 50px -12px rgba(0, 0, 0, 0.5)' : '0 25px 50px -12px rgba(28, 69, 50, 0.12)'}
+                border={`1px solid ${isDarkMode ? 'rgba(51, 65, 85, 0.8)' : 'rgba(72, 187, 120, 0.2)'}`}
                 w={{base: '100%', md: '85%'}}
                 ml="auto"
                 transition="all 0.3s ease"
-                _hover={{transform: 'scale(1.02)', boxShadow: '0 30px 60px -12px rgba(28, 69, 50, 0.18)'}}
+                _hover={{
+                  transform: 'scale(1.02)',
+                  boxShadow: isDarkMode ? '0 30px 60px -12px rgba(0, 0, 0, 0.6)' : '0 30px 60px -12px rgba(28, 69, 50, 0.18)'
+                }}
               >
                 <Flex justify="space-between" align="center" mb={4}>
-                  <Text fontSize="xs" color="#4A5568" fontWeight="bold" textTransform="uppercase" letterSpacing="wider">
+                  <Text fontSize="xs" color={isDarkMode ? '#94A3B8' : '#4A5568'} fontWeight="bold" textTransform="uppercase" letterSpacing="wider">
                     Monthly Trend
                   </Text>
-                  <Box px={2.5} py={1} bg={trendColor === '#38A169' ? '#F0FFF4' : '#FFF5F5'} borderRadius="md" border="1px solid" borderColor={trendColor === '#38A169' ? '#9AE6B4' : '#FEB2B2'}>
+                  <Box
+                    px={2.5}
+                    py={1}
+                    bg={trendColor === '#38A169' ? (isDarkMode ? '#143124' : '#F0FFF4') : isDarkMode ? '#3B1E22' : '#FFF5F5'}
+                    borderRadius="md"
+                    border="1px solid"
+                    borderColor={trendColor === '#38A169' ? (isDarkMode ? '#276749' : '#9AE6B4') : isDarkMode ? '#9B2C2C' : '#FEB2B2'}
+                  >
                     <Text fontSize="xs" fontWeight="black" color={trendColor}>
                       {trendColor === '#38A169' ? '↓ REDUCTION' : '↑ INCREASE'}
                     </Text>
@@ -285,37 +313,34 @@ export default function Home() {
 
               {/* Community Impact Box */}
               <Box
-                bg="rgba(255, 255, 255, 0.9)"
-                backdropFilter="blur(10px)"
+                bg={isDarkMode ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.9)'}
+                backdropFilter="blur(12px)"
                 p={{base: 6, md: 8}}
                 borderRadius="3xl"
-                boxShadow="0 25px 50px -12px rgba(28, 69, 50, 0.12)"
-                border="1px solid rgba(72, 187, 120, 0.2)"
+                boxShadow={isDarkMode ? '0 25px 50px -12px rgba(0, 0, 0, 0.5)' : '0 25px 50px -12px rgba(28, 69, 50, 0.12)'}
+                border={`1px solid ${isDarkMode ? 'rgba(51, 65, 85, 0.8)' : 'rgba(72, 187, 120, 0.2)'}`}
                 w={{base: '100%', md: '90%'}}
                 transition="all 0.3s ease"
-                _hover={{transform: 'scale(1.02)', boxShadow: '0 30px 60px -12px rgba(28, 69, 50, 0.18)'}}
+                _hover={{
+                  transform: 'scale(1.02)',
+                  boxShadow: isDarkMode ? '0 30px 60px -12px rgba(0, 0, 0, 0.6)' : '0 30px 60px -12px rgba(28, 69, 50, 0.18)'
+                }}
               >
                 <Flex align="center" gap={3} mb={4}>
-                  <Center w="8" h="8" bg="#F0FFF4" color="#38A169" borderRadius="full" fontSize="sm">
-                    🌍
-                  </Center>
-                  <Text fontSize="xs" color="#4A5568" fontWeight="bold" textTransform="uppercase" letterSpacing="wider">
+                  <Text fontSize="xs" color={isDarkMode ? '#94A3B8' : '#4A5568'} fontWeight="bold" textTransform="uppercase" letterSpacing="wider">
                     Total Community Impact
                   </Text>
                 </Flex>
-                <Text fontSize={{base: '4xl', md: '5xl'}} fontWeight="black" color="#1C4532" lineHeight="1">
+                <Text fontSize={{base: '4xl', md: '5xl'}} fontWeight="black" color={isDarkMode ? '#F8FAFC' : '#1C4532'} lineHeight="1">
                   <AnimatedNumber value={totalOffset} suffix={isKFormat ? 'k' : ''} />{' '}
-                  <Text as="span" fontSize={{base: 'xl', md: '2xl'}} color="#718096">
+                  <Text as="span" fontSize={{base: 'xl', md: '2xl'}} color={isDarkMode ? '#64748B' : '#718096'}>
                     kg
                   </Text>
                 </Text>
-                <Box mt={6} p={4} bg="#F4F9F5" borderRadius="xl" border="1px dashed #9AE6B4">
-                  <Text fontSize="sm" color="#2F855A" fontWeight="medium">
-                    <Text as="span" fontSize="lg" mr={2}>
-                      🌳
-                    </Text>
+                <Box mt={6} p={4} bg={isDarkMode ? 'rgba(15, 23, 42, 0.6)' : '#F4F9F5'} borderRadius="xl" border={`1px dashed ${isDarkMode ? 'rgba(72, 187, 120, 0.4)' : '#9AE6B4'}`}>
+                  <Text fontSize="sm" color={isDarkMode ? '#9AE6B4' : '#2F855A'} fontWeight="medium">
                     Equivalent to planting{' '}
-                    <Text as="span" fontWeight="black" color="#22543D">
+                    <Text as="span" fontWeight="black" color={isDarkMode ? '#68D391' : '#22543D'}>
                       <AnimatedNumber value={treesEquivalent} /> {treesEquivalent === 1 ? 'tree' : 'trees'}
                     </Text>{' '}
                     this year.
@@ -329,59 +354,60 @@ export default function Home() {
 
       {/* 🟢 Premium Feature Cards Section */}
       <Box maxW="1200px" mx="auto" px={{base: 4, sm: 6, md: 10}} mt={{base: 2, md: 10}} position="relative" zIndex={1} animation={`${fadeIn} 0.8s ease-out 0.3s both`}>
-        <Box borderTop="2px solid #E2E8F0" pt={{base: 10, md: 16}}>
+        <Box borderTop={`2px solid ${isDarkMode ? '#334155' : '#E2E8F0'}`} pt={{base: 10, md: 16}}>
           <SimpleGrid columns={{base: 1, md: 2}} gap={{base: 6, md: 16}}>
             <Box
               role="group"
               cursor="pointer"
               p={{base: 6, md: 8}}
-              bg="white"
-              border="1px solid #E2E8F0"
+              bg={isDarkMode ? '#1E293B' : 'white'}
+              border={`1px solid ${isDarkMode ? '#334155' : '#E2E8F0'}`}
               borderRadius="2xl"
               transition="all 0.3s"
               _hover={{
-                bg: '#F4F9F5',
-                borderColor: '#9AE6B4',
+                bg: isDarkMode ? '#27354A' : '#F4F9F5',
+                borderColor: '#48BB78',
                 transform: 'translateY(-5px)',
-                boxShadow: '0 20px 40px -10px rgba(72, 187, 120, 0.15)'
+                boxShadow: isDarkMode ? '0 20px 40px -10px rgba(0, 0, 0, 0.5)' : '0 20px 40px -10px rgba(72, 187, 120, 0.15)'
               }}
             >
               <Flex align="center" gap={4} mb={6}>
-                <Center w="12" h="12" bg="#F0FFF4" color="#38A169" borderRadius="full" transition="all 0.3s" _groupHover={{bg: '#38A169', color: 'white'}}>
+                <Center w="12" h="12" bg={isDarkMode ? '#1E3A2F' : '#F0FFF4'} color="#38A169" borderRadius="full" transition="all 0.3s" _groupHover={{bg: '#38A169', color: 'white'}}>
                   🍃
                 </Center>
-                <Heading size="md" color="#1C4532">
+                <Heading size="md" color={isDarkMode ? '#F8FAFC' : '#1C4532'}>
                   Personal Accountability
                 </Heading>
               </Flex>
-              <Text color="#4A5568" fontSize={{base: 'md', md: 'lg'}} lineHeight="tall">
+              <Text color={isDarkMode ? '#94A3B8' : '#4A5568'} fontSize={{base: 'md', md: 'lg'}} lineHeight="tall">
                 Log your daily transport, diet, and energy use. Watch your personal tracker adapt in real-time to help you stay under your monthly carbon ceiling.
               </Text>
             </Box>
+
             <Box
               role="group"
               cursor="pointer"
               p={{base: 6, md: 8}}
-              bg="white"
-              border="1px solid #E2E8F0"
+              bg={isDarkMode ? '#1E293B' : 'white'}
+              border={`1px solid ${isDarkMode ? '#334155' : '#E2E8F0'}`}
               borderRadius="2xl"
               transition="all 0.3s"
               _hover={{
-                bg: '#E6FFFA',
-                borderColor: '#81E6D9',
+                bg: isDarkMode ? '#27354A' : '#E6FFFA',
+                borderColor: '#319795',
                 transform: 'translateY(-5px)',
-                boxShadow: '0 20px 40px -10px rgba(49, 151, 149, 0.15)'
+                boxShadow: isDarkMode ? '0 20px 40px -10px rgba(0, 0, 0, 0.5)' : '0 20px 40px -10px rgba(49, 151, 149, 0.15)'
               }}
             >
               <Flex align="center" gap={4} mb={6}>
-                <Center w="12" h="12" bg="#E6FFFA" color="#319795" borderRadius="full" transition="all 0.3s" _groupHover={{bg: '#319795', color: 'white'}}>
+                <Center w="12" h="12" bg={isDarkMode ? '#193A3E' : '#E6FFFA'} color="#319795" borderRadius="full" transition="all 0.3s" _groupHover={{bg: '#319795', color: 'white'}}>
                   🤝
                 </Center>
-                <Heading size="md" color="#1C4532">
+                <Heading size="md" color={isDarkMode ? '#F8FAFC' : '#1C4532'}>
                   Community Intelligence
                 </Heading>
               </Flex>
-              <Text color="#4A5568" fontSize={{base: 'md', md: 'lg'}} lineHeight="tall">
+              <Text color={isDarkMode ? '#94A3B8' : '#4A5568'} fontSize={{base: 'md', md: 'lg'}} lineHeight="tall">
                 Zoom out to the global dashboard. See how your efforts combine with hundreds of other users to create massive, measurable environmental change.
               </Text>
             </Box>

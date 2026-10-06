@@ -2,7 +2,7 @@
 // App.jsx
 import {Box, Flex, Center, Spinner, Text, Heading, Button} from '@chakra-ui/react'
 import {Routes, Route, Navigate, useLocation, useNavigate} from 'react-router-dom'
-import {useState, useEffect} from 'react'
+import {useState, useEffect, createContext, useContext} from 'react'
 
 import Navbar from './components/Navbar'
 import Dashboard from './components/Dashboard'
@@ -22,17 +22,46 @@ import AdminRoute from './components/AdminRoute'
 
 import {supabase} from './supabase'
 
+// 🌐 Global Theme Context for Public Pages & Components
+export const ThemeContext = createContext({
+  isDarkMode: false,
+  toggleTheme: () => {}
+})
+
+export const useTheme = () => useContext(ThemeContext)
+
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [userRole, setUserRole] = useState(null)
   const [isAuthLoading, setIsAuthLoading] = useState(true)
-
   const [banNotice, setBanNotice] = useState(null)
+
+  // 🌙 Shared Night Mode state (persisted via localStorage)
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return localStorage.getItem('admin_theme') === 'dark'
+  })
+
+  const toggleTheme = () => {
+    setIsDarkMode(prev => {
+      const next = !prev
+      localStorage.setItem('admin_theme', next ? 'dark' : 'light')
+      return next
+    })
+  }
+
+  // Sync document root class with night mode state
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+  }, [isDarkMode])
 
   const location = useLocation()
   const navigate = useNavigate()
 
-  const MINIMAL_ROUTES = ['/admin', '/update-password', '/2YBnrUJH4WFa']
+  const MINIMAL_ROUTES = ['/admin', '/update-password', '/2YBnrUJH4WFa', '/login']
   const isMinimalRoute = MINIMAL_ROUTES.includes(location.pathname)
 
   useEffect(() => {
@@ -120,9 +149,6 @@ export default function App() {
         return
       }
 
-      // 🛑 SECURITY QUARANTINE:
-      // If recovery mode is active, do NOT log this session in globally.
-      // This prevents any new tab from having access to the app.
       const isRecoveryActive = localStorage.getItem('sb_recovery_mode') === 'true'
       if (isRecoveryActive) {
         if (isMounted) {
@@ -210,10 +236,10 @@ export default function App() {
 
   if (isAuthLoading) {
     return (
-      <Center minH="100vh" bg="#F4FAF6">
+      <Center minH="100vh" bg={isDarkMode ? '#0F172A' : '#F4FAF6'}>
         <Flex direction="column" align="center" gap={4}>
           <Spinner size="xl" color="#2F855A" thickness="4px" />
-          <Text fontWeight="600" color="gray.600">
+          <Text fontWeight="600" color={isDarkMode ? '#94A3B8' : 'gray.600'}>
             Verifying security session...
           </Text>
         </Flex>
@@ -225,64 +251,76 @@ export default function App() {
   const showPublicLayout = !isMinimalRoute && !isAdmin
 
   return (
-    <Flex direction="column" minH="100vh" bg="#FFFFFF" color="gray.800" position="relative">
-      {showPublicLayout && <Navbar isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />}
+    <ThemeContext.Provider value={{isDarkMode, toggleTheme}}>
+      <Flex direction="column" minH="100vh" bg={isDarkMode ? '#0F172A' : '#FFFFFF'} color={isDarkMode ? '#F8FAFC' : 'gray.800'} position="relative" transition="background-color 0.3s ease, color 0.3s ease">
+        {showPublicLayout && <Navbar isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} isDarkMode={isDarkMode} toggleTheme={toggleTheme} />}
 
-      <Box flex="1">
-        <Routes>
-          <Route path="/" element={isAdmin ? <Navigate to="/admin" replace /> : <Home />} />
-          <Route path="/dashboard" element={isAdmin ? <Navigate to="/admin" replace /> : <Dashboard />} />
+        <Box flex="1">
+          <Routes>
+            <Route path="/" element={isAdmin ? <Navigate to="/admin" replace /> : <Home />} />
+            <Route path="/dashboard" element={isAdmin ? <Navigate to="/admin" replace /> : <Dashboard />} />
 
-          {/* Protected Login Route */}
-          <Route path="/login" element={isLoggedIn ? isAdmin ? <Navigate to="/admin" replace /> : <Navigate to="/tracker" replace /> : <Login />} />
+            {/* Protected Login Route */}
+            <Route path="/login" element={isLoggedIn ? isAdmin ? <Navigate to="/admin" replace /> : <Navigate to="/tracker" replace /> : <Login />} />
 
-          {/* Protected Tracker Route */}
-          <Route path="/tracker" element={isLoggedIn ? isAdmin ? <Navigate to="/admin" replace /> : <PersonalTracker /> : <Navigate to="/login" replace />} />
+            {/* ✅ New: Allows guests to visit and view the blurred teaser */}
+            <Route path="/tracker" element={isAdmin ? <Navigate to="/admin" replace /> : <PersonalTracker />} />
 
-          <Route path="/get-app" element={isAdmin ? <Navigate to="/admin" replace /> : <GetApp />} />
-          <Route path="/privacy" element={isAdmin ? <Navigate to="/admin" replace /> : <PrivacyPolicy />} />
-          <Route path="/terms" element={isAdmin ? <Navigate to="/admin" replace /> : <TermsOfService />} />
-          <Route path="/FAQ" element={isAdmin ? <Navigate to="/admin" replace /> : <FAQ />} />
+            <Route path="/get-app" element={isAdmin ? <Navigate to="/admin" replace /> : <GetApp />} />
+            <Route path="/privacy" element={isAdmin ? <Navigate to="/admin" replace /> : <PrivacyPolicy />} />
+            <Route path="/terms" element={isAdmin ? <Navigate to="/admin" replace /> : <TermsOfService />} />
+            <Route path="/FAQ" element={isAdmin ? <Navigate to="/admin" replace /> : <FAQ />} />
 
-          <Route
-            path="/admin"
-            element={
-              <AdminRoute isAdmin={isAdmin}>
-                <AdminDashboard />
-              </AdminRoute>
-            }
-          />
+            <Route
+              path="/admin"
+              element={
+                <AdminRoute isAdmin={isAdmin}>
+                  <AdminDashboard />
+                </AdminRoute>
+              }
+            />
 
-          <Route path="/2YBnrUJH4WFa" element={<AdminRegister />} />
+            <Route path="/2YBnrUJH4WFa" element={<AdminRegister />} />
 
-          {/* Protected Consumer Route */}
-          <Route path="/profile" element={isLoggedIn ? isAdmin ? <Navigate to="/admin" replace /> : <Profile /> : <Navigate to="/login" replace />} />
+            {/* Protected Consumer Route */}
+            <Route path="/profile" element={isLoggedIn ? isAdmin ? <Navigate to="/admin" replace /> : <Profile /> : <Navigate to="/login" replace />} />
 
-          {/* 🟢 Standalone Password Reset Route */}
-          <Route path="/update-password" element={<UpdatePassword />} />
-        </Routes>
-      </Box>
+            {/* Standalone Password Reset Route */}
+            <Route path="/update-password" element={<UpdatePassword />} />
+          </Routes>
+        </Box>
 
-      {showPublicLayout && <Footer />}
+        {showPublicLayout && <Footer isDarkMode={isDarkMode} />}
 
-      {banNotice && (
-        <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.7)" backdropFilter="blur(8px)" zIndex={99999} align="center" justify="center" px={4} onClick={() => setBanNotice(null)}>
-          <Box bg="white" p={8} borderRadius="3xl" maxW="420px" w="100%" boxShadow="0 25px 50px -12px rgba(229, 62, 62, 0.3)" onClick={e => e.stopPropagation()} textAlign="center">
-            <Flex w="16" h="16" bg="#FFF5F5" border="4px solid white" outline="1px solid #FED7D7" borderRadius="full" align="center" justify="center" mx="auto" mb={5} boxShadow="lg">
-              <Text fontSize="2xl">🚫</Text>
-            </Flex>
-            <Heading size="md" color="#1A202C" mb={3} letterSpacing="tight">
-              {banNotice.title}
-            </Heading>
-            <Text color="#718096" fontSize="sm" mb={6} lineHeight="tall">
-              {banNotice.message}
-            </Text>
-            <Button w="100%" size="lg" bg="#E53E3E" color="white" borderRadius="xl" _hover={{bg: '#C53030'}} onClick={() => setBanNotice(null)}>
-              Acknowledge & Continue
-            </Button>
-          </Box>
-        </Flex>
-      )}
-    </Flex>
+        {banNotice && (
+          <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.7)" backdropFilter="blur(8px)" zIndex={99999} align="center" justify="center" px={4} onClick={() => setBanNotice(null)}>
+            <Box
+              bg={isDarkMode ? '#1E293B' : 'white'}
+              border={isDarkMode ? '1px solid #334155' : 'none'}
+              p={8}
+              borderRadius="3xl"
+              maxW="420px"
+              w="100%"
+              boxShadow="0 25px 50px -12px rgba(229, 62, 62, 0.3)"
+              onClick={e => e.stopPropagation()}
+              textAlign="center"
+            >
+              <Flex w="16" h="16" bg={isDarkMode ? '#3B1E22' : '#FFF5F5'} border="4px solid transparent" outline="1px solid #FED7D7" borderRadius="full" align="center" justify="center" mx="auto" mb={5} boxShadow="lg">
+                <Text fontSize="2xl">🚫</Text>
+              </Flex>
+              <Heading size="md" color={isDarkMode ? '#F8FAFC' : '#1A202C'} mb={3} letterSpacing="tight">
+                {banNotice.title}
+              </Heading>
+              <Text color={isDarkMode ? '#94A3B8' : '#718096'} fontSize="sm" mb={6} lineHeight="tall">
+                {banNotice.message}
+              </Text>
+              <Button w="100%" size="lg" bg="#E53E3E" color="white" borderRadius="xl" _hover={{bg: '#C53030'}} onClick={() => setBanNotice(null)}>
+                Acknowledge & Continue
+              </Button>
+            </Box>
+          </Flex>
+        )}
+      </Flex>
+    </ThemeContext.Provider>
   )
 }

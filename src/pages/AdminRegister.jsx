@@ -5,6 +5,12 @@ import {useState} from 'react'
 import {Box, Heading, Text, Input, Button, VStack, Flex, Icon, Spinner} from '@chakra-ui/react'
 import {useNavigate} from 'react-router-dom'
 import {supabase} from '../supabase'
+import {keyframes} from '@emotion/react'
+
+const cardPop = keyframes`
+  from { opacity: 0; transform: scale(0.96) translateY(15px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+`
 
 // Zero-dependency SVG Eye Icons
 const ViewIcon = props => (
@@ -34,6 +40,7 @@ export default function AdminRegister() {
   const [loading, setLoading] = useState(false)
   const [serverError, setServerError] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
+  const [isProvisionSuccess, setIsProvisionSuccess] = useState(false)
 
   const navigate = useNavigate()
 
@@ -96,7 +103,8 @@ export default function AdminRegister() {
           email: email.trim(),
           password,
           fullName: fullName.trim(),
-          securityCode: securityCode.trim()
+          securityCode: securityCode.trim(),
+          redirectTo: `${window.location.origin}/login`
         }
       })
 
@@ -121,13 +129,46 @@ export default function AdminRegister() {
         throw new Error(data.error)
       }
 
-      alert('Admin Account Created Successfully! Please log in.')
-      navigate('/login')
+      // Replaces the generic browser alert with an in-app confirmation screen
+      setIsProvisionSuccess(true)
     } catch (err) {
       setServerError(err.message || 'An unexpected error occurred.')
     } finally {
       setLoading(false)
     }
+  }
+
+  if (isProvisionSuccess) {
+    return (
+      <Box minH="100vh" w="100%" display="flex" alignItems="center" justifyContent="center" position="relative" overflow="hidden" bgGradient="linear(to-br, #1A202C, #2D3748, #4A5568)" py={{base: 6, md: 10}} px={4}>
+        <Box w="100%" maxW="480px" bg="white" p={{base: 6, sm: 8, md: 10}} borderRadius="3xl" boxShadow="2xl" textAlign="center" position="relative" zIndex={1} animation={`${cardPop} 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both`}>
+          <Flex w="56px" h="56px" bg="#F0FFF4" border="1px solid #C6F6D5" borderRadius="2xl" align="center" justify="center" mx="auto" mb={4} fontSize="2xl">
+            🛡️
+          </Flex>
+          <Heading size="lg" color="#1A202C" letterSpacing="tight" mb={2}>
+            Staff Account Provisioned
+          </Heading>
+          <Text color="#718096" fontSize="sm" mb={6} lineHeight="tall">
+            A confirmation link has been dispatched to <b>{email}</b>. Click the link in that message to verify and finalize administrator privileges.
+          </Text>
+          <Button
+            w="100%"
+            bg="#1A202C"
+            color="white"
+            borderRadius="xl"
+            py={6}
+            fontWeight="bold"
+            fontSize="sm"
+            _hover={{bg: '#2D3748', transform: 'translateY(-2px)'}}
+            _active={{transform: 'translateY(0)'}}
+            transition="all 0.2s"
+            onClick={() => navigate('/login')}
+          >
+            Proceed to Login
+          </Button>
+        </Box>
+      </Box>
+    )
   }
 
   return (

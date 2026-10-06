@@ -3,6 +3,7 @@ import {Box, Heading, Text, Flex, Grid, GridItem, VStack, Stack, Center, Button,
 import {Link} from 'react-router-dom'
 import {keyframes} from '@emotion/react'
 import carbonSenseHero from '../assets/CarbonSense.png'
+import {useTheme} from '../App'
 
 // 🟢 Custom Motion Frames
 const slideDown = keyframes`
@@ -34,11 +35,42 @@ const auroraDrift = keyframes`
 `
 
 export default function GetApp() {
+  const {isDarkMode} = useTheme()
+
   return (
-    <Box minH="100vh" bg="#F4F9F5" backgroundImage="url('https://www.transparenttextures.com/patterns/cubes.png')" backgroundBlendMode="multiply" position="relative" overflow="hidden" pb={{base: 12, md: 24}}>
+    <Box
+      minH="100vh"
+      bg={isDarkMode ? '#0B1120' : '#F4F9F5'}
+      backgroundImage="url('https://www.transparenttextures.com/patterns/cubes.png')"
+      backgroundBlendMode={isDarkMode ? 'soft-light' : 'multiply'}
+      position="relative"
+      overflow="hidden"
+      pb={{base: 12, md: 24}}
+      transition="background-color 0.3s ease"
+    >
       {/* 🌿 Background Glows */}
-      <Box position="absolute" top="-10%" left="-5%" w={{base: '350px', md: '700px'}} h={{base: '350px', md: '700px'}} bgGradient="radial(#48BB78 0%, transparent 65%)" opacity="0.15" borderRadius="full" pointerEvents="none" />
-      <Box position="absolute" top="20%" right="-5%" w={{base: '350px', md: '700px'}} h={{base: '350px', md: '700px'}} bgGradient="radial(#319795 0%, transparent 65%)" opacity="0.12" borderRadius="full" pointerEvents="none" />
+      <Box
+        position="absolute"
+        top="-10%"
+        left="-5%"
+        w={{base: '350px', md: '700px'}}
+        h={{base: '350px', md: '700px'}}
+        bgGradient={isDarkMode ? 'radial(rgba(72, 187, 120, 0.25) 0%, transparent 65%)' : 'radial(#48BB78 0%, transparent 65%)'}
+        opacity={isDarkMode ? '0.22' : '0.15'}
+        borderRadius="full"
+        pointerEvents="none"
+      />
+      <Box
+        position="absolute"
+        top="20%"
+        right="-5%"
+        w={{base: '350px', md: '700px'}}
+        h={{base: '350px', md: '700px'}}
+        bgGradient={isDarkMode ? 'radial(rgba(49, 151, 149, 0.25) 0%, transparent 65%)' : 'radial(#319795 0%, transparent 65%)'}
+        opacity={isDarkMode ? '0.2' : '0.12'}
+        borderRadius="full"
+        pointerEvents="none"
+      />
 
       <Box position="relative" zIndex={1}>
         {/* 🟢 Header Section */}
@@ -47,17 +79,18 @@ export default function GetApp() {
           pt={{base: 12, md: 16}}
           pb={{base: 6, md: 8}}
           px={{base: 4, sm: 6, md: 10}}
-          borderBottom="1px solid rgba(72, 187, 120, 0.2)"
-          bg="rgba(244, 249, 245, 0.6)"
+          borderBottom={`1px solid ${isDarkMode ? 'rgba(51, 65, 85, 0.6)' : 'rgba(72, 187, 120, 0.2)'}`}
+          bg={isDarkMode ? 'rgba(15, 23, 42, 0.75)' : 'rgba(244, 249, 245, 0.6)'}
           backdropFilter="blur(12px)"
           animation={`${slideDown} 0.6s cubic-bezier(0.16, 1, 0.3, 1) both`}
+          transition="background-color 0.3s ease, border-color 0.3s ease"
         >
           <Box maxW="1200px" mx="auto" position="relative">
             <Flex align="center" gap={2} as={Link} to="/" position="absolute" top={{base: '-32px', md: '-40px'}} left="0" transition="all 0.2s" _hover={{opacity: 0.7, transform: 'translateX(-4px)'}}>
-              <Text fontSize="lg" color="#1C4532">
+              <Text fontSize="lg" color={isDarkMode ? '#9AE6B4' : '#1C4532'}>
                 ←
               </Text>
-              <Text fontWeight="bold" color="#1C4532" fontSize="sm">
+              <Text fontWeight="bold" color={isDarkMode ? '#9AE6B4' : '#1C4532'} fontSize="sm">
                 Back to Home
               </Text>
             </Flex>
@@ -65,17 +98,17 @@ export default function GetApp() {
             <Flex justify="space-between" align={{base: 'flex-start', md: 'flex-end'}} direction={{base: 'column', md: 'row'}} gap={6}>
               <Box>
                 <Flex align="center" gap={3}>
-                  <Text color="#276749" fontWeight="bold" letterSpacing="widest" fontSize="xs" textTransform="uppercase">
+                  <Text color={isDarkMode ? '#68D391' : '#276749'} fontWeight="bold" letterSpacing="widest" fontSize="xs" textTransform="uppercase">
                     Mobile Ecosystem
                   </Text>
-                  <Badge bg="#E6FFFA" color="#234E52" px={2} py={0.5} borderRadius="md" border="1px solid #9AE6B4">
+                  <Badge bg={isDarkMode ? 'rgba(49, 151, 149, 0.2)' : '#E6FFFA'} color={isDarkMode ? '#81E6D9' : '#234E52'} px={2} py={0.5} borderRadius="md" border={`1px solid ${isDarkMode ? 'rgba(49, 151, 149, 0.45)' : '#9AE6B4'}`}>
                     In Development
                   </Badge>
                 </Flex>
-                <Heading size={{base: 'xl', md: '2xl'}} color="#1C4532" mt={2} letterSpacing="tighter">
+                <Heading size={{base: 'xl', md: '2xl'}} color={isDarkMode ? '#F8FAFC' : '#1C4532'} mt={2} letterSpacing="tighter">
                   Get the App
                 </Heading>
-                <Text color="#4A5568" fontSize={{base: 'sm', md: 'md'}} mt={2} maxW="500px" lineHeight="tall">
+                <Text color={isDarkMode ? '#94A3B8' : '#4A5568'} fontSize={{base: 'sm', md: 'md'}} mt={2} maxW="500px" lineHeight="tall">
                   The ultimate daily companion for your carbon-neutral journey. Log activities, complete challenges, and track your streak on the go.
                 </Text>
               </Box>
@@ -90,13 +123,13 @@ export default function GetApp() {
             <GridItem animation={`${slideInLeft} 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both`}>
               <VStack align="flex-start" spacing={{base: 6, md: 8}}>
                 <Box>
-                  <Heading size={{base: '2xl', md: '3xl'}} color="#1C4532" letterSpacing="tighter" lineHeight="1.1" mb={4}>
+                  <Heading size={{base: '2xl', md: '3xl'}} color={isDarkMode ? '#F8FAFC' : '#1C4532'} letterSpacing="tighter" lineHeight="1.1" mb={4}>
                     CarbonSense <br />
                     <Text as="span" color="#38A169">
                       in your pocket.
                     </Text>
                   </Heading>
-                  <Text fontSize={{base: 'md', md: 'lg'}} color="#4A5568" lineHeight="tall" maxW="450px">
+                  <Text fontSize={{base: 'md', md: 'lg'}} color={isDarkMode ? '#94A3B8' : '#4A5568'} lineHeight="tall" maxW="450px">
                     We designed the mobile app to be your real-time logging tool. Complete your personalized daily challenges and let the app instantly sync your reductions back to your global web dashboard.
                   </Text>
                 </Box>
@@ -110,15 +143,15 @@ export default function GetApp() {
                     h="60px"
                     w={{base: '100%', sm: 'auto'}}
                     px={8}
-                    bg="#22543D"
+                    bg={isDarkMode ? '#2F855A' : '#22543D'}
                     color="white"
                     borderRadius="xl"
                     transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
-                    boxShadow="0 8px 20px rgba(34, 84, 61, 0.15)"
+                    boxShadow={isDarkMode ? '0 8px 20px rgba(47, 133, 90, 0.3)' : '0 8px 20px rgba(34, 84, 61, 0.15)'}
                     _hover={{
-                      bg: '#1C4532',
+                      bg: isDarkMode ? '#38A169' : '#1C4532',
                       transform: 'translateY(-3px)',
-                      boxShadow: '0 12px 25px rgba(34, 84, 61, 0.25)',
+                      boxShadow: isDarkMode ? '0 12px 25px rgba(47, 133, 90, 0.4)' : '0 12px 25px rgba(34, 84, 61, 0.25)',
                       textDecoration: 'none'
                     }}
                     _active={{transform: 'translateY(-1px)'}}
@@ -136,20 +169,21 @@ export default function GetApp() {
                   </Button>
 
                   <Button
+                    type="button"
                     h="60px"
                     w={{base: '100%', sm: 'auto'}}
                     px={8}
-                    bg="rgba(255, 255, 255, 0.9)"
+                    bg={isDarkMode ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.9)'}
                     backdropFilter="blur(10px)"
-                    color="#1C4532"
-                    border="2px solid rgba(72, 187, 120, 0.3)"
+                    color={isDarkMode ? '#F8FAFC' : '#1C4532'}
+                    border={`2px solid ${isDarkMode ? 'rgba(51, 65, 85, 0.8)' : 'rgba(72, 187, 120, 0.3)'}`}
                     borderRadius="xl"
                     transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
                     _hover={{
-                      bg: '#F0FFF4',
+                      bg: isDarkMode ? '#1E293B' : '#F0FFF4',
                       borderColor: '#48BB78',
                       transform: 'translateY(-3px)',
-                      boxShadow: '0 8px 15px rgba(72, 187, 120, 0.1)'
+                      boxShadow: isDarkMode ? '0 8px 20px rgba(0, 0, 0, 0.4)' : '0 8px 15px rgba(72, 187, 120, 0.1)'
                     }}
                     _active={{transform: 'translateY(-1px)'}}
                     display="flex"
@@ -157,7 +191,7 @@ export default function GetApp() {
                     alignItems={{base: 'center', sm: 'flex-start'}}
                     justifyContent="center"
                   >
-                    <Text fontSize="xs" color="#4A5568" fontWeight="bold" textTransform="uppercase" letterSpacing="wide">
+                    <Text fontSize="xs" color={isDarkMode ? '#94A3B8' : '#4A5568'} fontWeight="bold" textTransform="uppercase" letterSpacing="wide">
                       Coming soon to
                     </Text>
                     <Text fontSize="lg" fontWeight="black" mt="-1">
@@ -168,7 +202,7 @@ export default function GetApp() {
 
                 <Flex align="center" gap={3} pt={2}>
                   <Box w="8px" h="8px" bg="#38A169" borderRadius="full" animation="pulse 2s infinite" />
-                  <Text fontSize="sm" color="#4A5568" fontWeight="bold">
+                  <Text fontSize="sm" color={isDarkMode ? '#94A3B8' : '#4A5568'} fontWeight="bold">
                     Flutter Mobile App currently in development
                   </Text>
                 </Flex>
@@ -183,9 +217,9 @@ export default function GetApp() {
                   position="absolute"
                   w={{base: '300px', md: '450px'}}
                   h={{base: '300px', md: '450px'}}
-                  bg="linear-gradient(135deg, #C6F6D5 0%, #81E6D9 100%)"
+                  bg={isDarkMode ? 'linear-gradient(135deg, rgba(72, 187, 120, 0.3) 0%, rgba(49, 151, 149, 0.2) 100%)' : 'linear-gradient(135deg, #C6F6D5 0%, #81E6D9 100%)'}
                   borderRadius="40% 60% 70% 30% / 40% 50% 60% 50%"
-                  opacity="0.6"
+                  opacity={isDarkMode ? '0.45' : '0.6'}
                   zIndex={0}
                   animation={`${auroraDrift} 15s ease-in-out infinite alternate`}
                 />
@@ -198,12 +232,15 @@ export default function GetApp() {
                   h={{base: '540px', sm: '580px', md: '650px'}}
                   bg="#000000"
                   borderRadius="3rem"
-                  border="12px solid #1C2723"
-                  boxShadow="2xl"
+                  border={`12px solid ${isDarkMode ? '#334155' : '#1C2723'}`}
+                  boxShadow={isDarkMode ? '0 25px 60px rgba(0, 0, 0, 0.8)' : '2xl'}
                   overflow="hidden"
                   transform={{base: 'rotate(0deg)', md: 'rotate(-5deg)'}}
                   transition="all 0.5s cubic-bezier(0.16, 1, 0.3, 1)"
-                  _hover={{transform: 'rotate(0deg) scale(1.02)', boxShadow: '0 25px 50px -12px rgba(28, 69, 50, 0.3)'}}
+                  _hover={{
+                    transform: 'rotate(0deg) scale(1.02)',
+                    boxShadow: isDarkMode ? '0 25px 60px -12px rgba(56, 161, 105, 0.4)' : '0 25px 50px -12px rgba(28, 69, 50, 0.3)'
+                  }}
                 >
                   <Box w="100%" h="100%">
                     <Image src={carbonSenseHero} alt="CarbonSense Mobile App" w="100%" h="100%" objectFit="cover" borderBottomRadius="2.2rem" />
@@ -215,10 +252,10 @@ export default function GetApp() {
 
           {/* 🟢 Features Grid */}
           <Box pt={{base: 12, md: 24}} pb={10} animation={`${gridFadeUp} 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both`}>
-            <Text textAlign="center" color="#276749" fontWeight="bold" letterSpacing="widest" fontSize="xs" textTransform="uppercase" mb={2}>
+            <Text textAlign="center" color={isDarkMode ? '#68D391' : '#276749'} fontWeight="bold" letterSpacing="widest" fontSize="xs" textTransform="uppercase" mb={2}>
               Mobile Exclusives
             </Text>
-            <Heading textAlign="center" size={{base: 'lg', md: 'xl'}} color="#1C4532" letterSpacing="tight" mb={{base: 8, md: 12}}>
+            <Heading textAlign="center" size={{base: 'lg', md: 'xl'}} color={isDarkMode ? '#F8FAFC' : '#1C4532'} letterSpacing="tight" mb={{base: 8, md: 12}}>
               Why download the app?
             </Heading>
 
@@ -226,20 +263,24 @@ export default function GetApp() {
               {/* Feature 1 */}
               <Box
                 p={{base: 5, md: 8}}
-                bg="rgba(255, 255, 255, 0.9)"
+                bg={isDarkMode ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.9)'}
                 backdropFilter="blur(10px)"
                 borderRadius="2xl"
-                border="1px solid rgba(72, 187, 120, 0.2)"
-                boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)"
+                border={`1px solid ${isDarkMode ? 'rgba(51, 65, 85, 0.8)' : 'rgba(72, 187, 120, 0.2)'}`}
+                boxShadow={isDarkMode ? '0 10px 30px -5px rgba(0, 0, 0, 0.4)' : '0 10px 30px -5px rgba(28, 69, 50, 0.05)'}
                 role="group"
                 cursor="pointer"
                 transition="all 0.25s ease"
-                _hover={{borderColor: '#38A169', transform: 'translateY(-4px)', boxShadow: '0 15px 30px -5px rgba(28, 69, 50, 0.15)'}}
+                _hover={{
+                  borderColor: '#38A169',
+                  transform: 'translateY(-4px)',
+                  boxShadow: isDarkMode ? '0 15px 30px -5px rgba(56, 161, 105, 0.3)' : '0 15px 30px -5px rgba(28, 69, 50, 0.15)'
+                }}
               >
                 <Box
                   w="12"
                   h="12"
-                  bg="#F0FFF4"
+                  bg={isDarkMode ? '#1E3A2F' : '#F0FFF4'}
                   color="#38A169"
                   borderRadius="xl"
                   display="flex"
@@ -248,15 +289,15 @@ export default function GetApp() {
                   fontSize="2xl"
                   mb={6}
                   transition="transform 0.2s"
-                  border="1px solid #C6F6D5"
+                  border={`1px solid ${isDarkMode ? '#276749' : '#C6F6D5'}`}
                   _groupHover={{transform: 'scale(1.1) rotate(5deg)'}}
                 >
                   ⚡
                 </Box>
-                <Heading size="md" color="#1C4532" mb={3}>
+                <Heading size="md" color={isDarkMode ? '#F8FAFC' : '#1C4532'} mb={3}>
                   Lightning Fast Logging
                 </Heading>
-                <Text color="#4A5568" fontSize={{base: 'sm', md: 'md'}} lineHeight="tall">
+                <Text color={isDarkMode ? '#94A3B8' : '#4A5568'} fontSize={{base: 'sm', md: 'md'}} lineHeight="tall">
                   Don't wait until you get home. Log your transit, meals, and energy use in exactly 3 taps right when they happen.
                 </Text>
               </Box>
@@ -264,20 +305,24 @@ export default function GetApp() {
               {/* Feature 2 */}
               <Box
                 p={{base: 5, md: 8}}
-                bg="rgba(255, 255, 255, 0.9)"
+                bg={isDarkMode ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.9)'}
                 backdropFilter="blur(10px)"
                 borderRadius="2xl"
-                border="1px solid rgba(72, 187, 120, 0.2)"
-                boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)"
+                border={`1px solid ${isDarkMode ? 'rgba(51, 65, 85, 0.8)' : 'rgba(72, 187, 120, 0.2)'}`}
+                boxShadow={isDarkMode ? '0 10px 30px -5px rgba(0, 0, 0, 0.4)' : '0 10px 30px -5px rgba(28, 69, 50, 0.05)'}
                 role="group"
                 cursor="pointer"
                 transition="all 0.25s ease"
-                _hover={{borderColor: '#319795', transform: 'translateY(-4px)', boxShadow: '0 15px 30px -5px rgba(49, 151, 149, 0.15)'}}
+                _hover={{
+                  borderColor: '#319795',
+                  transform: 'translateY(-4px)',
+                  boxShadow: isDarkMode ? '0 15px 30px -5px rgba(49, 151, 149, 0.3)' : '0 15px 30px -5px rgba(49, 151, 149, 0.15)'
+                }}
               >
                 <Box
                   w="12"
                   h="12"
-                  bg="#E6FFFA"
+                  bg={isDarkMode ? '#193A3E' : '#E6FFFA'}
                   color="#319795"
                   borderRadius="xl"
                   display="flex"
@@ -286,15 +331,15 @@ export default function GetApp() {
                   fontSize="2xl"
                   mb={6}
                   transition="transform 0.2s"
-                  border="1px solid #B2F5EA"
+                  border={`1px solid ${isDarkMode ? '#234E52' : '#B2F5EA'}`}
                   _groupHover={{transform: 'scale(1.1) rotate(5deg)'}}
                 >
                   🎯
                 </Box>
-                <Heading size="md" color="#1C4532" mb={3}>
+                <Heading size="md" color={isDarkMode ? '#F8FAFC' : '#1C4532'} mb={3}>
                   Complete Smart Tasks
                 </Heading>
-                <Text color="#4A5568" fontSize={{base: 'sm', md: 'md'}} lineHeight="tall">
+                <Text color={isDarkMode ? '#94A3B8' : '#4A5568'} fontSize={{base: 'sm', md: 'md'}} lineHeight="tall">
                   Your personalized daily challenges live on the mobile app. Check them off as you complete them to instantly lower your net footprint.
                 </Text>
               </Box>
@@ -302,20 +347,24 @@ export default function GetApp() {
               {/* Feature 3 */}
               <Box
                 p={{base: 5, md: 8}}
-                bg="rgba(255, 255, 255, 0.9)"
+                bg={isDarkMode ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.9)'}
                 backdropFilter="blur(10px)"
                 borderRadius="2xl"
-                border="1px solid rgba(72, 187, 120, 0.2)"
-                boxShadow="0 10px 30px -5px rgba(28, 69, 50, 0.05)"
+                border={`1px solid ${isDarkMode ? 'rgba(51, 65, 85, 0.8)' : 'rgba(72, 187, 120, 0.2)'}`}
+                boxShadow={isDarkMode ? '0 10px 30px -5px rgba(0, 0, 0, 0.4)' : '0 10px 30px -5px rgba(28, 69, 50, 0.05)'}
                 role="group"
                 cursor="pointer"
                 transition="all 0.25s ease"
-                _hover={{borderColor: '#D69E2E', transform: 'translateY(-4px)', boxShadow: '0 15px 30px -5px rgba(214, 158, 46, 0.15)'}}
+                _hover={{
+                  borderColor: '#D69E2E',
+                  transform: 'translateY(-4px)',
+                  boxShadow: isDarkMode ? '0 15px 30px -5px rgba(214, 158, 46, 0.3)' : '0 15px 30px -5px rgba(214, 158, 46, 0.15)'
+                }}
               >
                 <Box
                   w="12"
                   h="12"
-                  bg="#FEFCBF"
+                  bg={isDarkMode ? '#3A321B' : '#FEFCBF'}
                   color="#D69E2E"
                   borderRadius="xl"
                   display="flex"
@@ -324,15 +373,15 @@ export default function GetApp() {
                   fontSize="2xl"
                   mb={6}
                   transition="transform 0.2s"
-                  border="1px solid #F6E05E"
+                  border={`1px solid ${isDarkMode ? '#744210' : '#F6E05E'}`}
                   _groupHover={{transform: 'scale(1.1) rotate(5deg)'}}
                 >
                   🔥
                 </Box>
-                <Heading size="md" color="#1C4532" mb={3}>
+                <Heading size="md" color={isDarkMode ? '#F8FAFC' : '#1C4532'} mb={3}>
                   Build Your Streak
                 </Heading>
-                <Text color="#4A5568" fontSize={{base: 'sm', md: 'md'}} lineHeight="tall">
+                <Text color={isDarkMode ? '#94A3B8' : '#4A5568'} fontSize={{base: 'sm', md: 'md'}} lineHeight="tall">
                   Enable push notifications to get gentle daily reminders. Build a long-lasting habit and maintain your daily logging streak.
                 </Text>
               </Box>

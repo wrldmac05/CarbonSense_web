@@ -49,8 +49,60 @@ const AnimatedNumber = ({value, decimals = 0}) => {
   return <>{displayValue.toFixed(decimals)}</>
 }
 
+// Professional vector icon component for theme switching
+const ThemeToggleIcon = ({isDark, size = 18}) => {
+  if (isDark) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="5" />
+        <line x1="12" y1="1" x2="12" y2="3" />
+        <line x1="12" y1="21" x2="12" y2="23" />
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+        <line x1="1" y1="12" x2="3" y2="12" />
+        <line x1="21" y1="12" x2="23" y2="12" />
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+      </svg>
+    )
+  }
+
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+  )
+}
+
 export default function AdminDashboard() {
   const navigate = useNavigate()
+
+  // Theme Mode State (persisted via localStorage)
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return localStorage.getItem('admin_theme') === 'dark'
+  })
+
+  const toggleTheme = () => {
+    setIsDarkMode(prev => {
+      const next = !prev
+      localStorage.setItem('admin_theme', next ? 'dark' : 'light')
+      return next
+    })
+  }
+
+  // Adaptive Color Palette
+  const theme = {
+    bg: isDarkMode ? '#0F172A' : '#F3F5F8',
+    surface: isDarkMode ? '#1E293B' : '#FFFFFF',
+    surfaceSubtle: isDarkMode ? '#334155' : '#F8FAFC',
+    border: isDarkMode ? '#334155' : '#E2E8F0',
+    borderSubtle: isDarkMode ? '#1E293B' : '#EDF2F7',
+    textPrimary: isDarkMode ? '#F8FAFC' : '#1A202C',
+    textSecondary: isDarkMode ? '#94A3B8' : '#718096',
+    sidebarHover: isDarkMode ? '#334155' : '#E6EBE6',
+    inputBg: isDarkMode ? '#0F172A' : '#F8FAFC',
+    tableHover: isDarkMode ? '#283548' : '#FBFDFB'
+  }
 
   const [activeTab, setActiveTab] = useState('overview')
   const [isLoading, setIsLoading] = useState(false)
@@ -63,6 +115,18 @@ export default function AdminDashboard() {
   const [tasks, setTasks] = useState([])
   const [users, setUsers] = useState([])
 
+  // Sort states: { key: string | null, direction: 'asc' | null }
+  const [factorSort, setFactorSort] = useState({key: null, direction: null})
+  const [taskSort, setTaskSort] = useState({key: null, direction: null})
+  const [userSort, setUserSort] = useState({key: null, direction: null})
+
+  // Filter & Search states
+  const [factorCategoryFilter, setFactorCategoryFilter] = useState('all')
+  const [factorSearchQuery, setFactorSearchQuery] = useState('')
+  const [taskTierFilter, setTaskTierFilter] = useState('all')
+  const [taskSearchQuery, setTaskSearchQuery] = useState('')
+  const [userFilter, setUserFilter] = useState('all')
+
   // Modals & Forms State
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -74,9 +138,6 @@ export default function AdminDashboard() {
   // Custom Internal Notification State
   const [notification, setNotification] = useState(null)
   const notificationTimer = useRef(null)
-
-  // Filter tab state for User Management
-  const [userFilter, setUserFilter] = useState('all')
 
   const showNotification = (title, description, status = 'success') => {
     setNotification({title, description, status})
@@ -94,7 +155,7 @@ export default function AdminDashboard() {
   const [addFactorData, setAddFactorData] = useState({
     category: 'Transport',
     activity_name: '',
-    unit: '',
+    unit: 'kmh',
     co2_per_unit: ''
   })
 
@@ -181,11 +242,9 @@ export default function AdminDashboard() {
       if (profileErr) console.error('RPC Error:', profileErr)
 
       const {data: lifestyles, error: lifestyleErr} = await supabase.from('lifestyle_profiles').select('user_id, diet_type, commute_type')
-
       if (lifestyleErr) console.error('Lifestyle Error:', lifestyleErr)
 
       const {data: logs, error: logErr} = await supabase.from('activity_logs').select('total_co2e, logged_at, emission_factors ( category )')
-
       if (logErr) console.error('Logs Error:', logErr)
 
       const safeProfiles = profiles || []
@@ -385,7 +444,7 @@ export default function AdminDashboard() {
     rows.push(['Identity', 'Role', 'Status', 'Total Logs', 'Last Active', 'Target Limit (kg)'])
     exportUsers.forEach(u => {
       const isStaff = u.role === 'admin'
-      const displayName = isStaff ? u.display_name || 'Administrator' : `User #${u.profile_id.substring(0, 6).toUpperCase()}`
+      const displayName = isStaff ? 'Authorized Staff (Secured)' : `User #${u.profile_id.substring(0, 6).toUpperCase()}`
       rows.push([escapeCsv(displayName), u.role, u.status, u.total_logs, escapeCsv(u.last_active), isStaff ? 'N/A' : u.monthly_co2_target])
     })
 
@@ -439,6 +498,16 @@ export default function AdminDashboard() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Toggle sorting: asc -> null (reset to original)
+  const handleToggleSort = (setSortState, key) => {
+    setSortState(prev => {
+      if (prev.key === key && prev.direction === 'asc') {
+        return {key: null, direction: null}
+      }
+      return {key, direction: 'asc'}
+    })
   }
 
   const handlePasswordReset = email => {
@@ -542,7 +611,7 @@ export default function AdminDashboard() {
       setAddFactorData({
         category: 'Transport',
         activity_name: '',
-        unit: '',
+        unit: 'kmh',
         co2_per_unit: ''
       })
       showNotification('Matrix Updated', 'New emission multiplier successfully injected.', 'success')
@@ -674,87 +743,158 @@ export default function AdminDashboard() {
     return days
   }
 
-  const SidebarButton = ({id, icon, tooltip}) => (
-    <Flex
-      w="46px"
-      h="46px"
-      borderRadius="xl"
-      align="center"
-      justify="center"
-      cursor="pointer"
-      title={tooltip}
-      bg={activeTab === id ? '#1A202C' : 'transparent'}
-      color={activeTab === id ? 'white' : '#1C4532'}
-      _hover={{
-        bg: activeTab === id ? '#1A202C' : '#E6EBE6',
-        color: '#1C4532'
-      }}
-      transition="all 0.2s ease"
-      onClick={() => setActiveTab(id)}
-    >
-      <Flex align="center" justify="center">
-        {icon}
+  const SidebarButton = ({id, icon, tooltip}) => {
+    const isActive = activeTab === id
+    return (
+      <Flex
+        w="46px"
+        h="46px"
+        borderRadius="xl"
+        align="center"
+        justify="center"
+        cursor="pointer"
+        title={tooltip}
+        bg={isActive ? (isDarkMode ? '#38A169' : '#1A202C') : 'transparent'}
+        color={isActive ? 'white' : isDarkMode ? '#94A3B8' : '#1C4532'}
+        _hover={{
+          bg: isActive ? (isDarkMode ? '#38A169' : '#1A202C') : theme.sidebarHover,
+          color: isActive ? 'white' : isDarkMode ? '#F8FAFC' : '#1C4532'
+        }}
+        transition="all 0.2s ease"
+        onClick={() => setActiveTab(id)}
+      >
+        <Flex align="center" justify="center">
+          {icon}
+        </Flex>
       </Flex>
-    </Flex>
-  )
+    )
+  }
 
   const renderDemographicBar = (label, count, total) => {
     const percentage = total > 0 ? Math.round((count / total) * 100) : 0
     return (
       <Box key={label} w="100%">
         <Flex justify="space-between" mb={1}>
-          <Text fontSize="xs" fontWeight="bold" color="#4A5568">
+          <Text fontSize="xs" fontWeight="bold" color={theme.textPrimary}>
             {label}
           </Text>
-          <Text fontSize="xs" color="#718096" fontWeight="bold">
+          <Text fontSize="xs" color={theme.textSecondary} fontWeight="bold">
             {percentage}%{' '}
             <Text as="span" fontWeight="normal">
               ({count})
             </Text>
           </Text>
         </Flex>
-        <Box w="100%" h="6px" bg="#EDF2F7" borderRadius="full" overflow="hidden">
+        <Box w="100%" h="6px" bg={theme.border} borderRadius="full" overflow="hidden">
           <Box h="100%" w={`${percentage}%`} bg="#38A169" transition="width 1.2s cubic-bezier(0.34, 1.56, 0.64, 1)" />
         </Box>
       </Box>
     )
   }
+
   const getTop5 = dataObj =>
     Object.entries(dataObj)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 5)
 
+  const SortableHeader = ({label, sortKey, currentSort, onSort, textAlign = 'left'}) => {
+    const isActive = currentSort.key === sortKey
+    return (
+      <Flex align="center" justify={textAlign === 'right' ? 'flex-end' : 'flex-start'} gap={1} cursor="pointer" userSelect="none" onClick={() => onSort(sortKey)} _hover={{opacity: 0.75}} transition="opacity 0.15s">
+        <Text fontSize="xs" fontWeight="bold" color={isActive ? (isDarkMode ? '#48BB78' : '#1C4532') : theme.textSecondary} textTransform="uppercase" letterSpacing="wider">
+          {label}
+        </Text>
+        <Text fontSize="2xs" color={isActive ? (isDarkMode ? '#48BB78' : '#1C4532') : theme.border}>
+          {isActive ? '▲' : '⇅'}
+        </Text>
+      </Flex>
+    )
+  }
+
   return (
-    <Flex minH="100vh" bg="#F3F5F8" direction={{base: 'column', md: 'row'}} position="relative" overflow="hidden">
-      {/* MOBILE TOP NAVIGATION TABS BAR */}
-      <Flex display={{base: 'flex', md: 'none'}} bg="white" px={4} py={3} borderBottom="1px solid #E2E8F0" align="center" justify="space-between" overflowX="auto">
-        <Flex gap={2}>
+    <Flex minH="100vh" bg={theme.bg} direction={{base: 'column', md: 'row'}} position="relative" overflow="hidden" transition="background-color 0.3s ease">
+      {/* MOBILE TOP NAVIGATION BAR */}
+      <Flex display={{base: 'flex', md: 'none'}} bg={theme.surface} px={4} py={3} borderBottom={`1px solid ${theme.border}`} align="center" justify="space-between" overflowX="auto" gap={2}>
+        <Flex gap={2} align="center">
           {[
             {id: 'overview', label: 'Overview'},
             {id: 'factors', label: 'Factors'},
             {id: 'tasks', label: 'Tasks'},
             {id: 'users', label: 'Users'}
           ].map(tab => (
-            <Button key={tab.id} size="xs" borderRadius="full" px={3} py={2} bg={activeTab === tab.id ? '#1A202C' : '#F7FAFC'} color={activeTab === tab.id ? 'white' : '#4A5568'} onClick={() => setActiveTab(tab.id)}>
+            <Button
+              key={tab.id}
+              size="xs"
+              borderRadius="full"
+              px={3}
+              py={2}
+              bg={activeTab === tab.id ? (isDarkMode ? '#38A169' : '#1A202C') : theme.surfaceSubtle}
+              color={activeTab === tab.id ? 'white' : theme.textSecondary}
+              onClick={() => setActiveTab(tab.id)}
+            >
               {tab.label}
             </Button>
           ))}
         </Flex>
-        <Button size="xs" variant="ghost" color="#E53E3E" onClick={handleLogout}>
-          Log Out
-        </Button>
+
+        <Flex align="center" gap={1}>
+          {/* Night Mode Toggle Mobile with Clean Vector Icon */}
+          <Button size="xs" variant="ghost" borderRadius="full" p={2} color={isDarkMode ? '#F59E0B' : '#4A5568'} _hover={{bg: theme.surfaceSubtle}} onClick={toggleTheme} title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
+            <ThemeToggleIcon isDark={isDarkMode} size={16} />
+          </Button>
+          <Button size="xs" variant="ghost" color="#E53E3E" onClick={handleLogout}>
+            Log Out
+          </Button>
+        </Flex>
       </Flex>
 
       {/* FLOATING MINI-SIDEBAR (DESKTOP) */}
-      <Flex direction="column" align="center" w="100px" py={8} h="100vh" display={{base: 'none', md: 'flex'}}>
-        <Flex direction="column" align="center" mb={10} cursor="pointer" transition="transform 0.2s" _hover={{transform: 'scale(1.05)'}}>
+      <Flex direction="column" align="center" w="100px" py={8} h="100vh" display={{base: 'none', md: 'flex'}} zIndex={2}>
+        {/* Clickable Admin Logo (Refreshes Page) */}
+        <Flex
+          direction="column"
+          align="center"
+          mb={6}
+          cursor="pointer"
+          transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
+          _hover={{transform: 'scale(1.08)'}}
+          _active={{transform: 'scale(0.95)'}}
+          title="Reload Console"
+          onClick={() => window.location.reload()}
+        >
           <Image src="/Logo.png" alt="CarbonSense Logo" w="44px" h="44px" objectFit="contain" mb={2} dropShadow="0 4px 10px rgba(0,0,0,0.1)" />
-          <Text color="#A0AEC0" fontWeight="black" fontSize="10px" letterSpacing="widest" textTransform="uppercase">
+          <Text color={isDarkMode ? '#64748B' : '#A0AEC0'} fontWeight="black" fontSize="10px" letterSpacing="widest" textTransform="uppercase">
             Admin
           </Text>
         </Flex>
 
-        <VStack bg="white" borderRadius="full" py={6} px={3} spacing={5} boxShadow="0 10px 30px -10px rgba(0,0,0,0.05)">
+        {/* Night Mode Toggle Desktop with Clean Vector Icon */}
+        <Flex
+          w="44px"
+          h="44px"
+          borderRadius="xl"
+          bg={theme.surface}
+          border={`1px solid ${theme.border}`}
+          align="center"
+          justify="center"
+          cursor="pointer"
+          mb={5}
+          boxShadow="sm"
+          color={isDarkMode ? '#F59E0B' : '#4A5568'}
+          _hover={{
+            transform: 'scale(1.05)',
+            bg: theme.surfaceSubtle,
+            color: isDarkMode ? '#FBBF24' : '#1A202C'
+          }}
+          _active={{transform: 'scale(0.95)'}}
+          onClick={toggleTheme}
+          title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          transition="all 0.2s ease"
+        >
+          <ThemeToggleIcon isDark={isDarkMode} size={18} />
+        </Flex>
+
+        <VStack bg={theme.surface} borderRadius="full" py={6} px={3} spacing={5} boxShadow="0 10px 30px -10px rgba(0,0,0,0.1)" border={`1px solid ${theme.border}`}>
           <SidebarButton
             id="overview"
             tooltip="Overview Analytics"
@@ -784,7 +924,7 @@ export default function AdminDashboard() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10" />
                 <circle cx="12" cy="12" r="6" />
-                <circle cx="12" cy="12" r="2" />
+                <circle cx="12" cy="2" />
               </svg>
             }
           />
@@ -805,11 +945,12 @@ export default function AdminDashboard() {
           <Flex
             w="52px"
             h="52px"
-            bg="white"
+            bg={theme.surface}
             borderRadius="full"
             align="center"
             justify="center"
             p={0.5}
+            border={`1px solid ${theme.border}`}
             boxShadow="0 10px 25px -5px rgba(0,0,0,0.08)"
             cursor="pointer"
             transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
@@ -820,22 +961,8 @@ export default function AdminDashboard() {
             _active={{transform: 'scale(0.95)'}}
             onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
           >
-            <Flex
-              w="100%"
-              h="100%"
-              borderRadius="full"
-              bg="#1C4532"
-              color="white"
-              align="center"
-              justify="center"
-              fontWeight="black"
-              fontSize="sm"
-              overflow="hidden"
-              backgroundImage={adminUser?.avatar_url ? `url(${adminUser.avatar_url})` : 'none'}
-              backgroundSize="cover"
-              backgroundPosition="center"
-            >
-              {!adminUser?.avatar_url && (adminUser?.display_name ? adminUser.display_name.charAt(0).toUpperCase() : 'A')}
+            <Flex w="100%" h="100%" borderRadius="full" bg="#1C4532" color="white" align="center" justify="center" fontWeight="black" fontSize="sm">
+              S
             </Flex>
           </Flex>
 
@@ -846,10 +973,10 @@ export default function AdminDashboard() {
             bottom="65px"
             left="12px"
             w="220px"
-            bg="white"
+            bg={theme.surface}
             borderRadius="2xl"
-            boxShadow="0 15px 35px -5px rgba(0, 0, 0, 0.1), 0 5px 15px -5px rgba(0, 0, 0, 0.05)"
-            border="1px solid #E2E8F0"
+            boxShadow="0 15px 35px -5px rgba(0, 0, 0, 0.2)"
+            border={`1px solid ${theme.border}`}
             zIndex={10}
             py={2}
             transition="all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)"
@@ -857,14 +984,14 @@ export default function AdminDashboard() {
             opacity={isProfileMenuOpen ? 1 : 0}
             pointerEvents={isProfileMenuOpen ? 'auto' : 'none'}
           >
-            <Box position="absolute" bottom="-6px" left="18px" w="12px" h="12px" bg="white" transform="rotate(45deg)" borderRight="1px solid #E2E8F0" borderBottom="1px solid #E2E8F0" zIndex={-1} />
+            <Box position="absolute" bottom="-6px" left="18px" w="12px" h="12px" bg={theme.surface} transform="rotate(45deg)" borderRight={`1px solid ${theme.border}`} borderBottom={`1px solid ${theme.border}`} zIndex={-1} />
 
-            <Box px={4} py={3} borderBottom="1px solid #F1F5F9" mb={1}>
-              <Text fontSize="10px" fontWeight="black" color="#A0AEC0" textTransform="uppercase" letterSpacing="wider">
+            <Box px={4} py={3} borderBottom={`1px solid ${theme.border}`} mb={1}>
+              <Text fontSize="10px" fontWeight="black" color={theme.textSecondary} textTransform="uppercase" letterSpacing="wider">
                 System Access
               </Text>
-              <Text fontSize="sm" fontWeight="bold" color="#1A202C" mt={0.5} isTruncated>
-                {adminUser?.display_name || 'Administrator'}
+              <Text fontSize="sm" fontWeight="bold" color={theme.textPrimary} mt={0.5} isTruncated>
+                Authorized Staff (Secured)
               </Text>
             </Box>
 
@@ -878,7 +1005,7 @@ export default function AdminDashboard() {
               fontWeight="bold"
               color="#E53E3E"
               borderRadius="none"
-              _hover={{bg: '#FFF5F5', color: '#C53030'}}
+              _hover={{bg: isDarkMode ? '#3B1E22' : '#FFF5F5', color: '#FC8181'}}
               _active={{bg: '#FED7D7'}}
               onClick={handleLogout}
             >
@@ -894,29 +1021,32 @@ export default function AdminDashboard() {
       <Flex flex="1" direction="column" maxH="100vh" overflowY="auto" px={{base: 4, sm: 6, lg: 10}} py={{base: 6, md: 10}}>
         <Flex justify="space-between" align="center" mb={{base: 6, md: 10}} gap={2}>
           <Box>
-            <Heading size={{base: 'md', md: 'lg'}} color="#1A202C" letterSpacing="tight">
-              Hi, {adminUser?.display_name?.split(' ')[0] || 'Admin'}!
+            <Heading size={{base: 'md', md: 'lg'}} color={theme.textPrimary} letterSpacing="tight">
+              Hi, Authorized Staff!
             </Heading>
-            <Text color="#718096" fontSize={{base: 'xs', md: 'sm'}} mt={1}>
+            <Text color={theme.textSecondary} fontSize={{base: 'xs', md: 'sm'}} mt={1}>
               Community activity up to {selectedDate.toLocaleDateString()}.
             </Text>
           </Box>
-          {/* 🟢 ALWAYS VISIBLE & RESPONSIVE EXPORT LEDGER BUTTON */}
-          <Button
-            bg="#1A202C"
-            color="white"
-            borderRadius="full"
-            px={{base: 4, md: 8}}
-            py={{base: 3, md: 6}}
-            fontSize={{base: 'xs', md: 'sm'}}
-            _hover={{bg: '#2D3748', transform: 'translateY(-2px)'}}
-            transition="all 0.2s"
-            onClick={exportSystemReport}
-            display="inline-flex"
-            flexShrink={0}
-          >
-            Export Ledger
-          </Button>
+
+          {/* EXPORT LEDGER: DASHBOARD / OVERVIEW EXCLUSIVE */}
+          {activeTab === 'overview' && (
+            <Button
+              bg={isDarkMode ? '#38A169' : '#1A202C'}
+              color="white"
+              borderRadius="full"
+              px={{base: 4, md: 8}}
+              py={{base: 3, md: 6}}
+              fontSize={{base: 'xs', md: 'sm'}}
+              _hover={{bg: isDarkMode ? '#2F855A' : '#2D3748', transform: 'translateY(-2px)'}}
+              transition="all 0.2s"
+              onClick={exportSystemReport}
+              display="inline-flex"
+              flexShrink={0}
+            >
+              Export Ledger
+            </Button>
+          )}
         </Flex>
 
         {activeTab === 'overview' && (
@@ -998,7 +1128,7 @@ export default function AdminDashboard() {
               </Flex>
 
               {/* Time Travel Calendar */}
-              <Box bg="#1A202C" borderRadius="3xl" p={{base: 5, md: 8}} boxShadow="xl">
+              <Box bg={isDarkMode ? '#1E293B' : '#1A202C'} borderRadius="3xl" p={{base: 5, md: 8}} boxShadow="xl" border={`1px solid ${theme.border}`}>
                 <Flex justify="space-between" align="center" mb={6}>
                   <Heading size="sm" color="white">
                     Time Travel
@@ -1021,7 +1151,7 @@ export default function AdminDashboard() {
 
                 <Grid templateColumns="repeat(7, 1fr)" gap={1} mb={2}>
                   {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
-                    <Text key={i} color="#4A5568" fontSize="2xs" fontWeight="bold" textAlign="center">
+                    <Text key={i} color={isDarkMode ? '#64748B' : '#4A5568'} fontSize="2xs" fontWeight="bold" textAlign="center">
                       {day}
                     </Text>
                   ))}
@@ -1043,13 +1173,13 @@ export default function AdminDashboard() {
                         justify="center"
                         borderRadius="full"
                         cursor="pointer"
-                        bg={isSelected ? '#38A169' : isToday ? '#2D3748' : 'transparent'}
-                        color={isSelected ? 'white' : isToday ? 'white' : '#A0AEC0'}
+                        bg={isSelected ? '#38A169' : isToday ? (isDarkMode ? '#334155' : '#2D3748') : 'transparent'}
+                        color={isSelected ? 'white' : isToday ? 'white' : isDarkMode ? '#94A3B8' : '#A0AEC0'}
                         fontWeight={isSelected || isToday ? 'black' : 'medium'}
                         fontSize="xs"
                         transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
                         _hover={{
-                          bg: isSelected ? '#2F855A' : '#2D3748',
+                          bg: isSelected ? '#2F855A' : isDarkMode ? '#475569' : '#2D3748',
                           color: 'white'
                         }}
                         onClick={() => setSelectedDate(date)}
@@ -1064,23 +1194,23 @@ export default function AdminDashboard() {
 
             {/* Line and Area Charts Grid */}
             <Grid templateColumns={{base: '1fr', lg: '1fr 1fr'}} gap={{base: 6, md: 8}} mb={8} animation={`${slideUp} 0.6s ease-out 0.2s both`}>
-              <Box p={{base: 4, md: 6}} bg="white" borderRadius="3xl" border="1px solid #E2E8F0" h={{base: '280px', md: '320px'}} boxShadow="0 4px 20px -5px rgba(0,0,0,0.03)">
-                <Heading size="sm" color="#1A202C" mb={4}>
+              <Box p={{base: 4, md: 6}} bg={theme.surface} borderRadius="3xl" border={`1px solid ${theme.border}`} h={{base: '280px', md: '320px'}} boxShadow="sm">
+                <Heading size="sm" color={theme.textPrimary} mb={4}>
                   Platform Growth (6M)
                 </Heading>
                 <ResponsiveContainer width="100%" height="80%">
                   <LineChart data={overviewStats.monthlyUsers} margin={{top: 10, right: 10, left: -20, bottom: 0}}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#718096', fontSize: 11}} dy={10} />
-                    <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{fill: '#718096', fontSize: 11}} />
-                    <Tooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)'}} />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme.border} />
+                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: theme.textSecondary, fontSize: 11}} dy={10} />
+                    <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{fill: theme.textSecondary, fontSize: 11}} />
+                    <Tooltip contentStyle={{borderRadius: '8px', border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textPrimary, boxShadow: '0 4px 6px rgba(0,0,0,0.1)'}} />
                     <Line isAnimationActive={true} type="monotone" dataKey="users" name="Active Users" stroke="#3182CE" strokeWidth={3} dot={{r: 4, fill: '#3182CE'}} animationDuration={1200} animationEasing="ease-out" />
                   </LineChart>
                 </ResponsiveContainer>
               </Box>
 
-              <Box p={{base: 4, md: 6}} bg="white" borderRadius="3xl" border="1px solid #E2E8F0" h={{base: '280px', md: '320px'}} boxShadow="0 4px 20px -5px rgba(0,0,0,0.03)">
-                <Heading size="sm" color="#1A202C" mb={4}>
+              <Box p={{base: 4, md: 6}} bg={theme.surface} borderRadius="3xl" border={`1px solid ${theme.border}`} h={{base: '280px', md: '320px'}} boxShadow="sm">
+                <Heading size="sm" color={theme.textPrimary} mb={4}>
                   Emissions Volume (kg)
                 </Heading>
                 <ResponsiveContainer width="100%" height="80%">
@@ -1091,10 +1221,10 @@ export default function AdminDashboard() {
                         <stop offset="95%" stopColor="#E53E3E" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#718096', fontSize: 11}} dy={10} />
-                    <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{fill: '#718096', fontSize: 11}} />
-                    <Tooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)'}} />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme.border} />
+                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: theme.textSecondary, fontSize: 11}} dy={10} />
+                    <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{fill: theme.textSecondary, fontSize: 11}} />
+                    <Tooltip contentStyle={{borderRadius: '8px', border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textPrimary, boxShadow: '0 4px 6px rgba(0,0,0,0.1)'}} />
                     <Area isAnimationActive={true} type="monotone" dataKey="co2" name="CO₂ Emitted" stroke="#E53E3E" strokeWidth={2} fillOpacity={1} fill="url(#colorAdminCO2)" animationDuration={1200} animationEasing="ease-out" />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -1103,8 +1233,8 @@ export default function AdminDashboard() {
 
             {/* AI Briefing and Pie Breakdown */}
             <Grid templateColumns={{base: '1fr', xl: '1fr 1.5fr'}} gap={{base: 6, md: 8}} mb={8} animation={`${slideUp} 0.6s ease-out 0.3s both`}>
-              <Box p={{base: 5, md: 8}} bg="white" borderRadius="3xl" border="1px solid #E2E8F0" boxShadow="0 4px 20px -5px rgba(0,0,0,0.03)">
-                <Heading size="sm" color="#1A202C" mb={4}>
+              <Box p={{base: 5, md: 8}} bg={theme.surface} borderRadius="3xl" border={`1px solid ${theme.border}`} boxShadow="sm">
+                <Heading size="sm" color={theme.textPrimary} mb={4}>
                   Sector Breakdown
                 </Heading>
                 {overviewStats.categoryData.length > 0 ? (
@@ -1115,43 +1245,43 @@ export default function AdminDashboard() {
                           <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)'}} />
+                      <Tooltip contentStyle={{borderRadius: '8px', border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textPrimary, boxShadow: '0 4px 6px rgba(0,0,0,0.1)'}} />
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
                   <Center h="180px">
-                    <Text color="#A0AEC0" fontSize="sm">
+                    <Text color={theme.textSecondary} fontSize="sm">
                       No sector data.
                     </Text>
                   </Center>
                 )}
               </Box>
 
-              <Flex direction="column" bg="white" borderRadius="3xl" p={{base: 5, md: 8}} border="1px solid #E2E8F0" boxShadow="0 4px 20px -5px rgba(0,0,0,0.03)" position="relative" overflow="hidden">
+              <Flex direction="column" bg={theme.surface} borderRadius="3xl" p={{base: 5, md: 8}} border={`1px solid ${theme.border}`} boxShadow="sm" position="relative" overflow="hidden">
                 <Flex justify="space-between" align={{base: 'flex-start', sm: 'center'}} direction={{base: 'column', sm: 'row'}} gap={4} mb={6} position="relative" zIndex={1}>
                   <Flex align="center" gap={3}>
                     <Flex w="40px" h="40px" bg="linear-gradient(135deg, #38A169, #3182CE)" borderRadius="xl" align="center" justify="center" color="white" fontSize="lg" boxShadow="md">
                       ✨
                     </Flex>
                     <Box>
-                      <Heading size="sm" color="#1A202C" letterSpacing="tight">
+                      <Heading size="sm" color={theme.textPrimary} letterSpacing="tight">
                         AI Executive Briefing
                       </Heading>
-                      <Text color="#718096" fontSize="2xs" mt={0.5} fontWeight="bold" textTransform="uppercase" letterSpacing="widest">
+                      <Text color={theme.textSecondary} fontSize="2xs" mt={0.5} fontWeight="bold" textTransform="uppercase" letterSpacing="widest">
                         CarbonSense Intelligence
                       </Text>
                     </Box>
                   </Flex>
 
-                  <Flex gap={1} bg="#F7FAFC" p={1} borderRadius="full" border="1px solid #E2E8F0">
+                  <Flex gap={1} bg={theme.surfaceSubtle} p={1} borderRadius="full" border={`1px solid ${theme.border}`}>
                     {['daily', 'weekly', 'monthly'].map(period => (
                       <Button
                         key={period}
                         size="xs"
                         borderRadius="full"
                         px={3}
-                        bg={activeInsightTab === period ? 'white' : 'transparent'}
-                        color={activeInsightTab === period ? '#1A202C' : '#A0AEC0'}
+                        bg={activeInsightTab === period ? (isDarkMode ? '#334155' : 'white') : 'transparent'}
+                        color={activeInsightTab === period ? theme.textPrimary : theme.textSecondary}
                         boxShadow={activeInsightTab === period ? 'sm' : 'none'}
                         onClick={() => setActiveInsightTab(period)}
                         textTransform="capitalize"
@@ -1164,7 +1294,7 @@ export default function AdminDashboard() {
                 </Flex>
 
                 <Box flex="1" position="relative" zIndex={1} overflowY="auto" maxH="220px" pr={2}>
-                  <Text color="#2D3748" fontSize="xs" lineHeight="2" fontWeight="medium" whiteSpace="pre-wrap">
+                  <Text color={isDarkMode ? '#CBD5E1' : '#2D3748'} fontSize="xs" lineHeight="2" fontWeight="medium" whiteSpace="pre-wrap">
                     {prescriptions[activeInsightTab]}
                   </Text>
                 </Box>
@@ -1172,48 +1302,48 @@ export default function AdminDashboard() {
             </Grid>
 
             {/* Demographics Card */}
-            <Box bg="white" borderRadius="3xl" p={{base: 5, md: 8}} boxShadow="0 4px 20px -5px rgba(0,0,0,0.03)" animation={`${slideUp} 0.6s ease-out 0.4s both`}>
-              <Heading size="sm" color="#1A202C" mb={6}>
+            <Box bg={theme.surface} borderRadius="3xl" p={{base: 5, md: 8}} boxShadow="sm" border={`1px solid ${theme.border}`} animation={`${slideUp} 0.6s ease-out 0.4s both`}>
+              <Heading size="sm" color={theme.textPrimary} mb={6}>
                 Demographics Breakdown
               </Heading>
               <Grid templateColumns={{base: '1fr', md: 'repeat(3, 1fr)'}} gap={6}>
                 <Box>
-                  <Text color="#A0AEC0" fontSize="2xs" textTransform="uppercase" letterSpacing="widest" mb={3}>
+                  <Text color={theme.textSecondary} fontSize="2xs" textTransform="uppercase" letterSpacing="widest" mb={3}>
                     Diet Types
                   </Text>
                   <VStack align="stretch" spacing={3}>
                     {Object.keys(overviewStats.diets).length > 0 ? (
                       getTop5(overviewStats.diets).map(([d, c]) => renderDemographicBar(d, c, overviewStats.totalUsers))
                     ) : (
-                      <Text color="#718096" fontSize="xs">
+                      <Text color={theme.textSecondary} fontSize="xs">
                         No data.
                       </Text>
                     )}
                   </VStack>
                 </Box>
                 <Box>
-                  <Text color="#A0AEC0" fontSize="2xs" textTransform="uppercase" letterSpacing="widest" mb={3}>
+                  <Text color={theme.textSecondary} fontSize="2xs" textTransform="uppercase" letterSpacing="widest" mb={3}>
                     Primary Commute
                   </Text>
                   <VStack align="stretch" spacing={3}>
                     {Object.keys(overviewStats.commutes).length > 0 ? (
                       getTop5(overviewStats.commutes).map(([c, count]) => renderDemographicBar(c, count, overviewStats.totalUsers))
                     ) : (
-                      <Text color="#718096" fontSize="xs">
+                      <Text color={theme.textSecondary} fontSize="xs">
                         No data.
                       </Text>
                     )}
                   </VStack>
                 </Box>
                 <Box>
-                  <Text color="#A0AEC0" fontSize="2xs" textTransform="uppercase" letterSpacing="widest" mb={3}>
+                  <Text color={theme.textSecondary} fontSize="2xs" textTransform="uppercase" letterSpacing="widest" mb={3}>
                     Top Locations
                   </Text>
                   <VStack align="stretch" spacing={3}>
                     {Object.keys(overviewStats.locations).length > 0 ? (
                       getTop5(overviewStats.locations).map(([l, c]) => renderDemographicBar(l, c, overviewStats.totalUsers))
                     ) : (
-                      <Text color="#718096" fontSize="xs">
+                      <Text color={theme.textSecondary} fontSize="xs">
                         No data.
                       </Text>
                     )}
@@ -1227,95 +1357,208 @@ export default function AdminDashboard() {
         {/* FACTORS TAB */}
         {activeTab === 'factors' && (
           <Box animation={`${slideUp} 0.5s ease-out both`}>
-            <Flex justify="space-between" align="center" mb={6}>
+            {/* Header */}
+            <Flex justify="space-between" align={{base: 'flex-start', sm: 'center'}} direction={{base: 'column', sm: 'row'}} gap={4} mb={6}>
               <Box>
-                <Heading size="md" color="#1A202C" mb={1}>
-                  Emission Factors
+                <Heading size="md" color={theme.textPrimary} mb={1}>
+                  Emission Multipliers & Factors
                 </Heading>
-                <Text color="#718096" fontSize="xs">
-                  Manage math multipliers for footprint calculations.
+                <Text color={theme.textSecondary} fontSize="xs">
+                  Maintain unit multipliers that power platform carbon accounting models.
                 </Text>
               </Box>
-              <Button bg="#1C4532" size="sm" color="white" borderRadius="full" transition="all 0.2s" onClick={() => setIsAddFactorOpen(true)}>
-                + Add Factor
+              <Button
+                bg="#1C4532"
+                size="sm"
+                color="white"
+                borderRadius="full"
+                px={5}
+                boxShadow="0 4px 12px rgba(28, 69, 50, 0.2)"
+                _hover={{bg: '#276749', transform: 'translateY(-1px)'}}
+                transition="all 0.2s"
+                onClick={() => setIsAddFactorOpen(true)}
+              >
+                + Add New Factor
               </Button>
             </Flex>
 
-            <Box bg="white" borderRadius="3xl" border="1px solid #E2E8F0" overflow="hidden" boxShadow="0 4px 20px -5px rgba(0,0,0,0.03)" overflowX="auto">
+            {/* Search & Category Filter Controls */}
+            <Flex direction={{base: 'column', md: 'row'}} gap={4} mb={6} justify="space-between" align={{base: 'stretch', md: 'center'}}>
+              <Box flex="1" bg={theme.surface} p={1.5} borderRadius="2xl" border={`1px solid ${theme.border}`} boxShadow="sm">
+                <Input
+                  placeholder="Search activity name or measurement unit..."
+                  value={factorSearchQuery}
+                  onChange={e => setFactorSearchQuery(e.target.value)}
+                  bg={theme.inputBg}
+                  color={theme.textPrimary}
+                  border="none"
+                  py={4}
+                  fontSize="xs"
+                />
+              </Box>
+
+              <Flex gap={1} bg={theme.surface} p={1.5} borderRadius="2xl" border={`1px solid ${theme.border}`} boxShadow="sm" overflowX="auto">
+                {[
+                  {id: 'all', label: 'All'},
+                  {id: 'Transport', label: 'Transport'},
+                  {id: 'Diet', label: 'Diet'},
+                  {id: 'Energy', label: 'Energy'}
+                ].map(cat => {
+                  const count = cat.id === 'all' ? factors.length : factors.filter(f => f.category?.toLowerCase() === cat.id.toLowerCase()).length
+                  const isSelected = factorCategoryFilter === cat.id
+
+                  return (
+                    <Button
+                      key={cat.id}
+                      size="xs"
+                      borderRadius="xl"
+                      px={3}
+                      py={3}
+                      fontSize="2xs"
+                      fontWeight="bold"
+                      bg={isSelected ? '#1C4532' : 'transparent'}
+                      color={isSelected ? 'white' : theme.textSecondary}
+                      _hover={{bg: isSelected ? '#1C4532' : theme.surfaceSubtle}}
+                      onClick={() => setFactorCategoryFilter(cat.id)}
+                    >
+                      {cat.label} ({count})
+                    </Button>
+                  )
+                })}
+              </Flex>
+            </Flex>
+
+            {/* Table Container */}
+            <Box bg={theme.surface} borderRadius="3xl" border={`1px solid ${theme.border}`} overflow="hidden" boxShadow="sm" overflowX="auto">
               {isLoading ? (
-                <Center p={10}>
-                  <Spinner color="#38A169" />
+                <Center p={14}>
+                  <Spinner color="#38A169" size="lg" />
                 </Center>
               ) : (
-                <Box minW="700px">
-                  <Grid templateColumns="1.5fr 3fr 1.5fr 1fr 1fr" gap={4} p={5} bg="#F8FAFC" borderBottom="1px solid #E2E8F0" alignItems="center">
-                    <Text fontSize="xs" fontWeight="bold" color="#718096" textTransform="uppercase">
-                      Category
-                    </Text>
-                    <Text fontSize="xs" fontWeight="bold" color="#718096" textTransform="uppercase">
-                      Activity
-                    </Text>
-                    <Text fontSize="xs" fontWeight="bold" color="#718096" textTransform="uppercase" textAlign="right">
-                      CO₂/Unit
-                    </Text>
-                    <Text fontSize="xs" fontWeight="bold" color="#718096" textTransform="uppercase">
-                      Unit
-                    </Text>
-                    <Text fontSize="xs" fontWeight="bold" color="#718096" textTransform="uppercase" textAlign="right">
+                <Box minW="760px">
+                  <Grid templateColumns="1.4fr 3fr 1.6fr 1.2fr 1fr" gap={4} p={5} bg={theme.surfaceSubtle} borderBottom={`1px solid ${theme.border}`} alignItems="center">
+                    <SortableHeader label="Category" sortKey="category" currentSort={factorSort} onSort={key => handleToggleSort(setFactorSort, key)} />
+                    <SortableHeader label="Activity Name" sortKey="activity_name" currentSort={factorSort} onSort={key => handleToggleSort(setFactorSort, key)} />
+                    <SortableHeader label="Multiplier (CO₂e)" sortKey="co2_per_unit" currentSort={factorSort} onSort={key => handleToggleSort(setFactorSort, key)} textAlign="right" />
+                    <SortableHeader label="Unit" sortKey="unit" currentSort={factorSort} onSort={key => handleToggleSort(setFactorSort, key)} />
+                    <Text fontSize="xs" fontWeight="bold" color={theme.textSecondary} textTransform="uppercase" letterSpacing="wider" textAlign="right">
                       Actions
                     </Text>
                   </Grid>
 
-                  {factors.map((factor, index) => (
-                    <Grid key={factor.factor_id} templateColumns="1.5fr 3fr 1.5fr 1fr 1fr" gap={4} p={5} borderBottom="1px solid #E2E8F0" alignItems="center">
-                      <Box>
-                        <Badge colorScheme={factor.category === 'Transport' ? 'blue' : factor.category === 'Diet' ? 'green' : 'purple'} px={3} py={1} borderRadius="full">
-                          {factor.category}
-                        </Badge>
-                      </Box>
-                      <Text fontWeight="bold" color="#2D3748" fontSize="sm">
-                        {factor.activity_name}
-                      </Text>
-                      <Text fontWeight="black" color="#E53E3E" textAlign="right">
-                        {parseFloat(factor.co2_per_unit).toFixed(4)}
-                      </Text>
-                      <Text color="#718096" fontSize="sm">
-                        kg / {factor.unit}
-                      </Text>
+                  {(() => {
+                    let filtered = factors.filter(factor => {
+                      const query = factorSearchQuery.toLowerCase()
+                      const matchesSearch = factor.activity_name?.toLowerCase().includes(query) || factor.unit?.toLowerCase().includes(query)
+                      const matchesCategory = factorCategoryFilter === 'all' || factor.category?.toLowerCase() === factorCategoryFilter.toLowerCase()
+                      return matchesSearch && matchesCategory
+                    })
 
-                      <Flex justify="flex-end" gap={2}>
-                        <Button
-                          size="xs"
-                          borderRadius="full"
-                          bg="white"
-                          color="#4A5568"
-                          border="1px solid #E2E8F0"
-                          onClick={() => {
-                            setSelectedFactor(factor)
-                            setNewCo2Value(factor.co2_per_unit)
-                          }}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          size="xs"
-                          borderRadius="full"
-                          bg="white"
-                          color="#C53030"
-                          border="1px solid #FEB2B2"
-                          onClick={() =>
-                            setDeleteTarget({
-                              type: 'factor',
-                              id: factor.factor_id,
-                              name: factor.activity_name
-                            })
-                          }
-                        >
-                          Delete
-                        </Button>
-                      </Flex>
-                    </Grid>
-                  ))}
+                    if (factorSort.key && factorSort.direction === 'asc') {
+                      filtered = [...filtered].sort((a, b) => {
+                        const valA = a[factorSort.key]
+                        const valB = b[factorSort.key]
+                        if (typeof valA === 'number' || !isNaN(Number(valA))) {
+                          return Number(valA) - Number(valB)
+                        }
+                        return String(valA || '').localeCompare(String(valB || ''))
+                      })
+                    }
+
+                    if (filtered.length === 0) {
+                      return (
+                        <Center py={16} flexDirection="column" gap={2}>
+                          <Text fontSize="2xl">🔍</Text>
+                          <Text color={theme.textSecondary} fontSize="sm" fontWeight="bold">
+                            No emission factors matched your filter.
+                          </Text>
+                          <Text color={isDarkMode ? '#64748B' : '#A0AEC0'} fontSize="xs">
+                            Try adjusting the search query or category tabs.
+                          </Text>
+                        </Center>
+                      )
+                    }
+
+                    return filtered.map(factor => (
+                      <Grid
+                        key={factor.factor_id}
+                        templateColumns="1.4fr 3fr 1.6fr 1.2fr 1fr"
+                        gap={4}
+                        px={5}
+                        py={4}
+                        borderBottom={`1px solid ${theme.borderSubtle}`}
+                        alignItems="center"
+                        _hover={{bg: theme.tableHover}}
+                        transition="background-color 0.15s ease"
+                      >
+                        <Box>
+                          <Badge
+                            colorScheme={factor.category === 'Transport' ? 'blue' : factor.category === 'Diet' ? 'green' : factor.category === 'Energy' ? 'yellow' : 'purple'}
+                            px={3}
+                            py={1}
+                            borderRadius="full"
+                            fontSize="2xs"
+                            fontWeight="bold"
+                            textTransform="capitalize"
+                          >
+                            {factor.category}
+                          </Badge>
+                        </Box>
+
+                        <Box>
+                          <Text fontWeight="bold" color={theme.textPrimary} fontSize="sm">
+                            {factor.activity_name}
+                          </Text>
+                        </Box>
+
+                        <Box textAlign="right">
+                          <Badge variant="subtle" colorScheme="red" px={2.5} py={1} borderRadius="md" fontSize="xs" fontWeight="black">
+                            {parseFloat(factor.co2_per_unit).toFixed(4)} kg
+                          </Badge>
+                        </Box>
+
+                        <Box>
+                          <Text color={theme.textPrimary} fontSize="xs" bg={theme.surfaceSubtle} px={2.5} py={1} borderRadius="md" display="inline-block" fontWeight="medium">
+                            per {factor.unit}
+                          </Text>
+                        </Box>
+
+                        <Flex justify="flex-end" gap={2}>
+                          <Button
+                            size="xs"
+                            borderRadius="full"
+                            bg={theme.surface}
+                            color={theme.textPrimary}
+                            border={`1px solid ${theme.border}`}
+                            _hover={{bg: theme.surfaceSubtle}}
+                            onClick={() => {
+                              setSelectedFactor(factor)
+                              setNewCo2Value(factor.co2_per_unit)
+                            }}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            size="xs"
+                            borderRadius="full"
+                            bg={theme.surface}
+                            color="#E53E3E"
+                            border="1px solid #FEB2B2"
+                            _hover={{bg: isDarkMode ? '#3B1E22' : '#FFF5F5'}}
+                            onClick={() =>
+                              setDeleteTarget({
+                                type: 'factor',
+                                id: factor.factor_id,
+                                name: factor.activity_name
+                              })
+                            }
+                          >
+                            Delete
+                          </Button>
+                        </Flex>
+                      </Grid>
+                    ))
+                  })()}
                 </Box>
               )}
             </Box>
@@ -1325,96 +1568,183 @@ export default function AdminDashboard() {
         {/* TASKS TAB */}
         {activeTab === 'tasks' && (
           <Box animation={`${slideUp} 0.5s ease-out both`}>
-            <Flex justify="space-between" align="center" mb={6}>
+            {/* Header */}
+            <Flex justify="space-between" align={{base: 'flex-start', sm: 'center'}} direction={{base: 'column', sm: 'row'}} gap={4} mb={6}>
               <Box>
-                <Heading size="md" color="#1A202C" mb={1}>
+                <Heading size="md" color={theme.textPrimary} mb={1}>
                   Task Dictionary
                 </Heading>
-                <Text color="#718096" fontSize="xs">
-                  Manage the gamification challenges.
+                <Text color={theme.textSecondary} fontSize="xs">
+                  Manage the gamification challenges and rewards.
                 </Text>
               </Box>
-              <Button bg="#1C4532" size="sm" color="white" borderRadius="full" onClick={() => setIsAddTaskOpen(true)}>
+              <Button
+                bg="#1C4532"
+                size="sm"
+                color="white"
+                borderRadius="full"
+                px={5}
+                boxShadow="0 4px 12px rgba(28, 69, 50, 0.2)"
+                _hover={{bg: '#276749', transform: 'translateY(-1px)'}}
+                transition="all 0.2s"
+                onClick={() => setIsAddTaskOpen(true)}
+              >
                 + Add Task
               </Button>
             </Flex>
 
-            <Box bg="white" borderRadius="3xl" border="1px solid #E2E8F0" overflow="hidden" boxShadow="0 4px 20px -5px rgba(0,0,0,0.03)" overflowX="auto">
+            {/* Harmonized Search & Tier Filter Controls */}
+            <Flex direction={{base: 'column', md: 'row'}} gap={4} mb={6} justify="space-between" align={{base: 'stretch', md: 'center'}}>
+              <Box flex="1" bg={theme.surface} p={1.5} borderRadius="2xl" border={`1px solid ${theme.border}`} boxShadow="sm">
+                <Input placeholder="Search task objective or lifestyle tag..." value={taskSearchQuery} onChange={e => setTaskSearchQuery(e.target.value)} bg={theme.inputBg} color={theme.textPrimary} border="none" py={4} fontSize="xs" />
+              </Box>
+
+              <Flex gap={1} bg={theme.surface} p={1.5} borderRadius="2xl" border={`1px solid ${theme.border}`} boxShadow="sm" overflowX="auto">
+                {[
+                  {id: 'all', label: 'All'},
+                  {id: 'Gold', label: 'Gold'},
+                  {id: 'Silver', label: 'Silver'},
+                  {id: 'Bronze', label: 'Bronze'}
+                ].map(tier => {
+                  const count = tier.id === 'all' ? tasks.length : tasks.filter(t => t.tier?.toLowerCase() === tier.id.toLowerCase()).length
+                  const isSelected = taskTierFilter === tier.id
+
+                  return (
+                    <Button
+                      key={tier.id}
+                      size="xs"
+                      borderRadius="xl"
+                      px={3}
+                      py={3}
+                      fontSize="2xs"
+                      fontWeight="bold"
+                      bg={isSelected ? '#1C4532' : 'transparent'}
+                      color={isSelected ? 'white' : theme.textSecondary}
+                      _hover={{bg: isSelected ? '#1C4532' : theme.surfaceSubtle}}
+                      onClick={() => setTaskTierFilter(tier.id)}
+                    >
+                      {tier.label} ({count})
+                    </Button>
+                  )
+                })}
+              </Flex>
+            </Flex>
+
+            {/* Table Container */}
+            <Box bg={theme.surface} borderRadius="3xl" border={`1px solid ${theme.border}`} overflow="hidden" boxShadow="sm" overflowX="auto">
               {isLoading ? (
-                <Center p={10}>
-                  <Spinner color="#38A169" />
+                <Center p={14}>
+                  <Spinner color="#38A169" size="lg" />
                 </Center>
               ) : (
-                <Box minW="700px">
-                  <Grid templateColumns="1fr 1fr 3fr 1fr 1fr" gap={4} p={5} bg="#F8FAFC" borderBottom="1px solid #E2E8F0" alignItems="center">
-                    <Text fontSize="xs" fontWeight="bold" color="#718096" textTransform="uppercase">
-                      Tier
-                    </Text>
-                    <Text fontSize="xs" fontWeight="bold" color="#718096" textTransform="uppercase">
-                      Tag
-                    </Text>
-                    <Text fontSize="xs" fontWeight="bold" color="#718096" textTransform="uppercase">
-                      Description
-                    </Text>
-                    <Text fontSize="xs" fontWeight="bold" color="#718096" textTransform="uppercase" textAlign="right">
-                      CO₂ Saved
-                    </Text>
-                    <Text fontSize="xs" fontWeight="bold" color="#718096" textTransform="uppercase" textAlign="right">
+                <Box minW="760px">
+                  <Grid templateColumns="1fr 1.2fr 3fr 1.4fr 1fr" gap={4} p={5} bg={theme.surfaceSubtle} borderBottom={`1px solid ${theme.border}`} alignItems="center">
+                    <SortableHeader label="Tier" sortKey="tier" currentSort={taskSort} onSort={key => handleToggleSort(setTaskSort, key)} />
+                    <SortableHeader label="Tag" sortKey="target_lifestyle_tag" currentSort={taskSort} onSort={key => handleToggleSort(setTaskSort, key)} />
+                    <SortableHeader label="Description" sortKey="description" currentSort={taskSort} onSort={key => handleToggleSort(setTaskSort, key)} />
+                    <SortableHeader label="CO₂ Saved" sortKey="co2_saved_estimate" currentSort={taskSort} onSort={key => handleToggleSort(setTaskSort, key)} textAlign="right" />
+                    <Text fontSize="xs" fontWeight="bold" color={theme.textSecondary} textTransform="uppercase" letterSpacing="wider" textAlign="right">
                       Actions
                     </Text>
                   </Grid>
 
-                  {tasks.map((task, index) => (
-                    <Grid key={task.task_id} templateColumns="1fr 1fr 3fr 1fr 1fr" gap={4} p={5} borderBottom="1px solid #E2E8F0" alignItems="center">
-                      <Box>
-                        <Badge colorScheme={task.tier === 'Gold' ? 'yellow' : task.tier === 'Silver' ? 'gray' : 'orange'} px={3} py={1} borderRadius="full">
-                          {task.tier}
-                        </Badge>
-                      </Box>
-                      <Text fontSize="xs" color="#4A5568" fontWeight="bold">
-                        {task.target_lifestyle_tag}
-                      </Text>
-                      <Text fontWeight="bold" color="#2D3748" fontSize="xs">
-                        {task.description}
-                      </Text>
-                      <Text fontWeight="black" color="#38A169" textAlign="right" fontSize="xs">
-                        -{parseFloat(task.co2_saved_estimate).toFixed(1)} kg
-                      </Text>
+                  {(() => {
+                    let filtered = tasks.filter(task => {
+                      const query = taskSearchQuery.toLowerCase()
+                      const matchesSearch = task.description?.toLowerCase().includes(query) || task.target_lifestyle_tag?.toLowerCase().includes(query)
+                      const matchesTier = taskTierFilter === 'all' || task.tier?.toLowerCase() === taskTierFilter.toLowerCase()
+                      return matchesSearch && matchesTier
+                    })
 
-                      <Flex justify="flex-end" gap={2}>
-                        <Button
-                          size="xs"
-                          borderRadius="full"
-                          bg="white"
-                          color="#4A5568"
-                          border="1px solid #E2E8F0"
-                          onClick={() => {
-                            setSelectedTask(task)
-                            setNewTaskDesc(task.description)
-                            setNewTaskCo2(task.co2_saved_estimate)
-                          }}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          size="xs"
-                          borderRadius="full"
-                          bg="white"
-                          color="#C53030"
-                          border="1px solid #FEB2B2"
-                          onClick={() =>
-                            setDeleteTarget({
-                              type: 'task',
-                              id: task.task_id,
-                              name: 'this task'
-                            })
-                          }
-                        >
-                          Delete
-                        </Button>
-                      </Flex>
-                    </Grid>
-                  ))}
+                    if (taskSort.key && taskSort.direction === 'asc') {
+                      filtered = [...filtered].sort((a, b) => {
+                        const valA = a[taskSort.key]
+                        const valB = b[taskSort.key]
+                        if (typeof valA === 'number' || !isNaN(Number(valA))) {
+                          return Number(valA) - Number(valB)
+                        }
+                        return String(valA || '').localeCompare(String(valB || ''))
+                      })
+                    }
+
+                    if (filtered.length === 0) {
+                      return (
+                        <Center py={16} flexDirection="column" gap={2}>
+                          <Text fontSize="2xl">🔍</Text>
+                          <Text color={theme.textSecondary} fontSize="sm" fontWeight="bold">
+                            No eco-tasks matched your filter.
+                          </Text>
+                          <Text color={isDarkMode ? '#64748B' : '#A0AEC0'} fontSize="xs">
+                            Try adjusting the search query or tier tabs.
+                          </Text>
+                        </Center>
+                      )
+                    }
+
+                    return filtered.map(task => (
+                      <Grid
+                        key={task.task_id}
+                        templateColumns="1fr 1.2fr 3fr 1.4fr 1fr"
+                        gap={4}
+                        px={5}
+                        py={4}
+                        borderBottom={`1px solid ${theme.borderSubtle}`}
+                        alignItems="center"
+                        _hover={{bg: theme.tableHover}}
+                        transition="background-color 0.15s ease"
+                      >
+                        <Box>
+                          <Badge colorScheme={task.tier === 'Gold' ? 'yellow' : task.tier === 'Silver' ? 'gray' : 'orange'} px={3} py={1} borderRadius="full">
+                            {task.tier}
+                          </Badge>
+                        </Box>
+                        <Text fontSize="xs" color={theme.textSecondary} fontWeight="bold">
+                          {task.target_lifestyle_tag}
+                        </Text>
+                        <Text fontWeight="bold" color={theme.textPrimary} fontSize="xs">
+                          {task.description}
+                        </Text>
+                        <Text fontWeight="black" color="#38A169" textAlign="right" fontSize="xs">
+                          -{parseFloat(task.co2_saved_estimate).toFixed(1)} kg
+                        </Text>
+
+                        <Flex justify="flex-end" gap={2}>
+                          <Button
+                            size="xs"
+                            borderRadius="full"
+                            bg={theme.surface}
+                            color={theme.textPrimary}
+                            border={`1px solid ${theme.border}`}
+                            _hover={{bg: theme.surfaceSubtle}}
+                            onClick={() => {
+                              setSelectedTask(task)
+                              setNewTaskDesc(task.description)
+                              setNewTaskCo2(task.co2_saved_estimate)
+                            }}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            size="xs"
+                            borderRadius="full"
+                            bg={theme.surface}
+                            color="#E53E3E"
+                            border="1px solid #FEB2B2"
+                            _hover={{bg: isDarkMode ? '#3B1E22' : '#FFF5F5'}}
+                            onClick={() =>
+                              setDeleteTarget({
+                                type: 'task',
+                                id: task.task_id,
+                                name: 'this task'
+                              })
+                            }
+                          >
+                            Delete
+                          </Button>
+                        </Flex>
+                      </Grid>
+                    ))
+                  })()}
                 </Box>
               )}
             </Box>
@@ -1426,10 +1756,10 @@ export default function AdminDashboard() {
           <Box animation={`${slideUp} 0.5s ease-out both`}>
             <Flex justify="space-between" align="center" mb={6}>
               <Box>
-                <Heading size="md" color="#1A202C" mb={1}>
+                <Heading size="md" color={theme.textPrimary} mb={1}>
                   User Management
                 </Heading>
-                <Text color="#718096" fontSize="xs">
+                <Text color={theme.textSecondary} fontSize="xs">
                   Monitor community members and system roles.
                 </Text>
               </Box>
@@ -1437,11 +1767,11 @@ export default function AdminDashboard() {
 
             {/* SEARCH BAR & CATEGORY SUB-TABS */}
             <Flex direction={{base: 'column', md: 'row'}} gap={4} mb={6} justify="space-between" align={{base: 'stretch', md: 'center'}}>
-              <Box flex="1" bg="white" p={1.5} borderRadius="2xl" border="1px solid #E2E8F0" boxShadow="sm">
-                <Input placeholder="Search user or email..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} bg="#F8FAFC" border="none" py={4} fontSize="xs" />
+              <Box flex="1" bg={theme.surface} p={1.5} borderRadius="2xl" border={`1px solid ${theme.border}`} boxShadow="sm">
+                <Input placeholder="Search user or email..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} bg={theme.inputBg} color={theme.textPrimary} border="none" py={4} fontSize="xs" />
               </Box>
 
-              <Flex gap={1} bg="white" p={1.5} borderRadius="2xl" border="1px solid #E2E8F0" boxShadow="sm" overflowX="auto">
+              <Flex gap={1} bg={theme.surface} p={1.5} borderRadius="2xl" border={`1px solid ${theme.border}`} boxShadow="sm" overflowX="auto">
                 {[
                   {id: 'all', label: 'All Users', count: users.length},
                   {id: 'active', label: 'Active', count: users.filter(u => u.status === 'Active' || u.status === 'Inactive').length},
@@ -1457,7 +1787,7 @@ export default function AdminDashboard() {
                     fontSize="2xs"
                     fontWeight="bold"
                     bg={userFilter === filter.id ? '#1C4532' : 'transparent'}
-                    color={userFilter === filter.id ? 'white' : '#718096'}
+                    color={userFilter === filter.id ? 'white' : theme.textSecondary}
                     onClick={() => setUserFilter(filter.id)}
                   >
                     {filter.label} ({filter.count})
@@ -1467,44 +1797,32 @@ export default function AdminDashboard() {
             </Flex>
 
             {/* USERS TABLE */}
-            <Box bg="white" borderRadius="3xl" border="1px solid #E2E8F0" overflow="hidden" boxShadow="0 4px 20px -5px rgba(0,0,0,0.03)" overflowX="auto">
+            <Box bg={theme.surface} borderRadius="3xl" border={`1px solid ${theme.border}`} overflow="hidden" boxShadow="sm" overflowX="auto">
               {isLoading ? (
                 <Center p={10}>
                   <Spinner color="#38A169" />
                 </Center>
               ) : (
                 <Box minW="750px">
-                  <Grid templateColumns="2fr 0.8fr 1fr 1fr 1.5fr 1fr 1fr" gap={4} p={5} bg="#F8FAFC" borderBottom="1px solid #E2E8F0" alignItems="center">
-                    <Text fontSize="xs" fontWeight="bold" color="#718096" textTransform="uppercase">
-                      Identity
-                    </Text>
-                    <Text fontSize="xs" fontWeight="bold" color="#718096" textTransform="uppercase">
-                      Role
-                    </Text>
-                    <Text fontSize="xs" fontWeight="bold" color="#718096" textTransform="uppercase">
-                      Status
-                    </Text>
-                    <Text fontSize="xs" fontWeight="bold" color="#718096" textTransform="uppercase">
-                      Total Logs
-                    </Text>
-                    <Text fontSize="xs" fontWeight="bold" color="#718096" textTransform="uppercase">
-                      Last Active
-                    </Text>
-                    <Text fontSize="xs" fontWeight="bold" color="#718096" textTransform="uppercase" textAlign="right">
-                      Target Limit
-                    </Text>
-                    <Text fontSize="xs" fontWeight="bold" color="#718096" textTransform="uppercase" textAlign="right">
+                  <Grid templateColumns="2fr 0.8fr 1fr 1fr 1.5fr 1fr 1fr" gap={4} p={5} bg={theme.surfaceSubtle} borderBottom={`1px solid ${theme.border}`} alignItems="center">
+                    <SortableHeader label="Identity" sortKey="display_name" currentSort={userSort} onSort={key => handleToggleSort(setUserSort, key)} />
+                    <SortableHeader label="Role" sortKey="role" currentSort={userSort} onSort={key => handleToggleSort(setUserSort, key)} />
+                    <SortableHeader label="Status" sortKey="status" currentSort={userSort} onSort={key => handleToggleSort(setUserSort, key)} />
+                    <SortableHeader label="Total Logs" sortKey="total_logs" currentSort={userSort} onSort={key => handleToggleSort(setUserSort, key)} />
+                    <SortableHeader label="Last Active" sortKey="last_active" currentSort={userSort} onSort={key => handleToggleSort(setUserSort, key)} />
+                    <SortableHeader label="Target Limit" sortKey="monthly_co2_target" currentSort={userSort} onSort={key => handleToggleSort(setUserSort, key)} textAlign="right" />
+                    <Text fontSize="xs" fontWeight="bold" color={theme.textSecondary} textTransform="uppercase" textAlign="right">
                       Actions
                     </Text>
                   </Grid>
 
-                  {users
-                    .filter(user => {
-                      const anonymizedId = `User #${user.profile_id.substring(0, 6).toUpperCase()}`
-                      const realName = user.display_name || ''
-                      const accountEmail = user.email || ''
+                  {(() => {
+                    let filtered = users.filter(user => {
+                      const isStaff = user.role === 'admin'
+                      const displayName = isStaff ? 'Authorized Staff (Secured)' : `User #${user.profile_id.substring(0, 6).toUpperCase()}`
+                      const accountEmail = isStaff ? '' : user.email || ''
                       const cleanQuery = searchQuery.toLowerCase()
-                      const matchesSearch = anonymizedId.toLowerCase().includes(cleanQuery) || realName.toLowerCase().includes(cleanQuery) || accountEmail.toLowerCase().includes(cleanQuery)
+                      const matchesSearch = displayName.toLowerCase().includes(cleanQuery) || accountEmail.toLowerCase().includes(cleanQuery)
 
                       let matchesTab = true
                       if (userFilter === 'banned') matchesTab = user.is_banned
@@ -1513,40 +1831,50 @@ export default function AdminDashboard() {
 
                       return matchesSearch && matchesTab
                     })
-                    .map(user => {
+
+                    if (userSort.key && userSort.direction === 'asc') {
+                      filtered = [...filtered].sort((a, b) => {
+                        const valA = a[userSort.key]
+                        const valB = b[userSort.key]
+                        if (typeof valA === 'number' || (!isNaN(Number(valA)) && valA !== '')) {
+                          return Number(valA) - Number(valB)
+                        }
+                        return String(valA || '').localeCompare(String(valB || ''))
+                      })
+                    }
+
+                    return filtered.map(user => {
                       const isStaff = user.role === 'admin'
-                      const displayName = isStaff ? user.display_name || 'Administrator' : `User #${user.profile_id.substring(0, 6).toUpperCase()}`
+                      const displayName = isStaff ? 'Authorized Staff (Secured)' : `User #${user.profile_id.substring(0, 6).toUpperCase()}`
 
                       return (
-                        <Grid key={user.profile_id} templateColumns="2fr 0.8fr 1fr 1fr 1.5fr 1fr 1fr" gap={4} p={5} borderBottom="1px solid #E2E8F0" alignItems="center">
+                        <Grid key={user.profile_id} templateColumns="2fr 0.8fr 1fr 1fr 1.5fr 1fr 1fr" gap={4} p={5} borderBottom={`1px solid ${theme.borderSubtle}`} alignItems="center">
                           <Flex align="center" gap={3}>
                             <Flex
                               w="32px"
                               h="32px"
                               borderRadius="full"
-                              bg={isStaff ? '#1C4532' : '#EDF2F7'}
-                              color={isStaff ? 'white' : '#A0AEC0'}
+                              bg={isStaff ? '#1C4532' : theme.surfaceSubtle}
+                              color={isStaff ? 'white' : theme.textSecondary}
                               align="center"
                               justify="center"
                               fontWeight="black"
                               fontSize={isStaff ? 'xs' : 'md'}
                               overflow="hidden"
                               flexShrink={0}
-                              backgroundImage={user.avatar_url ? `url(${user.avatar_url})` : 'none'}
+                              backgroundImage={!isStaff && user.avatar_url ? `url(${user.avatar_url})` : 'none'}
                               backgroundSize="cover"
                               backgroundPosition="center"
                             >
-                              {!user.avatar_url && (isStaff ? displayName.charAt(0).toUpperCase() : '👤')}
+                              {isStaff ? '🛡️' : !user.avatar_url && '👤'}
                             </Flex>
                             <Box>
-                              <Text fontWeight="bold" color="#2D3748" fontSize="xs">
+                              <Text fontWeight="bold" color={theme.textPrimary} fontSize="xs">
                                 {displayName}
                               </Text>
-                              {!isStaff && (
-                                <Text fontSize="2xs" color="#A0AEC0" textTransform="uppercase" letterSpacing="wider">
-                                  Anonymized
-                                </Text>
-                              )}
+                              <Text fontSize="2xs" color={isDarkMode ? '#64748B' : '#A0AEC0'} textTransform="uppercase" letterSpacing="wider">
+                                {isStaff ? 'Confidential' : 'Anonymized'}
+                              </Text>
                             </Box>
                           </Flex>
 
@@ -1571,11 +1899,11 @@ export default function AdminDashboard() {
 
                           <Box pl={2}>
                             {isStaff ? (
-                              <Text color="#A0AEC0" fontSize="xs" fontStyle="italic">
+                              <Text color={theme.textSecondary} fontSize="xs" fontStyle="italic">
                                 —
                               </Text>
                             ) : (
-                              <Text fontSize="xs" fontWeight="bold" color={user.total_logs > 0 ? '#2B6CB0' : '#718096'}>
+                              <Text fontSize="xs" fontWeight="bold" color={user.total_logs > 0 ? '#3182CE' : theme.textSecondary}>
                                 {user.total_logs} {user.total_logs === 1 ? 'log' : 'logs'}
                               </Text>
                             )}
@@ -1583,13 +1911,13 @@ export default function AdminDashboard() {
 
                           <Box>
                             {isStaff ? (
-                              <Text color="#A0AEC0" fontSize="xs" fontStyle="italic">
+                              <Text color={theme.textSecondary} fontSize="xs" fontStyle="italic">
                                 System Default
                               </Text>
                             ) : (
                               <Flex align="center" gap={2}>
                                 <Box w="6px" h="6px" borderRadius="full" bg={user.last_active === 'No Activity' ? '#CBD5E0' : '#38A169'} />
-                                <Text color="#718096" fontSize="xs" fontWeight={user.last_active !== 'No Activity' ? 'bold' : 'normal'}>
+                                <Text color={theme.textSecondary} fontSize="xs" fontWeight={user.last_active !== 'No Activity' ? 'bold' : 'normal'}>
                                   {user.last_active}
                                 </Text>
                               </Flex>
@@ -1598,11 +1926,11 @@ export default function AdminDashboard() {
 
                           <Box textAlign="right">
                             {isStaff ? (
-                              <Text color="#A0AEC0" fontSize="xs" fontStyle="italic">
+                              <Text color={theme.textSecondary} fontSize="xs" fontStyle="italic">
                                 N/A
                               </Text>
                             ) : (
-                              <Text fontWeight="black" color="#1A202C" fontSize="xs">
+                              <Text fontWeight="black" color={theme.textPrimary} fontSize="xs">
                                 {user.monthly_co2_target} kg
                               </Text>
                             )}
@@ -1610,18 +1938,18 @@ export default function AdminDashboard() {
 
                           <Flex justify="flex-end">
                             {isStaff ? (
-                              <Text color="#A0AEC0" fontSize="2xs" fontStyle="italic" pr={2}>
+                              <Text color={theme.textSecondary} fontSize="2xs" fontStyle="italic" pr={2}>
                                 Locked
                               </Text>
                             ) : (
                               <Menu.Root lazyMount>
                                 <Menu.Trigger asChild>
-                                  <Button size="xs" variant="outline" borderRadius="full" borderColor="#E2E8F0" fontSize="2xs" fontWeight="bold" color="#4A5568">
+                                  <Button size="xs" variant="outline" borderRadius="full" borderColor={theme.border} fontSize="2xs" fontWeight="bold" color={theme.textPrimary}>
                                     Actions ▼
                                   </Button>
                                 </Menu.Trigger>
-                                <Menu.Content borderColor="#E2E8F0" boxShadow="md" borderRadius="xl" zIndex={10} bg="white" p={1}>
-                                  <Menu.Item value="password-reset" fontSize="xs" color="#2B6CB0" cursor="pointer" p={2} borderRadius="md" onClick={() => handlePasswordReset(user.email)}>
+                                <Menu.Content borderColor={theme.border} boxShadow="md" borderRadius="xl" zIndex={10} bg={theme.surface} p={1}>
+                                  <Menu.Item value="password-reset" fontSize="xs" color="#3182CE" cursor="pointer" p={2} borderRadius="md" onClick={() => handlePasswordReset(user.email)}>
                                     🔑 Password Reset
                                   </Menu.Item>
 
@@ -1654,7 +1982,8 @@ export default function AdminDashboard() {
                           </Flex>
                         </Grid>
                       )
-                    })}
+                    })
+                  })()}
                 </Box>
               )}
             </Box>
@@ -1664,32 +1993,32 @@ export default function AdminDashboard() {
 
       {/* MODALS SECTION */}
       {selectedFactor && (
-        <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.4)" zIndex={9999} justify="flex-end" onClick={() => setSelectedFactor(null)}>
-          <Flex direction="column" bg="white" w={{base: '100%', md: '450px'}} h="100vh" boxShadow="-10px 0 40px rgba(0,0,0,0.1)" onClick={e => e.stopPropagation()}>
-            <Flex justify="space-between" align="center" p={{base: 5, md: 8}} borderBottom="1px solid #E2E8F0">
+        <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.6)" zIndex={9999} justify="flex-end" onClick={() => setSelectedFactor(null)}>
+          <Flex direction="column" bg={theme.surface} w={{base: '100%', md: '450px'}} h="100vh" boxShadow="-10px 0 40px rgba(0,0,0,0.2)" borderLeft={`1px solid ${theme.border}`} onClick={e => e.stopPropagation()}>
+            <Flex justify="space-between" align="center" p={{base: 5, md: 8}} borderBottom={`1px solid ${theme.border}`}>
               <Box>
                 <Text fontSize="xs" color="#38A169" fontWeight="bold" textTransform="uppercase" letterSpacing="wider" mb={1}>
                   System Multiplier
                 </Text>
-                <Heading size="md" color="#1A202C">
+                <Heading size="md" color={theme.textPrimary}>
                   Edit Emission Factor
                 </Heading>
               </Box>
-              <Button size="sm" variant="ghost" borderRadius="full" color="#A0AEC0" onClick={() => setSelectedFactor(null)}>
+              <Button size="sm" variant="ghost" borderRadius="full" color={theme.textSecondary} onClick={() => setSelectedFactor(null)}>
                 ✕
               </Button>
             </Flex>
 
             <Box flex="1" overflowY="auto" p={{base: 5, md: 8}}>
-              <Text fontSize="sm" color="#4A5568" mb={8} lineHeight="tall">
+              <Text fontSize="sm" color={theme.textSecondary} mb={8} lineHeight="tall">
                 Adjusting calculation weights for:{' '}
-                <Text as="span" fontWeight="black" color="#1A202C">
+                <Text as="span" fontWeight="black" color={theme.textPrimary}>
                   {selectedFactor.activity_name}
                 </Text>
               </Text>
 
               <Box mb={6}>
-                <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color="#A0AEC0" mb={2}>
+                <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color={theme.textSecondary} mb={2}>
                   New Value (kg CO₂ per {selectedFactor.unit})
                 </Text>
                 <Input
@@ -1701,15 +2030,15 @@ export default function AdminDashboard() {
                   size="lg"
                   fontSize="2xl"
                   fontWeight="black"
-                  color="#1A202C"
+                  color={theme.textPrimary}
                   focusBorderColor="#38A169"
                   placeholder="0.00"
                 />
               </Box>
             </Box>
 
-            <Flex p={6} borderTop="1px solid #E2E8F0" bg="#F8FAFC" gap={4}>
-              <Button flex="1" onClick={() => setSelectedFactor(null)} variant="outline" borderRadius="xl" color="#718096" borderColor="#E2E8F0">
+            <Flex p={6} borderTop={`1px solid ${theme.border}`} bg={theme.surfaceSubtle} gap={4}>
+              <Button flex="1" onClick={() => setSelectedFactor(null)} variant="outline" borderRadius="xl" color={theme.textSecondary} borderColor={theme.border}>
                 Cancel
               </Button>
               <Button flex="2" bg="#1C4532" color="white" borderRadius="xl" onClick={handleUpdateFactor} isLoading={isSavingFactor}>
@@ -1721,18 +2050,18 @@ export default function AdminDashboard() {
       )}
 
       {selectedTask && (
-        <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.4)" zIndex={9999} justify="flex-end" onClick={() => setSelectedTask(null)}>
-          <Flex direction="column" bg="white" w={{base: '100%', md: '450px'}} h="100vh" boxShadow="-10px 0 40px rgba(0,0,0,0.1)" onClick={e => e.stopPropagation()}>
-            <Flex justify="space-between" align="center" p={{base: 5, md: 8}} borderBottom="1px solid #E2E8F0">
+        <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.6)" zIndex={9999} justify="flex-end" onClick={() => setSelectedTask(null)}>
+          <Flex direction="column" bg={theme.surface} w={{base: '100%', md: '450px'}} h="100vh" boxShadow="-10px 0 40px rgba(0,0,0,0.2)" borderLeft={`1px solid ${theme.border}`} onClick={e => e.stopPropagation()}>
+            <Flex justify="space-between" align="center" p={{base: 5, md: 8}} borderBottom={`1px solid ${theme.border}`}>
               <Box>
                 <Text fontSize="xs" color="#3182CE" fontWeight="bold" textTransform="uppercase" letterSpacing="wider" mb={1}>
                   Gamified Dictionary
                 </Text>
-                <Heading size="md" color="#1A202C">
+                <Heading size="md" color={theme.textPrimary}>
                   Modify Task
                 </Heading>
               </Box>
-              <Button size="sm" variant="ghost" borderRadius="full" color="#A0AEC0" onClick={() => setSelectedTask(null)}>
+              <Button size="sm" variant="ghost" borderRadius="full" color={theme.textSecondary} onClick={() => setSelectedTask(null)}>
                 ✕
               </Button>
             </Flex>
@@ -1740,22 +2069,22 @@ export default function AdminDashboard() {
             <Box flex="1" overflowY="auto" p={{base: 5, md: 8}}>
               <VStack spacing={8} align="stretch">
                 <Box>
-                  <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color="#A0AEC0" mb={4}>
+                  <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color={theme.textSecondary} mb={4}>
                     Task Objective Description
                   </Text>
-                  <Textarea variant="flushed" value={newTaskDesc} onChange={e => setNewTaskDesc(e.target.value)} color="#1A202C" rows={3} resize="none" fontSize="md" fontWeight="medium" focusBorderColor="#3182CE" />
+                  <Textarea variant="flushed" value={newTaskDesc} onChange={e => setNewTaskDesc(e.target.value)} color={theme.textPrimary} rows={3} resize="none" fontSize="md" fontWeight="medium" focusBorderColor="#3182CE" />
                 </Box>
                 <Box>
-                  <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color="#A0AEC0" mb={2}>
+                  <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color={theme.textSecondary} mb={2}>
                     CO₂ Saved Estimate (kg)
                   </Text>
-                  <Input variant="flushed" type="number" step="0.1" value={newTaskCo2} onChange={e => setNewTaskCo2(e.target.value)} size="lg" fontSize="2xl" fontWeight="black" color="#1A202C" focusBorderColor="#3182CE" />
+                  <Input variant="flushed" type="number" step="0.1" value={newTaskCo2} onChange={e => setNewTaskCo2(e.target.value)} size="lg" fontSize="2xl" fontWeight="black" color={theme.textPrimary} focusBorderColor="#3182CE" />
                 </Box>
               </VStack>
             </Box>
 
-            <Flex p={6} borderTop="1px solid #E2E8F0" bg="#F8FAFC" gap={4}>
-              <Button flex="1" onClick={() => setSelectedTask(null)} variant="outline" borderRadius="xl" color="#718096" borderColor="#E2E8F0">
+            <Flex p={6} borderTop={`1px solid ${theme.border}`} bg={theme.surfaceSubtle} gap={4}>
+              <Button flex="1" onClick={() => setSelectedTask(null)} variant="outline" borderRadius="xl" color={theme.textSecondary} borderColor={theme.border}>
                 Cancel
               </Button>
               <Button flex="2" bg="#1C4532" color="white" borderRadius="xl" onClick={handleUpdateTask} isLoading={isSavingTask}>
@@ -1766,19 +2095,20 @@ export default function AdminDashboard() {
         </Flex>
       )}
 
+      {/* ADD FACTOR MODAL */}
       {isAddFactorOpen && (
-        <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.4)" zIndex={9999} justify="flex-end" onClick={() => setIsAddFactorOpen(false)}>
-          <Flex direction="column" bg="white" w={{base: '100%', md: '450px'}} h="100vh" boxShadow="-10px 0 40px rgba(0,0,0,0.1)" onClick={e => e.stopPropagation()}>
-            <Flex justify="space-between" align="center" p={{base: 5, md: 8}} borderBottom="1px solid #E2E8F0">
+        <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.6)" zIndex={9999} justify="flex-end" onClick={() => !isSavingFactor && setIsAddFactorOpen(false)}>
+          <Flex direction="column" bg={theme.surface} w={{base: '100%', md: '450px'}} h="100vh" boxShadow="-10px 0 40px rgba(0,0,0,0.2)" borderLeft={`1px solid ${theme.border}`} onClick={e => e.stopPropagation()}>
+            <Flex justify="space-between" align="center" p={{base: 5, md: 8}} borderBottom={`1px solid ${theme.border}`}>
               <Box>
                 <Text fontSize="xs" color="#319795" fontWeight="bold" textTransform="uppercase" letterSpacing="wider" mb={1}>
                   Global Math Model
                 </Text>
-                <Heading size="md" color="#1A202C">
+                <Heading size="md" color={theme.textPrimary}>
                   Add New Factor
                 </Heading>
               </Box>
-              <Button size="sm" variant="ghost" borderRadius="full" color="#A0AEC0" onClick={() => setIsAddFactorOpen(false)}>
+              <Button size="sm" variant="ghost" borderRadius="full" color={theme.textSecondary} isDisabled={isSavingFactor} onClick={() => setIsAddFactorOpen(false)}>
                 ✕
               </Button>
             </Flex>
@@ -1786,27 +2116,52 @@ export default function AdminDashboard() {
             <Box flex="1" overflowY="auto" p={{base: 5, md: 8}}>
               <VStack spacing={8} align="stretch">
                 <Box>
-                  <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color="#A0AEC0" mb={2}>
+                  <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color={theme.textSecondary} mb={2}>
                     Category Cluster
                   </Text>
                   <select
                     value={addFactorData.category}
-                    onChange={e =>
+                    onChange={e => {
+                      const nextCategory = e.target.value
+                      const categoryUnitMap = {
+                        Transport: 'kmh',
+                        Diet: 'meal',
+                        Energy: 'kWh'
+                      }
                       setAddFactorData({
                         ...addFactorData,
-                        category: e.target.value
+                        category: nextCategory,
+                        unit: categoryUnitMap[nextCategory] || ''
                       })
-                    }
-                    style={{width: '100%', padding: '12px 0', border: 'none', borderBottom: '1px solid #E2E8F0', outline: 'none', color: '#1A202C', fontSize: '18px', fontWeight: 'bold', background: 'transparent'}}
+                    }}
+                    disabled={isSavingFactor}
+                    style={{
+                      width: '100%',
+                      padding: '12px 0',
+                      border: 'none',
+                      borderBottom: `1px solid ${theme.border}`,
+                      outline: 'none',
+                      color: theme.textPrimary,
+                      fontSize: '18px',
+                      fontWeight: 'bold',
+                      background: 'transparent',
+                      cursor: 'pointer'
+                    }}
                   >
-                    <option value="Transport">Transport</option>
-                    <option value="Diet">Diet</option>
-                    <option value="Energy">Energy</option>
-                    <option value="Lifestyle">Lifestyle</option>
+                    <option value="Transport" style={{background: theme.surface}}>
+                      Transport
+                    </option>
+                    <option value="Diet" style={{background: theme.surface}}>
+                      Diet
+                    </option>
+                    <option value="Energy" style={{background: theme.surface}}>
+                      Energy
+                    </option>
                   </select>
                 </Box>
+
                 <Box>
-                  <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color="#A0AEC0" mb={2}>
+                  <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color={theme.textSecondary} mb={2}>
                     Activity Identity Title
                   </Text>
                   <Input
@@ -1816,27 +2171,36 @@ export default function AdminDashboard() {
                     onChange={e => setAddFactorData({...addFactorData, activity_name: e.target.value})}
                     fontSize="lg"
                     fontWeight="medium"
-                    color="#1A202C"
+                    color={theme.textPrimary}
                     focusBorderColor="#319795"
+                    isDisabled={isSavingFactor}
                   />
                 </Box>
+
                 <Box>
-                  <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color="#A0AEC0" mb={2}>
-                    Telemetry Unit
-                  </Text>
+                  <Flex justify="space-between" align="center" mb={2}>
+                    <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color={theme.textSecondary}>
+                      Telemetry Unit
+                    </Text>
+                    <Text fontSize="2xs" color="#319795" fontWeight="bold">
+                      Auto-assigned
+                    </Text>
+                  </Flex>
                   <Input
                     variant="flushed"
-                    placeholder="e.g. km, meal, kWh"
+                    placeholder="e.g. kmh, meal, kWh"
                     value={addFactorData.unit}
                     onChange={e => setAddFactorData({...addFactorData, unit: e.target.value})}
                     fontSize="lg"
                     fontWeight="medium"
-                    color="#1A202C"
+                    color={theme.textPrimary}
                     focusBorderColor="#319795"
+                    isDisabled={isSavingFactor}
                   />
                 </Box>
+
                 <Box>
-                  <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color="#A0AEC0" mb={2}>
+                  <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color={theme.textSecondary} mb={2}>
                     Carbon Multiplier (kg per unit)
                   </Text>
                   <Input
@@ -1848,18 +2212,31 @@ export default function AdminDashboard() {
                     onChange={e => setAddFactorData({...addFactorData, co2_per_unit: e.target.value})}
                     fontSize="2xl"
                     fontWeight="black"
-                    color="#1A202C"
+                    color={theme.textPrimary}
                     focusBorderColor="#319795"
+                    isDisabled={isSavingFactor}
                   />
                 </Box>
               </VStack>
             </Box>
 
-            <Flex p={6} borderTop="1px solid #E2E8F0" bg="#F8FAFC" gap={4}>
-              <Button flex="1" onClick={() => setIsAddFactorOpen(false)} variant="outline" borderRadius="xl" color="#718096" borderColor="#E2E8F0">
+            <Flex p={6} borderTop={`1px solid ${theme.border}`} bg={theme.surfaceSubtle} gap={4}>
+              <Button flex="1" onClick={() => setIsAddFactorOpen(false)} variant="outline" borderRadius="xl" color={theme.textSecondary} borderColor={theme.border} isDisabled={isSavingFactor}>
                 Cancel
               </Button>
-              <Button flex="2" bg="#1C4532" color="white" borderRadius="xl" onClick={handleAddFactor} isLoading={isSavingFactor}>
+              <Button
+                flex="2"
+                bg="#1C4532"
+                color="white"
+                borderRadius="xl"
+                onClick={handleAddFactor}
+                isLoading={isSavingFactor}
+                loadingText="Injecting Multiplier..."
+                spinnerPlacement="start"
+                _hover={{bg: '#143124'}}
+                _active={{bg: '#0F241A', transform: 'scale(0.98)'}}
+                transition="all 0.15s ease"
+              >
                 Create Factor
               </Button>
             </Flex>
@@ -1867,19 +2244,20 @@ export default function AdminDashboard() {
         </Flex>
       )}
 
+      {/* CREATE TASK MODAL */}
       {isAddTaskOpen && (
-        <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.4)" zIndex={9999} justify="flex-end" onClick={() => setIsAddTaskOpen(false)}>
-          <Flex direction="column" bg="white" w={{base: '100%', md: '450px'}} h="100vh" boxShadow="-10px 0 40px rgba(0,0,0,0.1)" onClick={e => e.stopPropagation()}>
-            <Flex justify="space-between" align="center" p={{base: 5, md: 8}} borderBottom="1px solid #E2E8F0">
+        <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.6)" zIndex={9999} justify="flex-end" onClick={() => setIsAddTaskOpen(false)}>
+          <Flex direction="column" bg={theme.surface} w={{base: '100%', md: '450px'}} h="100vh" boxShadow="-10px 0 40px rgba(0,0,0,0.2)" borderLeft={`1px solid ${theme.border}`} onClick={e => e.stopPropagation()}>
+            <Flex justify="space-between" align="center" p={{base: 5, md: 8}} borderBottom={`1px solid ${theme.border}`}>
               <Box>
                 <Text fontSize="xs" color="#D69E2E" fontWeight="bold" textTransform="uppercase" letterSpacing="wider" mb={1}>
                   Gamified Engine
                 </Text>
-                <Heading size="md" color="#1A202C">
+                <Heading size="md" color={theme.textPrimary}>
                   Create Global Task
                 </Heading>
               </Box>
-              <Button size="sm" variant="ghost" borderRadius="full" color="#A0AEC0" onClick={() => setIsAddTaskOpen(false)}>
+              <Button size="sm" variant="ghost" borderRadius="full" color={theme.textSecondary} onClick={() => setIsAddTaskOpen(false)}>
                 ✕
               </Button>
             </Flex>
@@ -1888,37 +2266,71 @@ export default function AdminDashboard() {
               <VStack spacing={8} align="stretch">
                 <Flex gap={6}>
                   <Box flex="1">
-                    <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color="#A0AEC0" mb={2}>
+                    <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color={theme.textSecondary} mb={2}>
                       Reward Tier
                     </Text>
                     <select
                       value={addTaskData.tier}
                       onChange={e => setAddTaskData({...addTaskData, tier: e.target.value})}
-                      style={{width: '100%', padding: '12px 0', border: 'none', borderBottom: '1px solid #E2E8F0', outline: 'none', color: '#1A202C', fontSize: '16px', fontWeight: 'bold', background: 'transparent'}}
+                      style={{
+                        width: '100%',
+                        padding: '12px 0',
+                        border: 'none',
+                        borderBottom: `1px solid ${theme.border}`,
+                        outline: 'none',
+                        color: theme.textPrimary,
+                        fontSize: '16px',
+                        fontWeight: 'bold',
+                        background: 'transparent'
+                      }}
                     >
-                      <option value="Bronze">Bronze</option>
-                      <option value="Silver">Silver</option>
-                      <option value="Gold">Gold</option>
+                      <option value="Bronze" style={{background: theme.surface}}>
+                        Bronze
+                      </option>
+                      <option value="Silver" style={{background: theme.surface}}>
+                        Silver
+                      </option>
+                      <option value="Gold" style={{background: theme.surface}}>
+                        Gold
+                      </option>
                     </select>
                   </Box>
                   <Box flex="1">
-                    <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color="#A0AEC0" mb={2}>
+                    <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color={theme.textSecondary} mb={2}>
                       Lifestyle Tag
                     </Text>
                     <select
                       value={addTaskData.target_lifestyle_tag}
                       onChange={e => setAddTaskData({...addTaskData, target_lifestyle_tag: e.target.value})}
-                      style={{width: '100%', padding: '12px 0', border: 'none', borderBottom: '1px solid #E2E8F0', outline: 'none', color: '#1A202C', fontSize: '16px', fontWeight: 'bold', background: 'transparent'}}
+                      style={{
+                        width: '100%',
+                        padding: '12px 0',
+                        border: 'none',
+                        borderBottom: `1px solid ${theme.border}`,
+                        outline: 'none',
+                        color: theme.textPrimary,
+                        fontSize: '16px',
+                        fontWeight: 'bold',
+                        background: 'transparent'
+                      }}
                     >
-                      <option value="General">General</option>
-                      <option value="Commute">Commute</option>
-                      <option value="Diet">Diet</option>
-                      <option value="Energy">Energy</option>
+                      <option value="General" style={{background: theme.surface}}>
+                        General
+                      </option>
+                      <option value="Commute" style={{background: theme.surface}}>
+                        Commute
+                      </option>
+                      <option value="Diet" style={{background: theme.surface}}>
+                        Diet
+                      </option>
+                      <option value="Energy" style={{background: theme.surface}}>
+                        Energy
+                      </option>
                     </select>
                   </Box>
                 </Flex>
                 <Box>
-                  <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color="#A0AEC0" mb={4}>
+                  <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color={theme.textSecondary} mb={4}>
                     Task Description
                   </Text>
                   <Textarea
@@ -1926,7 +2338,7 @@ export default function AdminDashboard() {
                     placeholder="Describe the eco-challenge..."
                     value={addTaskData.description}
                     onChange={e => setAddTaskData({...addTaskData, description: e.target.value})}
-                    color="#1A202C"
+                    color={theme.textPrimary}
                     rows={3}
                     resize="none"
                     fontSize="md"
@@ -1935,7 +2347,7 @@ export default function AdminDashboard() {
                   />
                 </Box>
                 <Box>
-                  <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color="#A0AEC0" mb={2}>
+                  <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color={theme.textSecondary} mb={2}>
                     Carbon Savings Estimate
                   </Text>
                   <Input
@@ -1947,18 +2359,18 @@ export default function AdminDashboard() {
                     onChange={e => setAddTaskData({...addTaskData, co2_saved_estimate: e.target.value})}
                     fontSize="2xl"
                     fontWeight="black"
-                    color="#1A202C"
+                    color={theme.textPrimary}
                     focusBorderColor="#D69E2E"
                   />
                 </Box>
               </VStack>
             </Box>
 
-            <Flex p={6} borderTop="1px solid #E2E8F0" bg="#F8FAFC" gap={4}>
-              <Button flex="1" onClick={() => setIsAddTaskOpen(false)} variant="outline" borderRadius="xl" color="#718096" borderColor="#E2E8F0">
+            <Flex p={6} borderTop={`1px solid ${theme.border}`} bg={theme.surfaceSubtle} gap={4}>
+              <Button flex="1" onClick={() => setIsAddTaskOpen(false)} variant="outline" borderRadius="xl" color={theme.textSecondary} borderColor={theme.border}>
                 Cancel
               </Button>
-              <Button flex="2" bg="#1C4532" color="white" borderRadius="xl" onClick={handleAddFactor} isLoading={isSavingTask}>
+              <Button flex="2" bg="#1C4532" color="white" borderRadius="xl" onClick={handleAddTask} isLoading={isSavingTask}>
                 Create Task
               </Button>
             </Flex>
@@ -1967,16 +2379,27 @@ export default function AdminDashboard() {
       )}
 
       {deleteTarget && (
-        <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.6)" backdropFilter="blur(6px)" zIndex={9999} align="center" justify="center" px={4} onClick={() => setDeleteTarget(null)}>
-          <Box bg="white" p={{base: 6, md: 10}} borderRadius="3xl" maxW="420px" w="100%" boxShadow="0 25px 50px -12px rgba(229, 62, 62, 0.25)" onClick={e => e.stopPropagation()} position="relative" textAlign="center">
-            <Flex w="16" h="16" bg="#FFF5F5" border="4px solid white" outline="1px solid #FED7D7" borderRadius="full" align="center" justify="center" mx="auto" mb={6} boxShadow="lg">
+        <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.7)" backdropFilter="blur(6px)" zIndex={9999} align="center" justify="center" px={4} onClick={() => setDeleteTarget(null)}>
+          <Box
+            bg={theme.surface}
+            p={{base: 6, md: 10}}
+            borderRadius="3xl"
+            maxW="420px"
+            w="100%"
+            boxShadow="0 25px 50px -12px rgba(229, 62, 62, 0.25)"
+            border={`1px solid ${theme.border}`}
+            onClick={e => e.stopPropagation()}
+            position="relative"
+            textAlign="center"
+          >
+            <Flex w="16" h="16" bg={isDarkMode ? '#3B1E22' : '#FFF5F5'} border="4px solid transparent" outline="1px solid #FED7D7" borderRadius="full" align="center" justify="center" mx="auto" mb={6} boxShadow="lg">
               <Text fontSize="2xl">⚠️</Text>
             </Flex>
 
-            <Heading size="md" color="#1A202C" mb={3} letterSpacing="tight">
+            <Heading size="md" color={theme.textPrimary} mb={3} letterSpacing="tight">
               Confirm Deletion
             </Heading>
-            <Text color="#718096" fontSize="sm" mb={8} lineHeight="tall">
+            <Text color={theme.textSecondary} fontSize="sm" mb={8} lineHeight="tall">
               You are about to permanently delete{' '}
               <Text as="span" fontWeight="black" color="#E53E3E">
                 "{deleteTarget.name}"
@@ -1988,7 +2411,7 @@ export default function AdminDashboard() {
               <Button size="lg" bg="#E53E3E" color="white" borderRadius="xl" onClick={executeDelete} isLoading={isDeleting}>
                 Yes, Delete Permanently
               </Button>
-              <Button size="lg" onClick={() => setDeleteTarget(null)} variant="ghost" color="#718096" borderRadius="xl">
+              <Button size="lg" onClick={() => setDeleteTarget(null)} variant="ghost" color={theme.textSecondary} borderRadius="xl">
                 Cancel
               </Button>
             </Flex>
@@ -1997,14 +2420,15 @@ export default function AdminDashboard() {
       )}
 
       {confirmDialog && (
-        <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.6)" backdropFilter="blur(6px)" zIndex={9999} align="center" justify="center" px={4} onClick={() => setConfirmDialog(null)}>
+        <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.7)" backdropFilter="blur(6px)" zIndex={9999} align="center" justify="center" px={4} onClick={() => setConfirmDialog(null)}>
           <Box
-            bg="white"
+            bg={theme.surface}
             p={{base: 6, md: 10}}
             borderRadius="3xl"
             maxW="420px"
             w="100%"
             boxShadow={confirmDialog.isDanger ? '0 25px 50px -12px rgba(229, 62, 62, 0.25)' : '0 25px 50px -12px rgba(56, 161, 105, 0.25)'}
+            border={`1px solid ${theme.border}`}
             onClick={e => e.stopPropagation()}
             position="relative"
             textAlign="center"
@@ -2012,8 +2436,8 @@ export default function AdminDashboard() {
             <Flex
               w="16"
               h="16"
-              bg={confirmDialog.isDanger ? '#FFF5F5' : '#F0FFF4'}
-              border="4px solid white"
+              bg={confirmDialog.isDanger ? (isDarkMode ? '#3B1E22' : '#FFF5F5') : isDarkMode ? '#143124' : '#F0FFF4'}
+              border="4px solid transparent"
               outline={`1px solid ${confirmDialog.isDanger ? '#FED7D7' : '#C6F6D5'}`}
               borderRadius="full"
               align="center"
@@ -2025,10 +2449,10 @@ export default function AdminDashboard() {
               <Text fontSize="2xl">{confirmDialog.isDanger ? '📦' : '🔐'}</Text>
             </Flex>
 
-            <Heading size="md" color="#1A202C" mb={3} letterSpacing="tight">
+            <Heading size="md" color={theme.textPrimary} mb={3} letterSpacing="tight">
               {confirmDialog.title}
             </Heading>
-            <Text color="#718096" fontSize="sm" mb={8} lineHeight="tall">
+            <Text color={theme.textSecondary} fontSize="sm" mb={8} lineHeight="tall">
               {confirmDialog.message}
             </Text>
 
@@ -2036,7 +2460,7 @@ export default function AdminDashboard() {
               <Button size="lg" bg={confirmDialog.isDanger ? '#E53E3E' : '#1C4532'} color="white" borderRadius="xl" onClick={confirmDialog.onConfirm} isLoading={isProcessingAction}>
                 {confirmDialog.confirmText}
               </Button>
-              <Button size="lg" onClick={() => setConfirmDialog(null)} variant="ghost" color="#718096" borderRadius="xl">
+              <Button size="lg" onClick={() => setConfirmDialog(null)} variant="ghost" color={theme.textSecondary} borderRadius="xl">
                 Cancel
               </Button>
             </Flex>
@@ -2050,10 +2474,11 @@ export default function AdminDashboard() {
           bottom={{base: '12px', md: '24px'}}
           right={{base: '12px', md: '24px'}}
           left={{base: '12px', md: 'auto'}}
-          bg="white"
+          bg={theme.surface}
           p={4}
           borderRadius="xl"
-          boxShadow="0 10px 40px rgba(0,0,0,0.1)"
+          boxShadow="0 10px 40px rgba(0,0,0,0.3)"
+          border={`1px solid ${theme.border}`}
           borderLeft="4px solid"
           borderLeftColor={notification.status === 'success' ? '#38A169' : notification.status === 'error' ? '#E53E3E' : '#D69E2E'}
           zIndex={10000}
@@ -2067,14 +2492,14 @@ export default function AdminDashboard() {
             {notification.status === 'warning' && <Text fontSize="lg">⚠️</Text>}
           </Box>
           <Box flex="1">
-            <Text fontWeight="bold" color="#1A202C" fontSize="sm" mb={1}>
+            <Text fontWeight="bold" color={theme.textPrimary} fontSize="sm" mb={1}>
               {notification.title}
             </Text>
-            <Text fontSize="xs" color="#718096" lineHeight="tall">
+            <Text fontSize="xs" color={theme.textSecondary} lineHeight="tall">
               {notification.description}
             </Text>
           </Box>
-          <Button size="xs" variant="ghost" color="#A0AEC0" onClick={() => setNotification(null)}>
+          <Button size="xs" variant="ghost" color={theme.textSecondary} onClick={() => setNotification(null)}>
             ✕
           </Button>
         </Flex>
