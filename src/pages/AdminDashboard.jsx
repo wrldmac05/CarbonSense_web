@@ -115,7 +115,17 @@ export default function AdminDashboard() {
   const [tasks, setTasks] = useState([])
   const [users, setUsers] = useState([])
 
-  // Sort states: { key: string | null, direction: 'asc' | null }
+  // State to track visible emails by profile_id
+  const [revealedEmails, setRevealedEmails] = useState({})
+
+  const toggleEmailVisibility = profileId => {
+    setRevealedEmails(prev => ({
+      ...prev,
+      [profileId]: !prev[profileId]
+    }))
+  }
+
+  // 3-State Sort: { key: string | null, direction: 'asc' | 'desc' | null }
   const [factorSort, setFactorSort] = useState({key: null, direction: null})
   const [taskSort, setTaskSort] = useState({key: null, direction: null})
   const [userSort, setUserSort] = useState({key: null, direction: null})
@@ -159,26 +169,33 @@ export default function AdminDashboard() {
     co2_per_unit: ''
   })
 
-  // Task States
+  // Task States (Matching database columns)
   const [selectedTask, setSelectedTask] = useState(null)
-  const [newTaskDesc, setNewTaskDesc] = useState('')
-  const [newTaskCo2, setNewTaskCo2] = useState('')
+  const [editTaskData, setEditTaskData] = useState({
+    tier: 'Bronze',
+    target_lifestyle_tag: 'General',
+    description: '',
+    co2_saved_estimate: '',
+    validation_method: 'vision',
+    vision_criteria: ''
+  })
   const [isSavingTask, setIsSavingTask] = useState(false)
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false)
   const [addTaskData, setAddTaskData] = useState({
     tier: 'Bronze',
     target_lifestyle_tag: 'General',
     description: '',
-    co2_saved_estimate: ''
+    co2_saved_estimate: '',
+    validation_method: 'vision',
+    vision_criteria: ''
   })
 
-  // AI Prescription States
-  const [prescriptions, setPrescriptions] = useState({
-    daily: 'Syncing latest daily telemetry...',
-    weekly: 'Syncing latest weekly telemetry...',
-    monthly: 'Syncing latest monthly telemetry...'
+  // Single Consolidated Weekly Advisory State
+  const [advisoryData, setAdvisoryData] = useState({
+    text: 'Syncing latest platform intelligence audit...',
+    updatedAt: null
   })
-  const [activeInsightTab, setActiveInsightTab] = useState('daily')
+  const [isGeneratingAudit, setIsGeneratingAudit] = useState(false)
 
   // CALENDAR & TIMETRAVEL STATE
   const [selectedDate, setSelectedDate] = useState(new Date())
@@ -198,7 +215,7 @@ export default function AdminDashboard() {
     locations: {}
   })
 
-  const PIE_COLORS = ['#38A169', '#3182CE', '#D69E2E', '#E53E3E', '#805AD5']
+  const PIE_COLORS = ['#38A169', '#3182CE', '#D69E2E', '#E53E3E', '#805AD5', '#DD6B20']
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -221,7 +238,7 @@ export default function AdminDashboard() {
 
     fetchInitialData()
     fetchAllRawData()
-    fetchPrescriptions()
+    fetchLatestAdvisory()
   }, [navigate])
 
   useEffect(() => {
@@ -339,19 +356,62 @@ export default function AdminDashboard() {
     })
   }
 
-  const fetchPrescriptions = async () => {
+  const fetchLatestAdvisory = async () => {
     try {
-      const {data, error} = await supabase.from('system_prescriptions').select('*').order('created_at', {ascending: false}).limit(20)
+      const {data, error} = await supabase.from('system_prescriptions').select('*').order('created_at', {ascending: false}).limit(1)
+
       if (error) throw error
-      if (data) {
-        setPrescriptions({
-          daily: data.find(p => p.period_type === 'daily')?.prescription_text || 'Daily environmental uplink pending. Awaiting midnight system cycle.',
-          weekly: data.find(p => p.period_type === 'weekly')?.prescription_text || 'Weekly environmental uplink pending. Awaiting weekend system cycle.',
-          monthly: data.find(p => p.period_type === 'monthly')?.prescription_text || 'Monthly environmental uplink pending. Awaiting end-of-month system cycle.'
+
+      if (data && data.length > 0) {
+        setAdvisoryData({
+          text: data[0].prescription_text,
+          updatedAt: new Date(data[0].created_at).toLocaleString([], {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        })
+      } else {
+        setAdvisoryData({
+          text: 'No strategic analysis recorded yet. Click "Run Live Audit" to initialize the advisory model.',
+          updatedAt: null
         })
       }
     } catch (error) {
-      console.error('Failed to load automated prescriptions:', error.message)
+      console.error('Failed to load strategic advisory:', error.message)
+    }
+  }
+
+  // Trigger Live Audit safely with debounce guarding
+  const handleTriggerLiveAudit = async () => {
+    if (isGeneratingAudit) return // Prevent multiple rapid clicks
+
+    setIsGeneratingAudit(true)
+    try {
+      const {data, error} = await supabase.functions.invoke('gemini-admin-insights', {
+        body: {period_type: 'weekly'}
+      })
+
+      if (error) throw error
+
+      if (data?.advisory) {
+        setAdvisoryData({
+          text: data.advisory,
+          updatedAt: new Date().toLocaleString([], {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        })
+        showNotification('Advisory Calibrated', 'The platform architecture audit has been updated successfully.', 'success')
+      }
+    } catch (error) {
+      console.error('Error invoking live audit:', error)
+      showNotification('Audit Error', error.message || 'Failed to dispatch telemetry audit.', 'error')
+    } finally {
+      setIsGeneratingAudit(false)
     }
   }
 
@@ -394,11 +454,9 @@ export default function AdminDashboard() {
     rows.push(['Average Community Target (kg)', overviewStats.avgTarget])
     rows.push([])
 
-    rows.push(['--- AI EXECUTIVE PRESCRIPTIONS ---'])
-    rows.push(['Period', 'Briefing'])
-    Object.entries(prescriptions).forEach(([period, text]) => {
-      rows.push([period.toUpperCase(), escapeCsv(text)])
-    })
+    rows.push(['--- AI EXECUTIVE STRATEGIC AUDIT ---'])
+    rows.push(['Last Calibrated', advisoryData.updatedAt || 'N/A'])
+    rows.push(['Audit Body', escapeCsv(advisoryData.text)])
     rows.push([])
 
     rows.push(['--- 6-MONTH PLATFORM TRENDS ---'])
@@ -434,9 +492,9 @@ export default function AdminDashboard() {
     rows.push([])
 
     rows.push(['--- GAMIFIED TASK DICTIONARY ---'])
-    rows.push(['Tier', 'Target Tag', 'Description', 'CO2 Saved Estimate (kg)'])
+    rows.push(['Tier', 'Target Tag', 'Description', 'CO2 Saved Estimate (kg)', 'Validation Method', 'Vision Criteria'])
     ;(exportTasks || []).forEach(t => {
-      rows.push([t.tier, t.target_lifestyle_tag, escapeCsv(t.description), t.co2_saved_estimate])
+      rows.push([t.tier, t.target_lifestyle_tag, escapeCsv(t.description), t.co2_saved_estimate, t.validation_method || '', escapeCsv(t.vision_criteria || '')])
     })
     rows.push([])
 
@@ -444,7 +502,8 @@ export default function AdminDashboard() {
     rows.push(['Identity', 'Role', 'Status', 'Total Logs', 'Last Active', 'Target Limit (kg)'])
     exportUsers.forEach(u => {
       const isStaff = u.role === 'admin'
-      const displayName = isStaff ? 'Authorized Staff (Secured)' : `User #${u.profile_id.substring(0, 6).toUpperCase()}`
+      const idPrefix = (u.user_id || u.profile_id || '').substring(0, 8)
+      const displayName = isStaff ? 'Authorized Staff (Secured)' : idPrefix ? `ID: ${idPrefix}` : 'Unknown User'
       rows.push([escapeCsv(displayName), u.role, u.status, u.total_logs, escapeCsv(u.last_active), isStaff ? 'N/A' : u.monthly_co2_target])
     })
 
@@ -500,13 +559,16 @@ export default function AdminDashboard() {
     }
   }
 
-  // Toggle sorting: asc -> null (reset to original)
+  // 3-Stage Toggle Sorting: asc -> desc -> null
   const handleToggleSort = (setSortState, key) => {
     setSortState(prev => {
-      if (prev.key === key && prev.direction === 'asc') {
-        return {key: null, direction: null}
+      if (prev.key !== key) {
+        return {key, direction: 'asc'}
       }
-      return {key, direction: 'asc'}
+      if (prev.direction === 'asc') {
+        return {key, direction: 'desc'}
+      }
+      return {key: null, direction: null}
     })
   }
 
@@ -650,7 +712,9 @@ export default function AdminDashboard() {
         tier: addTaskData.tier,
         target_lifestyle_tag: addTaskData.target_lifestyle_tag,
         description: addTaskData.description,
-        co2_saved_estimate: parseFloat(addTaskData.co2_saved_estimate)
+        co2_saved_estimate: parseFloat(addTaskData.co2_saved_estimate),
+        validation_method: addTaskData.validation_method || 'vision',
+        vision_criteria: addTaskData.validation_method === 'vision' ? addTaskData.vision_criteria : null
       }
       const {data, error} = await supabase.from('tasks_dictionary').insert([newTask]).select()
       if (error) throw error
@@ -660,35 +724,41 @@ export default function AdminDashboard() {
         tier: 'Bronze',
         target_lifestyle_tag: 'General',
         description: '',
-        co2_saved_estimate: ''
+        co2_saved_estimate: '',
+        validation_method: 'vision',
+        vision_criteria: ''
       })
       showNotification('Directive Added', 'New eco-directive injected into the gamified dictionary.', 'success')
     } catch (error) {
-      showNotification('System Error', 'Unable to inject new eco-directive into the gamified dictionary.', 'error')
+      showNotification('System Error', error.message || 'Unable to inject new eco-directive into the gamified dictionary.', 'error')
     } finally {
       setIsSavingTask(false)
     }
   }
 
   const handleUpdateTask = async () => {
-    if (!selectedTask || !newTaskDesc || !newTaskCo2) return
+    if (!selectedTask || !editTaskData.description || !editTaskData.co2_saved_estimate) return
     setIsSavingTask(true)
     try {
-      const {error} = await supabase
-        .from('tasks_dictionary')
-        .update({
-          description: newTaskDesc,
-          co2_saved_estimate: parseFloat(newTaskCo2)
-        })
-        .eq('task_id', selectedTask.task_id)
+      const updatedFields = {
+        tier: editTaskData.tier,
+        target_lifestyle_tag: editTaskData.target_lifestyle_tag,
+        description: editTaskData.description,
+        co2_saved_estimate: parseFloat(editTaskData.co2_saved_estimate),
+        validation_method: editTaskData.validation_method || 'vision',
+        vision_criteria: editTaskData.validation_method === 'vision' ? editTaskData.vision_criteria : null
+      }
+
+      const {error} = await supabase.from('tasks_dictionary').update(updatedFields).eq('task_id', selectedTask.task_id)
+
       if (error) throw error
+
       setTasks(
         tasks.map(t =>
           t.task_id === selectedTask.task_id
             ? {
                 ...t,
-                description: newTaskDesc,
-                co2_saved_estimate: parseFloat(newTaskCo2)
+                ...updatedFields
               }
             : t
         )
@@ -696,7 +766,7 @@ export default function AdminDashboard() {
       setSelectedTask(null)
       showNotification('Directive Recalibrated', 'The eco-directive has been successfully updated.', 'success')
     } catch (error) {
-      showNotification('System Error', 'Failed to recalibrate the eco-directive.', 'error')
+      showNotification('System Error', error.message || 'Failed to recalibrate the eco-directive.', 'error')
     } finally {
       setIsSavingTask(false)
     }
@@ -805,11 +875,14 @@ export default function AdminDashboard() {
           {label}
         </Text>
         <Text fontSize="2xs" color={isActive ? (isDarkMode ? '#48BB78' : '#1C4532') : theme.border}>
-          {isActive ? '▲' : '⇅'}
+          {isActive ? (currentSort.direction === 'asc' ? '▲' : '▼') : '⇅'}
         </Text>
       </Flex>
     )
   }
+
+  // Calculate sector totals and percentages for the refined Sector Breakdown card
+  const totalSectorCo2 = overviewStats.categoryData.reduce((acc, curr) => acc + (curr.value || 0), 0)
 
   return (
     <Flex minH="100vh" bg={theme.bg} direction={{base: 'column', md: 'row'}} position="relative" overflow="hidden" transition="background-color 0.3s ease">
@@ -838,7 +911,6 @@ export default function AdminDashboard() {
         </Flex>
 
         <Flex align="center" gap={1}>
-          {/* Night Mode Toggle Mobile with Clean Vector Icon */}
           <Button size="xs" variant="ghost" borderRadius="full" p={2} color={isDarkMode ? '#F59E0B' : '#4A5568'} _hover={{bg: theme.surfaceSubtle}} onClick={toggleTheme} title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
             <ThemeToggleIcon isDark={isDarkMode} size={16} />
           </Button>
@@ -850,7 +922,6 @@ export default function AdminDashboard() {
 
       {/* FLOATING MINI-SIDEBAR (DESKTOP) */}
       <Flex direction="column" align="center" w="100px" py={8} h="100vh" display={{base: 'none', md: 'flex'}} zIndex={2}>
-        {/* Clickable Admin Logo (Refreshes Page) */}
         <Flex
           direction="column"
           align="center"
@@ -868,7 +939,6 @@ export default function AdminDashboard() {
           </Text>
         </Flex>
 
-        {/* Night Mode Toggle Desktop with Clean Vector Icon */}
         <Flex
           w="44px"
           h="44px"
@@ -923,7 +993,7 @@ export default function AdminDashboard() {
             icon={
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10" />
-                <circle cx="12" cy="12" r="6" />
+                <circle cx="12" cy="6" />
                 <circle cx="12" cy="2" />
               </svg>
             }
@@ -1231,72 +1301,195 @@ export default function AdminDashboard() {
               </Box>
             </Grid>
 
-            {/* AI Briefing and Pie Breakdown */}
-            <Grid templateColumns={{base: '1fr', xl: '1fr 1.5fr'}} gap={{base: 6, md: 8}} mb={8} animation={`${slideUp} 0.6s ease-out 0.3s both`}>
-              <Box p={{base: 5, md: 8}} bg={theme.surface} borderRadius="3xl" border={`1px solid ${theme.border}`} boxShadow="sm">
-                <Heading size="sm" color={theme.textPrimary} mb={4}>
-                  Sector Breakdown
-                </Heading>
+            {/* AI Strategic Advisory & Refined Sector Breakdown */}
+            <Grid templateColumns={{base: '1fr', xl: '1fr 1.6fr'}} gap={{base: 6, md: 8}} mb={8} animation={`${slideUp} 0.6s ease-out 0.3s both`}>
+              {/* REFINED FULL-HEIGHT SECTOR BREAKDOWN CARD */}
+              <Flex direction="column" justify="space-between" p={{base: 5, md: 7}} bg={theme.surface} borderRadius="3xl" border={`1px solid ${theme.border}`} boxShadow="sm" minW={0} h="100%">
+                {/* Header */}
+                <Flex justify="space-between" align="center" mb={2}>
+                  <Box>
+                    <Heading size="sm" color={theme.textPrimary}>
+                      Sector Breakdown
+                    </Heading>
+                    <Text color={theme.textSecondary} fontSize="2xs" mt={0.5} fontWeight="medium">
+                      Proportional emission distribution across categories
+                    </Text>
+                  </Box>
+                  <Badge variant="subtle" colorScheme="green" borderRadius="full" px={3} py={1} fontSize="xs" fontWeight="bold">
+                    {totalSectorCo2.toFixed(1)} kg Total
+                  </Badge>
+                </Flex>
+
                 {overviewStats.categoryData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={180}>
-                    <PieChart>
-                      <Pie isAnimationActive={true} data={overviewStats.categoryData} cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={5} dataKey="value" animationDuration={1000} animationEasing="ease-out">
-                        {overviewStats.categoryData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip contentStyle={{borderRadius: '8px', border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textPrimary, boxShadow: '0 4px 6px rgba(0,0,0,0.1)'}} />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  <Flex direction="column" justify="space-between" flex="1" gap={4} mt={2}>
+                    {/* Donut Chart with Centered Total Indicator */}
+                    <Box w="100%" h="230px" position="relative">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie isAnimationActive={true} data={overviewStats.categoryData} cx="50%" cy="50%" innerRadius={65} outerRadius={95} paddingAngle={4} dataKey="value" animationDuration={900} animationEasing="ease-out">
+                            {overviewStats.categoryData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            formatter={(value, name) => [`${value} kg CO₂e`, name]}
+                            contentStyle={{
+                              borderRadius: '12px',
+                              border: `1px solid ${theme.border}`,
+                              background: theme.surface,
+                              color: theme.textPrimary,
+                              fontSize: '12px',
+                              boxShadow: '0 8px 20px rgba(0,0,0,0.2)'
+                            }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+
+                      {/* Center Overlay Text */}
+                      <Flex position="absolute" top="50%" left="50%" transform="translate(-50%, -50%)" direction="column" align="center" justify="center" pointerEvents="none">
+                        <Text fontSize="2xs" color={theme.textSecondary} fontWeight="bold" textTransform="uppercase" letterSpacing="wider">
+                          Dominant
+                        </Text>
+                        <Text fontSize="sm" fontWeight="black" color={theme.textPrimary}>
+                          {overviewStats.categoryData[0]?.name || 'N/A'}
+                        </Text>
+                      </Flex>
+                    </Box>
+
+                    {/* Rich Breakdown Metric Bars (Fills remaining height) */}
+                    <VStack align="stretch" spacing={2.5}>
+                      {overviewStats.categoryData.map((cat, idx) => {
+                        const pct = totalSectorCo2 > 0 ? Math.round((cat.value / totalSectorCo2) * 100) : 0
+                        const color = PIE_COLORS[idx % PIE_COLORS.length]
+
+                        return (
+                          <Box key={cat.name} p={2.5} bg={theme.surfaceSubtle} borderRadius="xl" border={`1px solid ${theme.borderSubtle}`}>
+                            <Flex justify="space-between" align="center" mb={1.5}>
+                              <Flex align="center" gap={2}>
+                                <Box w="9px" h="9px" borderRadius="full" bg={color} />
+                                <Text color={theme.textPrimary} fontWeight="bold" fontSize="xs">
+                                  {cat.name}
+                                </Text>
+                              </Flex>
+                              <Flex align="center" gap={2}>
+                                <Text color={theme.textSecondary} fontSize="xs" fontWeight="semibold">
+                                  {parseFloat(cat.value).toFixed(1)} kg
+                                </Text>
+                                <Badge bg={isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'} color={theme.textPrimary} fontSize="2xs" px={1.5} py={0.2} borderRadius="md">
+                                  {pct}%
+                                </Badge>
+                              </Flex>
+                            </Flex>
+
+                            {/* Mini visual fill bar */}
+                            <Box w="100%" h="4px" bg={theme.border} borderRadius="full" overflow="hidden">
+                              <Box h="100%" w={`${pct}%`} bg={color} borderRadius="full" transition="width 0.8s ease" />
+                            </Box>
+                          </Box>
+                        )
+                      })}
+                    </VStack>
+                  </Flex>
                 ) : (
-                  <Center h="180px">
-                    <Text color={theme.textSecondary} fontSize="sm">
-                      No sector data.
+                  <Center h="300px">
+                    <Text color={theme.textSecondary} fontSize="xs">
+                      No sector telemetry recorded.
                     </Text>
                   </Center>
                 )}
-              </Box>
+              </Flex>
 
-              <Flex direction="column" bg={theme.surface} borderRadius="3xl" p={{base: 5, md: 8}} border={`1px solid ${theme.border}`} boxShadow="sm" position="relative" overflow="hidden">
-                <Flex justify="space-between" align={{base: 'flex-start', sm: 'center'}} direction={{base: 'column', sm: 'row'}} gap={4} mb={6} position="relative" zIndex={1}>
+              {/* CONSOLIDATED WEEKLY STRATEGIC ADVISORY CARD WITH LOADING STATE */}
+              <Flex direction="column" bg={theme.surface} borderRadius="3xl" p={{base: 5, md: 8}} border={`1px solid ${theme.border}`} boxShadow="sm" position="relative" overflow="hidden" minW={0}>
+                {/* Visual loading overlay when Live Audit is firing to prevent multiple rapid queries */}
+                {isGeneratingAudit && (
+                  <Flex
+                    position="absolute"
+                    top={0}
+                    left={0}
+                    w="100%"
+                    h="100%"
+                    bg={isDarkMode ? 'rgba(30, 41, 59, 0.88)' : 'rgba(255, 255, 255, 0.88)'}
+                    backdropFilter="blur(4px)"
+                    zIndex={5}
+                    direction="column"
+                    align="center"
+                    justify="center"
+                    gap={3}
+                  >
+                    <Spinner size="lg" color="#38A169" thickness="3px" speed="0.75s" />
+                    <Text color={theme.textPrimary} fontWeight="bold" fontSize="sm">
+                      Calibrating Telemetry Matrix...
+                    </Text>
+                    <Text color={theme.textSecondary} fontSize="xs">
+                      Synthesizing root-cause bottlenecks and system prescriptions
+                    </Text>
+                  </Flex>
+                )}
+
+                <Flex justify="space-between" align={{base: 'flex-start', sm: 'center'}} direction={{base: 'column', sm: 'row'}} gap={4} mb={5} position="relative" zIndex={1}>
                   <Flex align="center" gap={3}>
-                    <Flex w="40px" h="40px" bg="linear-gradient(135deg, #38A169, #3182CE)" borderRadius="xl" align="center" justify="center" color="white" fontSize="lg" boxShadow="md">
+                    <Flex w="42px" h="42px" bg="linear-gradient(135deg, #38A169, #3182CE)" borderRadius="xl" align="center" justify="center" color="white" fontSize="lg" boxShadow="md">
                       ✨
                     </Flex>
                     <Box>
                       <Heading size="sm" color={theme.textPrimary} letterSpacing="tight">
-                        AI Executive Briefing
+                        Weekly Strategic Advisory
                       </Heading>
                       <Text color={theme.textSecondary} fontSize="2xs" mt={0.5} fontWeight="bold" textTransform="uppercase" letterSpacing="widest">
-                        CarbonSense Intelligence
+                        {advisoryData.updatedAt ? `Last Calibrated: ${advisoryData.updatedAt}` : 'CarbonSense Systems Intelligence'}
                       </Text>
                     </Box>
                   </Flex>
 
-                  <Flex gap={1} bg={theme.surfaceSubtle} p={1} borderRadius="full" border={`1px solid ${theme.border}`}>
-                    {['daily', 'weekly', 'monthly'].map(period => (
-                      <Button
-                        key={period}
-                        size="xs"
-                        borderRadius="full"
-                        px={3}
-                        bg={activeInsightTab === period ? (isDarkMode ? '#334155' : 'white') : 'transparent'}
-                        color={activeInsightTab === period ? theme.textPrimary : theme.textSecondary}
-                        boxShadow={activeInsightTab === period ? 'sm' : 'none'}
-                        onClick={() => setActiveInsightTab(period)}
-                        textTransform="capitalize"
-                        fontWeight="bold"
-                      >
-                        {period}
-                      </Button>
-                    ))}
-                  </Flex>
+                  <Button
+                    size="xs"
+                    borderRadius="full"
+                    px={4}
+                    py={3}
+                    bg={isDarkMode ? '#38A169' : '#1A202C'}
+                    color="white"
+                    fontSize="2xs"
+                    fontWeight="bold"
+                    _hover={{bg: isDarkMode ? '#2F855A' : '#2D3748'}}
+                    isLoading={isGeneratingAudit}
+                    loadingText="Auditing Telemetry..."
+                    isDisabled={isGeneratingAudit}
+                    onClick={handleTriggerLiveAudit}
+                  >
+                    Run Live Audit
+                  </Button>
                 </Flex>
 
-                <Box flex="1" position="relative" zIndex={1} overflowY="auto" maxH="220px" pr={2}>
-                  <Text color={isDarkMode ? '#CBD5E1' : '#2D3748'} fontSize="xs" lineHeight="2" fontWeight="medium" whiteSpace="pre-wrap">
-                    {prescriptions[activeInsightTab]}
-                  </Text>
+                {/* Formatted Structured Advisory Display */}
+                <Box flex="1" position="relative" zIndex={1} overflowY="auto" maxH="380px" pr={2}>
+                  {advisoryData.text ? (
+                    <VStack align="stretch" spacing={3}>
+                      {advisoryData.text.split(/(?=###\s|\n##\s)/g).map((section, idx) => {
+                        const cleanSection = section.trim()
+                        if (!cleanSection) return null
+
+                        const lines = cleanSection.split('\n')
+                        const title = lines[0].replace(/^#+\s*/, '')
+                        const content = lines.slice(1).join('\n').trim()
+
+                        return (
+                          <Box key={idx} p={4} bg={theme.surfaceSubtle} borderRadius="2xl" border={`1px solid ${theme.borderSubtle}`}>
+                            <Heading size="xs" color={isDarkMode ? '#48BB78' : '#1C4532'} mb={2} textTransform="uppercase" letterSpacing="wider">
+                              {title}
+                            </Heading>
+                            <Text color={theme.textPrimary} fontSize="xs" lineHeight="1.8" whiteSpace="pre-wrap">
+                              {content}
+                            </Text>
+                          </Box>
+                        )
+                      })}
+                    </VStack>
+                  ) : (
+                    <Text color={theme.textSecondary} fontSize="xs">
+                      No advisory recorded.
+                    </Text>
+                  )}
                 </Box>
               </Flex>
             </Grid>
@@ -1357,7 +1550,6 @@ export default function AdminDashboard() {
         {/* FACTORS TAB */}
         {activeTab === 'factors' && (
           <Box animation={`${slideUp} 0.5s ease-out both`}>
-            {/* Header */}
             <Flex justify="space-between" align={{base: 'flex-start', sm: 'center'}} direction={{base: 'column', sm: 'row'}} gap={4} mb={6}>
               <Box>
                 <Heading size="md" color={theme.textPrimary} mb={1}>
@@ -1454,14 +1646,14 @@ export default function AdminDashboard() {
                       return matchesSearch && matchesCategory
                     })
 
-                    if (factorSort.key && factorSort.direction === 'asc') {
+                    if (factorSort.key && factorSort.direction) {
                       filtered = [...filtered].sort((a, b) => {
                         const valA = a[factorSort.key]
                         const valB = b[factorSort.key]
-                        if (typeof valA === 'number' || !isNaN(Number(valA))) {
-                          return Number(valA) - Number(valB)
-                        }
-                        return String(valA || '').localeCompare(String(valB || ''))
+                        const isNum = typeof valA === 'number' || !isNaN(Number(valA))
+                        const comparison = isNum ? Number(valA) - Number(valB) : String(valA || '').localeCompare(String(valB || ''))
+
+                        return factorSort.direction === 'asc' ? comparison : -comparison
                       })
                     }
 
@@ -1568,14 +1760,13 @@ export default function AdminDashboard() {
         {/* TASKS TAB */}
         {activeTab === 'tasks' && (
           <Box animation={`${slideUp} 0.5s ease-out both`}>
-            {/* Header */}
             <Flex justify="space-between" align={{base: 'flex-start', sm: 'center'}} direction={{base: 'column', sm: 'row'}} gap={4} mb={6}>
               <Box>
                 <Heading size="md" color={theme.textPrimary} mb={1}>
                   Task Dictionary
                 </Heading>
                 <Text color={theme.textSecondary} fontSize="xs">
-                  Manage the gamification challenges and rewards.
+                  Manage the gamification challenges, verification modes, and reward parameters.
                 </Text>
               </Box>
               <Button
@@ -1596,7 +1787,16 @@ export default function AdminDashboard() {
             {/* Harmonized Search & Tier Filter Controls */}
             <Flex direction={{base: 'column', md: 'row'}} gap={4} mb={6} justify="space-between" align={{base: 'stretch', md: 'center'}}>
               <Box flex="1" bg={theme.surface} p={1.5} borderRadius="2xl" border={`1px solid ${theme.border}`} boxShadow="sm">
-                <Input placeholder="Search task objective or lifestyle tag..." value={taskSearchQuery} onChange={e => setTaskSearchQuery(e.target.value)} bg={theme.inputBg} color={theme.textPrimary} border="none" py={4} fontSize="xs" />
+                <Input
+                  placeholder="Search task objective, lifestyle tag, or validation criteria..."
+                  value={taskSearchQuery}
+                  onChange={e => setTaskSearchQuery(e.target.value)}
+                  bg={theme.inputBg}
+                  color={theme.textPrimary}
+                  border="none"
+                  py={4}
+                  fontSize="xs"
+                />
               </Box>
 
               <Flex gap={1} bg={theme.surface} p={1.5} borderRadius="2xl" border={`1px solid ${theme.border}`} boxShadow="sm" overflowX="auto">
@@ -1637,11 +1837,12 @@ export default function AdminDashboard() {
                   <Spinner color="#38A169" size="lg" />
                 </Center>
               ) : (
-                <Box minW="760px">
-                  <Grid templateColumns="1fr 1.2fr 3fr 1.4fr 1fr" gap={4} p={5} bg={theme.surfaceSubtle} borderBottom={`1px solid ${theme.border}`} alignItems="center">
+                <Box minW="860px">
+                  <Grid templateColumns="0.9fr 1.1fr 2.6fr 1.3fr 1.1fr 1fr" gap={4} p={5} bg={theme.surfaceSubtle} borderBottom={`1px solid ${theme.border}`} alignItems="center">
                     <SortableHeader label="Tier" sortKey="tier" currentSort={taskSort} onSort={key => handleToggleSort(setTaskSort, key)} />
                     <SortableHeader label="Tag" sortKey="target_lifestyle_tag" currentSort={taskSort} onSort={key => handleToggleSort(setTaskSort, key)} />
                     <SortableHeader label="Description" sortKey="description" currentSort={taskSort} onSort={key => handleToggleSort(setTaskSort, key)} />
+                    <SortableHeader label="Validation" sortKey="validation_method" currentSort={taskSort} onSort={key => handleToggleSort(setTaskSort, key)} />
                     <SortableHeader label="CO₂ Saved" sortKey="co2_saved_estimate" currentSort={taskSort} onSort={key => handleToggleSort(setTaskSort, key)} textAlign="right" />
                     <Text fontSize="xs" fontWeight="bold" color={theme.textSecondary} textTransform="uppercase" letterSpacing="wider" textAlign="right">
                       Actions
@@ -1651,19 +1852,23 @@ export default function AdminDashboard() {
                   {(() => {
                     let filtered = tasks.filter(task => {
                       const query = taskSearchQuery.toLowerCase()
-                      const matchesSearch = task.description?.toLowerCase().includes(query) || task.target_lifestyle_tag?.toLowerCase().includes(query)
+                      const matchesSearch =
+                        task.description?.toLowerCase().includes(query) ||
+                        task.target_lifestyle_tag?.toLowerCase().includes(query) ||
+                        task.validation_method?.toLowerCase().includes(query) ||
+                        task.vision_criteria?.toLowerCase().includes(query)
                       const matchesTier = taskTierFilter === 'all' || task.tier?.toLowerCase() === taskTierFilter.toLowerCase()
                       return matchesSearch && matchesTier
                     })
 
-                    if (taskSort.key && taskSort.direction === 'asc') {
+                    if (taskSort.key && taskSort.direction) {
                       filtered = [...filtered].sort((a, b) => {
                         const valA = a[taskSort.key]
                         const valB = b[taskSort.key]
-                        if (typeof valA === 'number' || !isNaN(Number(valA))) {
-                          return Number(valA) - Number(valB)
-                        }
-                        return String(valA || '').localeCompare(String(valB || ''))
+                        const isNum = typeof valA === 'number' || !isNaN(Number(valA))
+                        const comparison = isNum ? Number(valA) - Number(valB) : String(valA || '').localeCompare(String(valB || ''))
+
+                        return taskSort.direction === 'asc' ? comparison : -comparison
                       })
                     }
 
@@ -1684,7 +1889,7 @@ export default function AdminDashboard() {
                     return filtered.map(task => (
                       <Grid
                         key={task.task_id}
-                        templateColumns="1fr 1.2fr 3fr 1.4fr 1fr"
+                        templateColumns="0.9fr 1.1fr 2.6fr 1.3fr 1.1fr 1fr"
                         gap={4}
                         px={5}
                         py={4}
@@ -1701,9 +1906,23 @@ export default function AdminDashboard() {
                         <Text fontSize="xs" color={theme.textSecondary} fontWeight="bold">
                           {task.target_lifestyle_tag}
                         </Text>
-                        <Text fontWeight="bold" color={theme.textPrimary} fontSize="xs">
-                          {task.description}
-                        </Text>
+                        <Box>
+                          <Text fontWeight="bold" color={theme.textPrimary} fontSize="xs">
+                            {task.description}
+                          </Text>
+                          {task.vision_criteria && (
+                            <Text fontSize="2xs" color={isDarkMode ? '#94A3B8' : '#718096'} mt={0.5} noOfLines={1} title={task.vision_criteria}>
+                              Prompt: "{task.vision_criteria}"
+                            </Text>
+                          )}
+                        </Box>
+
+                        <Box>
+                          <Badge variant="subtle" colorScheme={task.validation_method === 'vision' ? 'purple' : 'teal'} fontSize="2xs" px={2} py={0.5} borderRadius="md" textTransform="capitalize">
+                            {task.validation_method === 'vision' ? '📷 Vision' : task.validation_method || 'Manual'}
+                          </Badge>
+                        </Box>
+
                         <Text fontWeight="black" color="#38A169" textAlign="right" fontSize="xs">
                           -{parseFloat(task.co2_saved_estimate).toFixed(1)} kg
                         </Text>
@@ -1718,8 +1937,14 @@ export default function AdminDashboard() {
                             _hover={{bg: theme.surfaceSubtle}}
                             onClick={() => {
                               setSelectedTask(task)
-                              setNewTaskDesc(task.description)
-                              setNewTaskCo2(task.co2_saved_estimate)
+                              setEditTaskData({
+                                tier: task.tier || 'Bronze',
+                                target_lifestyle_tag: task.target_lifestyle_tag || 'General',
+                                description: task.description || '',
+                                co2_saved_estimate: task.co2_saved_estimate || '',
+                                validation_method: task.validation_method || 'vision',
+                                vision_criteria: task.vision_criteria || ''
+                              })
                             }}
                           >
                             Edit
@@ -1735,7 +1960,7 @@ export default function AdminDashboard() {
                               setDeleteTarget({
                                 type: 'task',
                                 id: task.task_id,
-                                name: 'this task'
+                                name: task.description || 'this task'
                               })
                             }
                           >
@@ -1768,7 +1993,7 @@ export default function AdminDashboard() {
             {/* SEARCH BAR & CATEGORY SUB-TABS */}
             <Flex direction={{base: 'column', md: 'row'}} gap={4} mb={6} justify="space-between" align={{base: 'stretch', md: 'center'}}>
               <Box flex="1" bg={theme.surface} p={1.5} borderRadius="2xl" border={`1px solid ${theme.border}`} boxShadow="sm">
-                <Input placeholder="Search user or email..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} bg={theme.inputBg} color={theme.textPrimary} border="none" py={4} fontSize="xs" />
+                <Input placeholder="Search user ID or email..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} bg={theme.inputBg} color={theme.textPrimary} border="none" py={4} fontSize="xs" />
               </Box>
 
               <Flex gap={1} bg={theme.surface} p={1.5} borderRadius="2xl" border={`1px solid ${theme.border}`} boxShadow="sm" overflowX="auto">
@@ -1819,9 +2044,11 @@ export default function AdminDashboard() {
                   {(() => {
                     let filtered = users.filter(user => {
                       const isStaff = user.role === 'admin'
-                      const displayName = isStaff ? 'Authorized Staff (Secured)' : `User #${user.profile_id.substring(0, 6).toUpperCase()}`
-                      const accountEmail = isStaff ? '' : user.email || ''
+                      const idPrefix = (user.user_id || user.profile_id || '').substring(0, 8)
+                      const displayName = isStaff ? 'Authorized Staff (Secured)' : idPrefix
+                      const accountEmail = user.email || ''
                       const cleanQuery = searchQuery.toLowerCase()
+
                       const matchesSearch = displayName.toLowerCase().includes(cleanQuery) || accountEmail.toLowerCase().includes(cleanQuery)
 
                       let matchesTab = true
@@ -1832,20 +2059,21 @@ export default function AdminDashboard() {
                       return matchesSearch && matchesTab
                     })
 
-                    if (userSort.key && userSort.direction === 'asc') {
+                    if (userSort.key && userSort.direction) {
                       filtered = [...filtered].sort((a, b) => {
                         const valA = a[userSort.key]
                         const valB = b[userSort.key]
-                        if (typeof valA === 'number' || (!isNaN(Number(valA)) && valA !== '')) {
-                          return Number(valA) - Number(valB)
-                        }
-                        return String(valA || '').localeCompare(String(valB || ''))
+                        const isNum = typeof valA === 'number' || (!isNaN(Number(valA)) && valA !== '')
+                        const comparison = isNum ? Number(valA) - Number(valB) : String(valA || '').localeCompare(String(valB || ''))
+
+                        return userSort.direction === 'asc' ? comparison : -comparison
                       })
                     }
 
                     return filtered.map(user => {
                       const isStaff = user.role === 'admin'
-                      const displayName = isStaff ? 'Authorized Staff (Secured)' : `User #${user.profile_id.substring(0, 6).toUpperCase()}`
+                      const idPrefix = (user.user_id || user.profile_id || '').substring(0, 8)
+                      const isEmailShown = revealedEmails[user.profile_id]
 
                       return (
                         <Grid key={user.profile_id} templateColumns="2fr 0.8fr 1fr 1fr 1.5fr 1fr 1fr" gap={4} p={5} borderBottom={`1px solid ${theme.borderSubtle}`} alignItems="center">
@@ -1868,12 +2096,45 @@ export default function AdminDashboard() {
                             >
                               {isStaff ? '🛡️' : !user.avatar_url && '👤'}
                             </Flex>
+
                             <Box>
-                              <Text fontWeight="bold" color={theme.textPrimary} fontSize="xs">
-                                {displayName}
-                              </Text>
+                              {isStaff ? (
+                                <Text fontWeight="bold" color={theme.textPrimary} fontSize="xs">
+                                  Authorized Staff (Secured)
+                                </Text>
+                              ) : (
+                                <Box>
+                                  <Flex align="center" gap={2}>
+                                    <Text fontWeight="bold" color={theme.textPrimary} fontSize="xs" fontFamily="mono">
+                                      {idPrefix}
+                                    </Text>
+                                    {user.email && (
+                                      <Button
+                                        size="2xs"
+                                        variant="ghost"
+                                        px={1}
+                                        h="18px"
+                                        fontSize="2xs"
+                                        color={theme.textSecondary}
+                                        _hover={{color: theme.textPrimary, bg: theme.surfaceSubtle}}
+                                        onClick={() => toggleEmailVisibility(user.profile_id)}
+                                        title={isEmailShown ? 'Hide Email' : 'Show Email'}
+                                      >
+                                        {isEmailShown ? '🙈 Hide' : '👁️ Show Email'}
+                                      </Button>
+                                    )}
+                                  </Flex>
+
+                                  {isEmailShown && user.email && (
+                                    <Text fontSize="2xs" color="#3182CE" fontWeight="medium" mt={0.5}>
+                                      {user.email}
+                                    </Text>
+                                  )}
+                                </Box>
+                              )}
+
                               <Text fontSize="2xs" color={isDarkMode ? '#64748B' : '#A0AEC0'} textTransform="uppercase" letterSpacing="wider">
-                                {isStaff ? 'Confidential' : 'Anonymized'}
+                                {isStaff ? 'Confidential' : '8-Char User ID'}
                               </Text>
                             </Box>
                           </Flex>
@@ -1960,7 +2221,7 @@ export default function AdminDashboard() {
                                     cursor="pointer"
                                     p={2}
                                     borderRadius="md"
-                                    onClick={() => handleToggleArchive(user.profile_id, user.is_archived, displayName)}
+                                    onClick={() => handleToggleArchive(user.profile_id, user.is_archived, `ID: ${idPrefix}`)}
                                   >
                                     {user.is_archived ? '🔄 Restore Account' : '📦 Archive Account'}
                                   </Menu.Item>
@@ -1972,7 +2233,7 @@ export default function AdminDashboard() {
                                     cursor="pointer"
                                     p={2}
                                     borderRadius="md"
-                                    onClick={() => handleToggleBan(user.profile_id, user.is_banned, displayName)}
+                                    onClick={() => handleToggleBan(user.profile_id, user.is_banned, `ID: ${idPrefix}`)}
                                   >
                                     {user.is_banned ? '🔓 Unban User' : '🚫 Ban User'}
                                   </Menu.Item>
@@ -2049,9 +2310,10 @@ export default function AdminDashboard() {
         </Flex>
       )}
 
+      {/* MODIFY TASK MODAL */}
       {selectedTask && (
         <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.6)" zIndex={9999} justify="flex-end" onClick={() => setSelectedTask(null)}>
-          <Flex direction="column" bg={theme.surface} w={{base: '100%', md: '450px'}} h="100vh" boxShadow="-10px 0 40px rgba(0,0,0,0.2)" borderLeft={`1px solid ${theme.border}`} onClick={e => e.stopPropagation()}>
+          <Flex direction="column" bg={theme.surface} w={{base: '100%', md: '480px'}} h="100vh" boxShadow="-10px 0 40px rgba(0,0,0,0.2)" borderLeft={`1px solid ${theme.border}`} onClick={e => e.stopPropagation()}>
             <Flex justify="space-between" align="center" p={{base: 5, md: 8}} borderBottom={`1px solid ${theme.border}`}>
               <Box>
                 <Text fontSize="xs" color="#3182CE" fontWeight="bold" textTransform="uppercase" letterSpacing="wider" mb={1}>
@@ -2067,19 +2329,161 @@ export default function AdminDashboard() {
             </Flex>
 
             <Box flex="1" overflowY="auto" p={{base: 5, md: 8}}>
-              <VStack spacing={8} align="stretch">
-                <Box>
-                  <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color={theme.textSecondary} mb={4}>
-                    Task Objective Description
-                  </Text>
-                  <Textarea variant="flushed" value={newTaskDesc} onChange={e => setNewTaskDesc(e.target.value)} color={theme.textPrimary} rows={3} resize="none" fontSize="md" fontWeight="medium" focusBorderColor="#3182CE" />
-                </Box>
+              <VStack spacing={6} align="stretch">
+                <Flex gap={4}>
+                  <Box flex="1">
+                    <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color={theme.textSecondary} mb={2}>
+                      Reward Tier
+                    </Text>
+                    <select
+                      value={editTaskData.tier}
+                      onChange={e => setEditTaskData({...editTaskData, tier: e.target.value})}
+                      style={{
+                        width: '100%',
+                        padding: '10px 0',
+                        border: 'none',
+                        borderBottom: `1px solid ${theme.border}`,
+                        outline: 'none',
+                        color: theme.textPrimary,
+                        fontSize: '15px',
+                        fontWeight: 'bold',
+                        background: 'transparent'
+                      }}
+                    >
+                      <option value="Bronze" style={{background: theme.surface}}>
+                        Bronze
+                      </option>
+                      <option value="Silver" style={{background: theme.surface}}>
+                        Silver
+                      </option>
+                      <option value="Gold" style={{background: theme.surface}}>
+                        Gold
+                      </option>
+                    </select>
+                  </Box>
+
+                  <Box flex="1">
+                    <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color={theme.textSecondary} mb={2}>
+                      Lifestyle Tag
+                    </Text>
+                    <select
+                      value={editTaskData.target_lifestyle_tag}
+                      onChange={e => setEditTaskData({...editTaskData, target_lifestyle_tag: e.target.value})}
+                      style={{
+                        width: '100%',
+                        padding: '10px 0',
+                        border: 'none',
+                        borderBottom: `1px solid ${theme.border}`,
+                        outline: 'none',
+                        color: theme.textPrimary,
+                        fontSize: '15px',
+                        fontWeight: 'bold',
+                        background: 'transparent'
+                      }}
+                    >
+                      <option value="General" style={{background: theme.surface}}>
+                        General
+                      </option>
+                      <option value="Commute" style={{background: theme.surface}}>
+                        Commute
+                      </option>
+                      <option value="Diet" style={{background: theme.surface}}>
+                        Diet
+                      </option>
+                      <option value="Energy" style={{background: theme.surface}}>
+                        Energy
+                      </option>
+                    </select>
+                  </Box>
+                </Flex>
+
                 <Box>
                   <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color={theme.textSecondary} mb={2}>
-                    CO₂ Saved Estimate (kg)
+                    Task Description
                   </Text>
-                  <Input variant="flushed" type="number" step="0.1" value={newTaskCo2} onChange={e => setNewTaskCo2(e.target.value)} size="lg" fontSize="2xl" fontWeight="black" color={theme.textPrimary} focusBorderColor="#3182CE" />
+                  <Textarea
+                    variant="flushed"
+                    value={editTaskData.description}
+                    onChange={e => setEditTaskData({...editTaskData, description: e.target.value})}
+                    color={theme.textPrimary}
+                    rows={3}
+                    resize="none"
+                    fontSize="sm"
+                    fontWeight="medium"
+                    focusBorderColor="#3182CE"
+                  />
                 </Box>
+
+                <Box>
+                  <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color={theme.textSecondary} mb={2}>
+                    Carbon Savings (kg CO₂e)
+                  </Text>
+                  <Input
+                    variant="flushed"
+                    type="number"
+                    step="0.1"
+                    value={editTaskData.co2_saved_estimate}
+                    onChange={e => setEditTaskData({...editTaskData, co2_saved_estimate: e.target.value})}
+                    size="lg"
+                    fontSize="xl"
+                    fontWeight="black"
+                    color={theme.textPrimary}
+                    focusBorderColor="#3182CE"
+                  />
+                </Box>
+
+                <Box>
+                  <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color={theme.textSecondary} mb={2}>
+                    Validation Method
+                  </Text>
+                  <select
+                    value={editTaskData.validation_method}
+                    onChange={e => setEditTaskData({...editTaskData, validation_method: e.target.value})}
+                    style={{
+                      width: '100%',
+                      padding: '10px 0',
+                      border: 'none',
+                      borderBottom: `1px solid ${theme.border}`,
+                      outline: 'none',
+                      color: theme.textPrimary,
+                      fontSize: '15px',
+                      fontWeight: 'bold',
+                      background: 'transparent'
+                    }}
+                  >
+                    <option value="vision" style={{background: theme.surface}}>
+                      vision (AI Camera Check)
+                    </option>
+                    <option value="manual" style={{background: theme.surface}}>
+                      manual (Self Log)
+                    </option>
+                  </select>
+                </Box>
+
+                {editTaskData.validation_method === 'vision' && (
+                  <Box>
+                    <Flex justify="space-between" align="center" mb={1}>
+                      <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color={theme.textSecondary}>
+                        Vision Verification Prompt (vision_criteria)
+                      </Text>
+                      <Badge colorScheme="purple" fontSize="2xs">
+                        AI Vision
+                      </Badge>
+                    </Flex>
+                    <Textarea
+                      variant="flushed"
+                      placeholder='e.g. "A photo of hanged clothes"'
+                      value={editTaskData.vision_criteria || ''}
+                      onChange={e => setEditTaskData({...editTaskData, vision_criteria: e.target.value})}
+                      color={theme.textPrimary}
+                      rows={3}
+                      resize="none"
+                      fontSize="sm"
+                      fontWeight="medium"
+                      focusBorderColor="#805AD5"
+                    />
+                  </Box>
+                )}
               </VStack>
             </Box>
 
@@ -2247,7 +2651,7 @@ export default function AdminDashboard() {
       {/* CREATE TASK MODAL */}
       {isAddTaskOpen && (
         <Flex position="fixed" top={0} left={0} w="100vw" h="100vh" bg="rgba(15, 23, 42, 0.6)" zIndex={9999} justify="flex-end" onClick={() => setIsAddTaskOpen(false)}>
-          <Flex direction="column" bg={theme.surface} w={{base: '100%', md: '450px'}} h="100vh" boxShadow="-10px 0 40px rgba(0,0,0,0.2)" borderLeft={`1px solid ${theme.border}`} onClick={e => e.stopPropagation()}>
+          <Flex direction="column" bg={theme.surface} w={{base: '100%', md: '480px'}} h="100vh" boxShadow="-10px 0 40px rgba(0,0,0,0.2)" borderLeft={`1px solid ${theme.border}`} onClick={e => e.stopPropagation()}>
             <Flex justify="space-between" align="center" p={{base: 5, md: 8}} borderBottom={`1px solid ${theme.border}`}>
               <Box>
                 <Text fontSize="xs" color="#D69E2E" fontWeight="bold" textTransform="uppercase" letterSpacing="wider" mb={1}>
@@ -2263,8 +2667,8 @@ export default function AdminDashboard() {
             </Flex>
 
             <Box flex="1" overflowY="auto" p={{base: 5, md: 8}}>
-              <VStack spacing={8} align="stretch">
-                <Flex gap={6}>
+              <VStack spacing={6} align="stretch">
+                <Flex gap={4}>
                   <Box flex="1">
                     <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color={theme.textSecondary} mb={2}>
                       Reward Tier
@@ -2274,12 +2678,12 @@ export default function AdminDashboard() {
                       onChange={e => setAddTaskData({...addTaskData, tier: e.target.value})}
                       style={{
                         width: '100%',
-                        padding: '12px 0',
+                        padding: '10px 0',
                         border: 'none',
                         borderBottom: `1px solid ${theme.border}`,
                         outline: 'none',
                         color: theme.textPrimary,
-                        fontSize: '16px',
+                        fontSize: '15px',
                         fontWeight: 'bold',
                         background: 'transparent'
                       }}
@@ -2295,6 +2699,7 @@ export default function AdminDashboard() {
                       </option>
                     </select>
                   </Box>
+
                   <Box flex="1">
                     <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color={theme.textSecondary} mb={2}>
                       Lifestyle Tag
@@ -2304,12 +2709,12 @@ export default function AdminDashboard() {
                       onChange={e => setAddTaskData({...addTaskData, target_lifestyle_tag: e.target.value})}
                       style={{
                         width: '100%',
-                        padding: '12px 0',
+                        padding: '10px 0',
                         border: 'none',
                         borderBottom: `1px solid ${theme.border}`,
                         outline: 'none',
                         color: theme.textPrimary,
-                        fontSize: '16px',
+                        fontSize: '15px',
                         fontWeight: 'bold',
                         background: 'transparent'
                       }}
@@ -2329,40 +2734,95 @@ export default function AdminDashboard() {
                     </select>
                   </Box>
                 </Flex>
+
                 <Box>
-                  <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color={theme.textSecondary} mb={4}>
+                  <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color={theme.textSecondary} mb={2}>
                     Task Description
                   </Text>
                   <Textarea
                     variant="flushed"
-                    placeholder="Describe the eco-challenge..."
+                    placeholder="e.g. Air-dry your laundry instead of using a machine dryer."
                     value={addTaskData.description}
                     onChange={e => setAddTaskData({...addTaskData, description: e.target.value})}
                     color={theme.textPrimary}
                     rows={3}
                     resize="none"
-                    fontSize="md"
+                    fontSize="sm"
                     fontWeight="medium"
                     focusBorderColor="#D69E2E"
                   />
                 </Box>
+
                 <Box>
                   <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color={theme.textSecondary} mb={2}>
-                    Carbon Savings Estimate
+                    Carbon Savings (kg CO₂e)
                   </Text>
                   <Input
                     variant="flushed"
                     type="number"
                     step="0.1"
-                    placeholder="e.g. 2.5 kg"
+                    placeholder="e.g. 2.5"
                     value={addTaskData.co2_saved_estimate}
                     onChange={e => setAddTaskData({...addTaskData, co2_saved_estimate: e.target.value})}
-                    fontSize="2xl"
+                    fontSize="xl"
                     fontWeight="black"
                     color={theme.textPrimary}
                     focusBorderColor="#D69E2E"
                   />
                 </Box>
+
+                <Box>
+                  <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color={theme.textSecondary} mb={2}>
+                    Validation Method
+                  </Text>
+                  <select
+                    value={addTaskData.validation_method}
+                    onChange={e => setAddTaskData({...addTaskData, validation_method: e.target.value})}
+                    style={{
+                      width: '100%',
+                      padding: '10px 0',
+                      border: 'none',
+                      borderBottom: `1px solid ${theme.border}`,
+                      outline: 'none',
+                      color: theme.textPrimary,
+                      fontSize: '15px',
+                      fontWeight: 'bold',
+                      background: 'transparent'
+                    }}
+                  >
+                    <option value="vision" style={{background: theme.surface}}>
+                      vision (AI Camera Check)
+                    </option>
+                    <option value="manual" style={{background: theme.surface}}>
+                      manual (Self Log)
+                    </option>
+                  </select>
+                </Box>
+
+                {addTaskData.validation_method === 'vision' && (
+                  <Box>
+                    <Flex justify="space-between" align="center" mb={1}>
+                      <Text fontWeight="bold" fontSize="xs" textTransform="uppercase" color={theme.textSecondary}>
+                        Vision Verification Prompt (vision_criteria)
+                      </Text>
+                      <Badge colorScheme="purple" fontSize="2xs">
+                        AI Vision
+                      </Badge>
+                    </Flex>
+                    <Textarea
+                      variant="flushed"
+                      placeholder='e.g. "A photo of hanged clothes"'
+                      value={addTaskData.vision_criteria}
+                      onChange={e => setAddTaskData({...addTaskData, vision_criteria: e.target.value})}
+                      color={theme.textPrimary}
+                      rows={3}
+                      resize="none"
+                      fontSize="sm"
+                      fontWeight="medium"
+                      focusBorderColor="#805AD5"
+                    />
+                  </Box>
+                )}
               </VStack>
             </Box>
 
